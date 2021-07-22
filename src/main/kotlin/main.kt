@@ -1,10 +1,9 @@
-import com.mysql.cj.jdbc.Driver
-import java.sql.*
-import java.util.*
 import kotlinx.coroutines.*
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
+import java.sql.*
+import java.util.*
 
 private const val USERNAME = "wbenica"
 private const val PASSWORD = "773Mysql!"
@@ -24,17 +23,20 @@ class Updater {
     suspend fun update() {
         try {
             getConnection()
-            val updateDatabase = coroutineScope {
-                async {
+
+            CharacterUpdater(conn).updateCharacters()
+
+//            val updateDatabase = coroutineScope {
+//                async {
 //                    addTables()
 //                    shrinkDatabase()
-                    delay(10)
-                }
-            }
-            updateDatabase.await().let {
-                println("Starting Credits...")
-                updateCredits()
-            }
+//                    delay(10)
+//                }
+//            }
+//            updateDatabase.await().let {
+//                println("Starting Credits...")
+//                updateCredits()
+//            }
         } finally {
             closeConn()
         }
@@ -46,7 +48,6 @@ class Updater {
         connectionProps["password"] = PASSWORD
 
         try {
-            Driver()
             conn = DriverManager.getConnection(
                 "jdbc:mysql://127.0.0.1:3306/gcdb2",
                 connectionProps
@@ -161,13 +162,23 @@ class Updater {
         }
     }
 
-    private fun closeResultSet(resultSet: ResultSet?) {
-        if (resultSet != null) {
-            try {
-                resultSet.close()
-            } catch (sqlEx: SQLException) {
-                sqlEx.printStackTrace()
+    companion object {
+        fun closeResultSet(resultSet: ResultSet?) {
+            if (resultSet != null) {
+                try {
+                    resultSet.close()
+                } catch (sqlEx: SQLException) {
+                    sqlEx.printStackTrace()
+                }
             }
+        }
+
+        fun prepareName(name: String): String {
+            var res = name.replace(Regex("\\s*\\([^)]*\\)\\s*"), "")
+            res = res.replace(Regex("\\s*\\[[^]]*]\\s*"), "")
+            res = res.replace(Regex("\\s*\\?\\s*"), "")
+            res = res.replace(Regex("^\\s*"), "")
+            return res
         }
     }
 
@@ -183,21 +194,13 @@ class Updater {
         }
     }
 
-    private fun prepareName(name: String): String {
-        var res = name.replace(Regex("\\s*\\([^)]*\\)\\s*"), "")
-        res = res.replace(Regex("\\s*\\[[^]]*]\\s*"), "")
-        res = res.replace(Regex("\\s*\\?\\s*"), "")
-        res = res.replace(Regex("^\\s*"), "")
-        return res
-    }
-
-    private fun getGcsc(gcndId: Int, storyId: Int, roleId: Int): Int? {
+    private fun getStoryCredit(gcndId: Int, storyId: Int, roleId: Int): Int? {
         var storyCreditId: Int? = null
-        val getGcscStmnt: PreparedStatement?
-        var gcscResultSet: ResultSet? = null
+        val statement: PreparedStatement?
+        var resultSet: ResultSet? = null
 
         try {
-            val getGcSql = """
+            val getStoryCreditIdSql = """
                     SELECT gsc.id
                     FROM gcd_story_credit gsc
                     WHERE gsc.creator_id = ?
@@ -205,19 +208,19 @@ class Updater {
                     AND gsc.credit_type_id = ?
             """
 
-            getGcscStmnt = conn?.prepareStatement(getGcSql)
-            getGcscStmnt?.setInt(1, gcndId)
-            getGcscStmnt?.setInt(2, storyId)
-            getGcscStmnt?.setInt(3, roleId)
+            statement = conn?.prepareStatement(getStoryCreditIdSql)
+            statement?.setInt(1, gcndId)
+            statement?.setInt(2, storyId)
+            statement?.setInt(3, roleId)
 
-            gcscResultSet = getGcscStmnt?.executeQuery()
+            resultSet = statement?.executeQuery()
 
-            if (getGcscStmnt?.execute() == true) {
-                gcscResultSet = getGcscStmnt.resultSet
+            if (statement?.execute() == true) {
+                resultSet = statement.resultSet
             }
 
-            if (gcscResultSet?.next() == true) {
-                storyCreditId = gcscResultSet.getInt("id")
+            if (resultSet?.next() == true) {
+                storyCreditId = resultSet.getInt("id")
             }
 
         } catch (sqlEx: SQLException) {
@@ -225,7 +228,7 @@ class Updater {
         } catch (e: java.lang.Exception) {
             e.printStackTrace()
         } finally {
-            closeResultSet(gcscResultSet)
+            closeResultSet(resultSet)
         }
 
         return storyCreditId
@@ -269,30 +272,25 @@ class Updater {
     }
 
     private fun makeCredit(extracted_name: String, storyId: Int, roleId: Int) {
-
-
-        val gcndId = getGcnd(extracted_name)
-
-        if (gcndId != null) {
-
-            val gcscId = getGcsc(gcndId, storyId, roleId)
-
-            if (gcscId == null) {
-
-                val insertStoryCreditStmt: PreparedStatement?
-
-                val insertStoryCreditSql = """
-                        INSERT INTO m_story_credit(created, modified, deleted, is_credited, is_signed, uncertain, signed_as, credited_as, credit_name, creator_id, credit_type_id, story_id, signature_id)
-                         VALUE (CURTIME(), curtime(), 0, 0, 0, 0, '', '', '', ?, ?, ?, NULL)
-                    """
-
-                insertStoryCreditStmt = conn?.prepareStatement(insertStoryCreditSql)
-                insertStoryCreditStmt?.setInt(1, gcndId)
-                insertStoryCreditStmt?.setInt(2, roleId)
-                insertStoryCreditStmt?.setInt(3, storyId)
-
-                insertStoryCreditStmt?.executeUpdate()
-            }
+        getGcnd(extracted_name)?.let { gcndId ->
+            getStoryCredit(gcndId, storyId, roleId) ?: makeStoryCredit(gcndId, roleId, storyId)
         }
     }
+
+    private fun makeStoryCredit(gcndId: Int, roleId: Int, storyId: Int) {
+        val insertStoryCreditStmt: PreparedStatement?
+
+        val insertStoryCreditSql = """
+                            INSERT INTO m_story_credit(created, modified, deleted, is_credited, is_signed, uncertain, signed_as, credited_as, credit_name, creator_id, credit_type_id, story_id, signature_id)
+                             VALUE (CURTIME(), CURTIME(), 0, 0, 0, 0, '', '', '', ?, ?, ?, NULL)
+                        """
+
+        insertStoryCreditStmt = conn?.prepareStatement(insertStoryCreditSql)
+        insertStoryCreditStmt?.setInt(1, gcndId)
+        insertStoryCreditStmt?.setInt(2, roleId)
+        insertStoryCreditStmt?.setInt(3, storyId)
+
+        insertStoryCreditStmt?.executeUpdate()
+    }
 }
+
