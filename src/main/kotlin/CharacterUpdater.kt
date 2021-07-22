@@ -1,10 +1,15 @@
 import java.sql.*
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalTime
+import kotlin.time.TimeMark
 
 class CharacterUpdater(val conn: Connection?) {
     fun updateCharacters() {
         val statement: Statement?
         var resultSet: ResultSet? = null
         val TOTAL = 1770869
+        val startTime = Instant.now()
         try {
             statement = conn?.createStatement()
 
@@ -20,14 +25,20 @@ class CharacterUpdater(val conn: Connection?) {
 
             var i = 0F
             while (resultSet?.next() == true) {
-                println("$i/$TOTAL ${i / TOTAL * 100}")
+                val currentTime = Instant.now()
+                val elapsedTime = currentTime.epochSecond - startTime.epochSecond
+                val percentComplete = i / TOTAL * 100
+                val secondsRemaining = elapsedTime / i * (TOTAL - i)
+                val fancyElapsedTime = LocalTime.ofSecondOfDay(elapsedTime)
+                val fancyRemainingTime = LocalTime.ofSecondOfDay(secondsRemaining.toLong() % 86399)
+                println("$i/$TOTAL $percentComplete elapsed: $fancyElapsedTime remaining: $fancyRemainingTime")
                 i++
 
                 val storyId = resultSet.getInt("id")
                 val publisherId: Int? = getPublisherId(storyId)
                 val characterList = resultSet.getString("characters")
 
-                if (characterList.length == 0)
+                if (characterList.isEmpty())
                     continue
 
                 val characters = splitOnOuterSemicolons(characterList)
@@ -42,21 +53,33 @@ class CharacterUpdater(val conn: Connection?) {
                     val openBracket = character.indexOf('[').let {
                         if (it < 0) null else it
                     }
-                    val closeBracket = character.lastIndexOf(']', openBracket ?: 0).let {
+                    val closeBracket = character.lastIndexOf(']').let {
                         if (it < 0) null else it
                     }
 
-                    val appearanceInfo: String? = if (openParen != null && closeParen != null) {
-                        character.substring(openParen + 1, closeParen)
-                    } else {
-                        null
-                    }
+                    val appearanceInfo: String? =
+                        if (openParen != null && closeParen != null) {
+                            try {
+                                character.substring(openParen + 1, closeParen)
+                            } catch (e: StringIndexOutOfBoundsException) {
+                                println("ch: $character op: $openParen cp: $closeParen $e")
+                                throw e
+                            }
+                        } else {
+                            null
+                        }
 
-                    val bracketedText = if (openBracket != null && closeBracket != null) {
-                        character.substring(openBracket + 1, closeBracket)
-                    } else {
-                        null
-                    }
+                    val bracketedText: String? =
+                        if (openBracket != null && closeBracket != null && closeBracket > openBracket) {
+                            try {
+                                character.substring(openBracket + 1, closeBracket)
+                            } catch (e: StringIndexOutOfBoundsException) {
+                                println("ch: $character ob: $openBracket cb: $closeBracket $e")
+                                throw e
+                            }
+                        } else {
+                            null
+                        }
                     val splitText: MutableList<String>? = bracketedText?.let { splitOnOuterSemicolons(it) }
 
                     var alterEgo: String? = null
@@ -105,7 +128,7 @@ class CharacterUpdater(val conn: Connection?) {
         lookupCharacter(name, alterEgo, publisherId) ?: makeCharacter(name, alterEgo, publisherId)
 
     // "xxxxxx [xxxxx]; xxxxx [xxxxxx [xxx]; xxxx [xxxx]]"
-    // -> ["xxxxxx [xxxxx]", "xxxxx [xxxxxx [xxx]; xxxx [xxxx]"]
+// -> ["xxxxxx [xxxxx]", "xxxxx [xxxxxx [xxx]; xxxx [xxxx]"]
     private fun splitOnOuterSemicolons(listString: String): MutableList<String> {
         var bracketCount = 0
         var parenCount = 0

@@ -5,8 +5,8 @@ import java.io.FileReader
 import java.sql.*
 import java.util.*
 
-private const val USERNAME = "wbenica"
-private const val PASSWORD = "773Mysql!"
+private const val USERNAME = "gdb_admin"
+private const val PASSWORD = "773Ubuntu!"
 
 var i = 0
 
