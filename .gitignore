@@ -2,3 +2,5 @@
 /build/
 /lib/
 /.idea/
+/gradle/
+/src/main/kotlin/Credentials.kt
