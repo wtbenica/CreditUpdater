@@ -1,21 +1,40 @@
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.sql.*
-import java.time.Duration
 import java.time.Instant
 import java.time.LocalTime
-import kotlin.time.TimeMark
+import java.time.Duration
 
-class CharacterUpdater(val conn: Connection?) {
+private const val INIT_INDEX = 247285L
+private const val INIT_COMPLETE = 199672L
+private const val TOTAL = 1770869L
+
+class CharacterUpdater(private val conn: Connection?) {
+
+    private fun String.cleanup(): String = this.dropLastWhile { it == ' ' }.dropWhile { it == ' ' }
+
+    private fun Duration.fancy(): String {
+        val days = this.toHours() / 24
+        val hours = this.toHours()  % 24
+        val minutes = this.toMinutes() % 60
+        val seconds = this.seconds % 60
+
+        return "${days}d ${hours}h ${minutes}m ${seconds}s"
+    }
+
     fun updateCharacters() {
         val statement: Statement?
         var resultSet: ResultSet? = null
-        val TOTAL = 1770869
         val startTime = Instant.now()
         try {
             statement = conn?.createStatement()
 
             // Get storyids and character lists
             val scriptSql = """SELECT g.id, g.characters
-                FROM gcd_story g;"""
+                FROM gcd_story g
+                WHERE g.id > $INIT_INDEX
+                ORDER BY g.id"""
 
             resultSet = statement?.executeQuery(scriptSql)
 
@@ -23,18 +42,21 @@ class CharacterUpdater(val conn: Connection?) {
                 resultSet = statement.resultSet
             }
 
-            var i = 0F
+            var i = INIT_COMPLETE
             while (resultSet?.next() == true) {
+                val storyId = resultSet.getInt("id")
                 val currentTime = Instant.now()
                 val elapsedTime = currentTime.epochSecond - startTime.epochSecond
-                val percentComplete = i / TOTAL * 100
+                val percentComplete = (i * 10000) / (TOTAL * 100)
+
                 val secondsRemaining = elapsedTime / i * (TOTAL - i)
-                val fancyElapsedTime = LocalTime.ofSecondOfDay(elapsedTime)
-                val fancyRemainingTime = LocalTime.ofSecondOfDay(secondsRemaining.toLong() % 86399)
-                println("$i/$TOTAL $percentComplete elapsed: $fancyElapsedTime remaining: $fancyRemainingTime")
+
+                val duration = Duration.between(startTime, currentTime)
+                val remaining = duration.dividedBy(i).multipliedBy(TOTAL - i)
+                println("$storyId $i/$TOTAL $percentComplete elapsed: ${duration.fancy()} remaining: ${remaining.fancy()}")
+
                 i++
 
-                val storyId = resultSet.getInt("id")
                 val publisherId: Int? = getPublisherId(storyId)
                 val characterList = resultSet.getString("characters")
 
@@ -57,54 +79,61 @@ class CharacterUpdater(val conn: Connection?) {
                         if (it < 0) null else it
                     }
 
-                    val appearanceInfo: String? =
-                        if (openParen != null && closeParen != null) {
-                            try {
-                                character.substring(openParen + 1, closeParen)
-                            } catch (e: StringIndexOutOfBoundsException) {
-                                println("ch: $character op: $openParen cp: $closeParen $e")
-                                throw e
-                            }
-                        } else {
-                            null
-                        }
-
-                    val bracketedText: String? =
-                        if (openBracket != null && closeBracket != null && closeBracket > openBracket) {
-                            try {
-                                character.substring(openBracket + 1, closeBracket)
-                            } catch (e: StringIndexOutOfBoundsException) {
-                                println("ch: $character ob: $openBracket cb: $closeBracket $e")
-                                throw e
-                            }
-                        } else {
-                            null
-                        }
-                    val splitText: MutableList<String>? = bracketedText?.let { splitOnOuterSemicolons(it) }
-
-                    var alterEgo: String? = null
-                    var notes: String? = null
-                    var membership: String? = null
-                    if (splitText != null) {
-                        if (splitText.size > 2) {
-                            membership = bracketedText
-                        } else {
-                            if (splitText.size > 0) {
-                                alterEgo = splitText[0]
-                            }
-                            if (splitText.size == 2) {
-                                notes = splitText[1]
-                            }
-                        }
-                    }
-
                     val name: String = Updater.prepareName(
                         character.substring(0, minOf(openBracket ?: character.length, openParen ?: character.length))
+                            .cleanup()
                     )
 
-                    val characterId: Int? = publisherId?.let { getCharacterId(name, alterEgo, it) }
+                    if (name.isNotEmpty()) {
+                        val appearanceInfo: String? =
+                            if (openParen != null && closeParen != null) {
+                                try {
+                                    character.substring(openParen + 1, closeParen).cleanup()
+                                } catch (e: StringIndexOutOfBoundsException) {
+                                    println("ch: $character op: $openParen cp: $closeParen $e")
+                                    throw e
+                                }
+                            } else {
+                                null
+                            }
 
-                    characterId?.let { getCharacterAppearance(storyId, it, appearanceInfo, notes, membership) }
+                        // need to check for internal brackets. maybe?
+                        val bracketedText: String? =
+                            if (openBracket != null && closeBracket != null && closeBracket > openBracket) {
+                                try {
+                                    character.substring(openBracket + 1, closeBracket).cleanup()
+                                } catch (e: StringIndexOutOfBoundsException) {
+                                    println("ch: $character ob: $openBracket cb: $closeBracket $e")
+                                    throw e
+                                }
+                            } else {
+                                null
+                            }
+
+                        val splitText: MutableList<String>? = bracketedText?.let { splitOnOuterSemicolons(it) }
+
+                        var alterEgo: String? = null
+                        var notes: String? = null
+                        var membership: String? = null
+                        if (splitText != null) {
+                            if (splitText.size > 2) {
+                                membership = bracketedText
+                            } else {
+                                if (splitText.size > 0) {
+                                    alterEgo = splitText[0].cleanup()
+                                }
+                                if (splitText.size == 2) {
+                                    notes = splitText[1].cleanup()
+                                }
+                            }
+                        }
+
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val characterId: Int? = publisherId?.let { getCharacterId(name, alterEgo, it) }
+
+                            characterId?.let { getCharacterAppearance(storyId, it, appearanceInfo, notes, membership) }
+                        }
+                    }
                 }
             }
         } catch (ex: SQLException) {
@@ -253,7 +282,9 @@ class CharacterUpdater(val conn: Connection?) {
         statement?.setString(4, notes)
         statement?.setString(5, membership)
 
-        statement?.executeUpdate()
+        CoroutineScope(Dispatchers.IO).launch {
+            statement?.executeUpdate()
+        }
     }
 
     private fun makeCharacter(name: String, alterEgo: String?, publisher_id: Int): Int? {

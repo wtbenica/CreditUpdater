@@ -1,12 +1,11 @@
+import Credentials.Companion.PASSWORD
+import Credentials.Companion.USERNAME
 import kotlinx.coroutines.*
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
 import java.sql.*
 import java.util.*
-
-private const val USERNAME = "gdb_admin"
-private const val PASSWORD = "773Ubuntu!"
 
 var i = 0
 
