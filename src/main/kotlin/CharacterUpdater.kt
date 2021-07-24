@@ -2,12 +2,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.sql.*
-import java.time.Instant
-import java.time.LocalTime
 import java.time.Duration
+import java.time.Instant
 
-private const val INIT_INDEX = 247285L
-private const val INIT_COMPLETE = 199672L
+private const val INIT_INDEX = 265016L
+private const val INIT_COMPLETE = 213350L
 private const val TOTAL = 1770869L
 
 class CharacterUpdater(private val conn: Connection?) {
@@ -16,7 +15,7 @@ class CharacterUpdater(private val conn: Connection?) {
 
     private fun Duration.fancy(): String {
         val days = this.toHours() / 24
-        val hours = this.toHours()  % 24
+        val hours = this.toHours() % 24
         val minutes = this.toMinutes() % 60
         val seconds = this.seconds % 60
 
@@ -42,20 +41,21 @@ class CharacterUpdater(private val conn: Connection?) {
                 resultSet = statement.resultSet
             }
 
-            var i = INIT_COMPLETE
+            var numComplete = INIT_COMPLETE
             while (resultSet?.next() == true) {
                 val storyId = resultSet.getInt("id")
                 val currentTime = Instant.now()
-                val elapsedTime = currentTime.epochSecond - startTime.epochSecond
-                val percentComplete = (i * 10000) / (TOTAL * 100)
+                val percentComplete = ((numComplete.toFloat() / TOTAL) * 10000).toInt().toFloat() / 100
 
-                val secondsRemaining = elapsedTime / i * (TOTAL - i)
+                val elapsedTime = Duration.between(startTime, currentTime)
+                val timePer = elapsedTime.dividedBy(numComplete)
+                val numRemain = TOTAL - numComplete
+                val remaining = timePer.multipliedBy(numRemain)
+                println("$storyId $numComplete/$TOTAL ${percentComplete}% $numRemain remain")
+                println("time per: ${timePer.toNanos()} elapsed: ${elapsedTime.fancy()} remain: ${remaining.fancy()}")
+                println()
 
-                val duration = Duration.between(startTime, currentTime)
-                val remaining = duration.dividedBy(i).multipliedBy(TOTAL - i)
-                println("$storyId $i/$TOTAL $percentComplete elapsed: ${duration.fancy()} remaining: ${remaining.fancy()}")
-
-                i++
+                numComplete++
 
                 val publisherId: Int? = getPublisherId(storyId)
                 val characterList = resultSet.getString("characters")
