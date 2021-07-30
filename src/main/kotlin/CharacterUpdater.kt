@@ -5,8 +5,8 @@ import java.sql.*
 import java.time.Duration
 import java.time.Instant
 
-private const val INIT_INDEX = 265016L
-private const val INIT_COMPLETE = 213350L
+private const val INIT_INDEX = 282588L
+private const val INIT_COMPLETE = 227213L
 private const val TOTAL = 1770869L
 
 class CharacterUpdater(private val conn: Connection?) {
