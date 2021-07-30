@@ -25,17 +25,18 @@ class Updater {
 
             CharacterUpdater(conn).updateCharacters()
 
-//            val updateDatabase = coroutineScope {
-//                async {
-//                    addTables()
-//                    shrinkDatabase()
-//                    delay(10)
-//                }
-//            }
-//            updateDatabase.await().let {
-//                println("Starting Credits...")
-//                updateCredits()
-//            }
+            val updateDatabase = coroutineScope {
+                async {
+                    addTables()
+                    shrinkDatabase()
+                    delay(10)
+                }
+            }
+
+            updateDatabase.await().let {
+                println("Starting Credits...")
+                updateCredits()
+            }
         } finally {
             closeConn()
         }
