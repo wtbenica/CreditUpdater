@@ -5,8 +5,6 @@ import java.sql.*
 import java.time.Duration
 import java.time.Instant
 
-private const val INIT_INDEX = 282588L
-private const val INIT_COMPLETE = 227213L
 private const val TOTAL = 1770869L
 
 class CharacterUpdater(private val conn: Connection?) {
@@ -32,8 +30,8 @@ class CharacterUpdater(private val conn: Connection?) {
             // Get storyids and character lists
             val scriptSql = """SELECT g.id, g.characters
                 FROM gcd_story g
-                WHERE g.id > $INIT_INDEX
-                ORDER BY g.id"""
+                WHERE g.id > ${Credentials.INIT_INDEX}
+                ORDER BY g.id DESC """
 
             resultSet = statement?.executeQuery(scriptSql)
 
@@ -41,7 +39,7 @@ class CharacterUpdater(private val conn: Connection?) {
                 resultSet = statement.resultSet
             }
 
-            var numComplete = INIT_COMPLETE
+            var numComplete = Credentials.INIT_COMPLETE
             while (resultSet?.next() == true) {
                 val storyId = resultSet.getInt("id")
                 val currentTime = Instant.now()
@@ -128,11 +126,9 @@ class CharacterUpdater(private val conn: Connection?) {
                             }
                         }
 
-                        CoroutineScope(Dispatchers.IO).launch {
-                            val characterId: Int? = publisherId?.let { getCharacterId(name, alterEgo, it) }
+                        val characterId: Int? = publisherId?.let { getCharacterId(name, alterEgo, it) }
 
-                            characterId?.let { getCharacterAppearance(storyId, it, appearanceInfo, notes, membership) }
-                        }
+                        characterId?.let { getCharacterAppearance(storyId, it, appearanceInfo, notes, membership) }
                     }
                 }
             }

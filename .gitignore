@@ -4,3 +4,11 @@
 /.idea/
 /gradle/
 /src/main/kotlin/Credentials.kt
+.idea
+*.iws
+*.iml
+*.ipr
+build
+lib
+.gradle
+gradle
