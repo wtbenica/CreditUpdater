@@ -1,11 +1,14 @@
 import Credentials.Companion.PASSWORD
 import Credentials.Companion.USERNAME
-import kotlinx.coroutines.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runBlocking
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
 import java.sql.*
 import java.util.*
+import kotlin.system.measureTimeMillis
 
 var i = 0
 
@@ -14,6 +17,11 @@ fun main(args: Array<String>) = runBlocking {
 
     updater.update()
 }
+
+private const val MILLIS_PER_SECOND = 1000
+private const val MILLIS_PER_MINUTE = 60 * MILLIS_PER_SECOND
+private const val MILLIS_PER_HOUR = 60 * MILLIS_PER_MINUTE
+private const val MILLIS_PER_DAY = 24 * MILLIS_PER_HOUR
 
 
 class Updater {
@@ -29,167 +37,118 @@ class Updater {
                 async {
                     addTables()
                     shrinkDatabase()
-                    delay(10)
                 }
             }
-
-            updateDatabase.await().let {
-                println("Starting Credits...")
-                updateCredits()
+            val update = coroutineScope {
+                async {
+                    updateDatabase.await().let {
+                        println("Starting Credits...")
+                        updateCredits()
+                    }
+                }
+            }
+            update.await().let {
+                addIssueSeriesToCredits()
             }
         } finally {
             closeConn()
         }
     }
 
-    private fun getConnection() {
-        val connectionProps = Properties()
-        connectionProps["user"] = USERNAME
-        connectionProps["password"] = PASSWORD
+    private fun addTables() = runSqlScript(ADD_MODIFY_TABLES_PATH)
+    private fun shrinkDatabase() = runSqlScript(SHRINK_DATABASE_PATH)
+    private fun addIssueSeriesToCredits() = runSqlScript(ADD_ISSUE_SERIES_TO_CREDITS_PATH)
+
+    private fun updateCredits() {
+        var count: Int? = null
+        var current = Credentials.CREDITS_STORY_START + 1
+
+        val getCountStmt: Statement?
+        var getCountResultSet: ResultSet? = null
 
         try {
-            conn = DriverManager.getConnection(
-                "jdbc:mysql://127.0.0.1:3306/gcdb2",
-                connectionProps
-            )
-        } catch (ex: SQLException) {
-            ex.printStackTrace()
-        } catch (ex: Exception) {
-            ex.printStackTrace()
-        }
-    }
-
-    private fun addTables() {
-        val stmt = conn?.createStatement()
-        try {
-            val fr = FileReader(File("./src/main/kotlin/my_tables.sql"))
-            val br = BufferedReader(fr)
-            val sb = StringBuffer()
-            var s: String?
-            while (br.readLine().also { s = it } != null) {
-                sb.append(s)
-            }
-            br.close()
-            val instructions = sb.toString().split(';')
-            instructions.forEach {
-                println(it)
-                println()
-                stmt?.executeUpdate(it)
-            }
-        } catch (sqlEx: SQLException) {
-            sqlEx.printStackTrace()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        } finally {
-
-        }
-    }
-
-    private fun shrinkDatabase() {
-        val stmt = conn?.createStatement()
-        try {
-            val fr = FileReader(File("./src/main/kotlin/remove_records.sql"))
-            val br = BufferedReader(fr)
-            val sb = StringBuffer()
-            var s: String?
-            while (br.readLine().also { s = it } != null) {
-                sb.append(s)
-            }
-            br.close()
-            val instructions = sb.toString().split(';')
-            instructions.forEach {
-                if (it != "") {
-                    println("This is $it")
-                    println()
-                    stmt?.executeUpdate(it)
-                }
-            }
-        } catch (sqlEx: SQLException) {
-            sqlEx.printStackTrace()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private suspend fun updateCredits() {
-        val scriptStmt: Statement?
-        var scriptResultSet: ResultSet? = null
-
-        try {
-            scriptStmt = conn?.createStatement()
-            val scriptSql = """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
+            getCountStmt = conn?.createStatement()
+            val scriptSql = """SELECT COUNT(*) AS count
                 FROM gcd_story g;"""
 
-            scriptResultSet = scriptStmt?.executeQuery(scriptSql)
+            getCountResultSet = getCountStmt?.executeQuery(scriptSql)
 
-            if (scriptStmt?.execute(scriptSql) == true) {
-                scriptResultSet = scriptStmt.resultSet
+            if (getCountStmt?.execute(scriptSql) == true) {
+                getCountResultSet = getCountStmt.resultSet
             }
 
-            while (scriptResultSet?.next() == true) {
-                val scriptNames = scriptResultSet.getString("script").split(';')
-                val pencilsNames = scriptResultSet.getString("pencils").split(';')
-                val inksNames = scriptResultSet.getString("inks").split(';')
-                val colorsNames = scriptResultSet.getString("colors").split(';')
-                val lettersNames = scriptResultSet.getString("letters").split(';')
-                val editingNames = scriptResultSet.getString("editing").split(';')
+            if (getCountResultSet?.next() == true) {
+                count = getCountResultSet.getInt("count")
+            }
+        } catch (ex: SQLException) {
+            ex.printStackTrace()
+        } finally {
+            closeResultSet(getCountResultSet)
+        }
 
-                val storyId = scriptResultSet.getInt("id")
+        val getStoriesStmt: Statement?
+        var getStoriesResultSet: ResultSet? = null
 
-                makeCredits(scriptNames, storyId, 1)
-                makeCredits(pencilsNames, storyId, 2)
-                makeCredits(inksNames, storyId, 3)
-                makeCredits(colorsNames, storyId, 4)
-                makeCredits(lettersNames, storyId, 5)
-                makeCredits(editingNames, storyId, 6)
+        try {
+            var totalTimeMillis: Long = 0
+
+            getStoriesStmt = conn?.createStatement()
+            val scriptSql = """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
+                FROM gcd_story g
+                WHERE g.id > ${Credentials.CREDITS_STORY_START}
+                ORDER BY g.id;"""
+
+            getStoriesResultSet = getStoriesStmt?.executeQuery(scriptSql)
+
+            if (getStoriesStmt?.execute(scriptSql) == true) {
+                getStoriesResultSet = getStoriesStmt.resultSet
+            }
+
+            while (getStoriesResultSet?.next() == true) {
+                println("Starting: $current${count?.let { "/$it" }}")
+
+                totalTimeMillis += measureTimeMillis {
+                    val scriptNames = getStoriesResultSet.getString("script").split(';')
+                    val pencilsNames = getStoriesResultSet.getString("pencils").split(';')
+                    val inksNames = getStoriesResultSet.getString("inks").split(';')
+                    val colorsNames = getStoriesResultSet.getString("colors").split(';')
+                    val lettersNames = getStoriesResultSet.getString("letters").split(';')
+                    val editingNames = getStoriesResultSet.getString("editing").split(';')
+
+                    val storyId = getStoriesResultSet.getInt("id")
+
+                    makeCredits(scriptNames, storyId, 1)
+                    makeCredits(pencilsNames, storyId, 2)
+                    makeCredits(inksNames, storyId, 3)
+                    makeCredits(colorsNames, storyId, 4)
+                    makeCredits(lettersNames, storyId, 5)
+                    makeCredits(editingNames, storyId, 6)
+                }
+
+                val averageTime: Long = totalTimeMillis / (current - Credentials.CREDITS_STORY_START)
+                val remainingTime: Long? = count?.let {
+                    averageTime * (it - current)
+                }
+                val pair = Companion.millisToPretty(remainingTime)
+                val fair = Companion.millisToPretty(totalTimeMillis)
+
+                println("Complete: ${current++}${count?.let { "/$it" }}")
+                println("Avg: ${averageTime}ms")
+                println("Elapsed: $fair ETR: $pair")
+                println()
             }
             println("END")
         } catch (ex: SQLException) {
             ex.printStackTrace()
         } finally {
-            closeResultSet(scriptResultSet)
+            closeResultSet(getStoriesResultSet)
         }
     }
 
-    private fun closeConn() {
-        if (conn != null) {
-            try {
-                conn?.close()
-            } catch (sqlEx: SQLException) {
-                sqlEx.printStackTrace()
-            }
-            conn = null
-        }
-    }
-
-    companion object {
-        fun closeResultSet(resultSet: ResultSet?) {
-            if (resultSet != null) {
-                try {
-                    resultSet.close()
-                } catch (sqlEx: SQLException) {
-                    sqlEx.printStackTrace()
-                }
-            }
-        }
-
-        fun prepareName(name: String): String {
-            var res = name.replace(Regex("\\s*\\([^)]*\\)\\s*"), "")
-            res = res.replace(Regex("\\s*\\[[^]]*]\\s*"), "")
-            res = res.replace(Regex("\\s*\\?\\s*"), "")
-            res = res.replace(Regex("^\\s*"), "")
-            return res
-        }
-    }
-
-    private suspend fun makeCredits(script_names: List<String>, storyId: Int, roleId: Int) {
+    private fun makeCredits(script_names: List<String>, storyId: Int, roleId: Int) {
         for (name in script_names) {
             if (name != "") {
-                coroutineScope {
-                    launch {
-                        makeCredit(prepareName(name), storyId, roleId)
-                    }
-                }
+                makeCredit(prepareName(name), storyId, roleId)
             }
         }
     }
@@ -291,6 +250,98 @@ class Updater {
         insertStoryCreditStmt?.setInt(3, storyId)
 
         insertStoryCreditStmt?.executeUpdate()
+    }
+
+    private fun getConnection() {
+        val connectionProps = Properties()
+        connectionProps["user"] = USERNAME
+        connectionProps["password"] = PASSWORD
+
+        try {
+            conn = DriverManager.getConnection(
+                "jdbc:mysql://127.0.0.1:3306/gcdb2",
+                connectionProps
+            )
+        } catch (ex: SQLException) {
+            ex.printStackTrace()
+        } catch (ex: Exception) {
+            ex.printStackTrace()
+        }
+    }
+
+    private fun closeConn() {
+        if (conn != null) {
+            try {
+                conn?.close()
+            } catch (sqlEx: SQLException) {
+                sqlEx.printStackTrace()
+            }
+            conn = null
+        }
+    }
+
+    private fun runSqlScript(sqlScriptPath: String) {
+        val stmt = conn?.createStatement()
+        try {
+            val fr = FileReader(File(sqlScriptPath))
+            val br = BufferedReader(fr)
+            val sb = StringBuffer()
+            var s: String?
+            while (br.readLine().also { s = it } != null) {
+                sb.append(s)
+            }
+            br.close()
+            val instructions = sb.toString().split(';')
+            instructions.forEach {
+                if (it != "") {
+                    println("This is $it")
+                    println()
+                    stmt?.executeUpdate(it)
+                }
+            }
+        } catch (sqlEx: SQLException) {
+            sqlEx.printStackTrace()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    companion object {
+        private const val ADD_MODIFY_TABLES_PATH = "./src/main/kotlin/my_tables.sql"
+        private const val SHRINK_DATABASE_PATH = "./src/main/kotlin/remove_records.sql"
+        private const val ADD_ISSUE_SERIES_TO_CREDITS_PATH = "src/main/kotlin/add_issue_series_to_credits.sql"
+
+        fun closeResultSet(resultSet: ResultSet?) {
+            if (resultSet != null) {
+                try {
+                    resultSet.close()
+                } catch (sqlEx: SQLException) {
+                    sqlEx.printStackTrace()
+                }
+            }
+        }
+
+        fun prepareName(name: String): String {
+            var res = name.replace(Regex("\\s*\\([^)]*\\)\\s*"), "")
+            res = res.replace(Regex("\\s*\\[[^]]*]\\s*"), "")
+            res = res.replace(Regex("\\s*\\?\\s*"), "")
+            res = res.replace(Regex("^\\s*"), "")
+            return res
+        }
+
+        private fun millisToPretty(remainingTime: Long?): String = remainingTime?.let {
+            if (it < MILLIS_PER_MINUTE) {
+                "0s"
+            } else {
+                var remainingTime1 = it
+                val days: Long = remainingTime1 / MILLIS_PER_DAY
+                remainingTime1 -= days * MILLIS_PER_DAY
+                val hours: Long = remainingTime1 / MILLIS_PER_HOUR
+                remainingTime1 -= hours * MILLIS_PER_HOUR
+                val minutes: Long = remainingTime1 / MILLIS_PER_MINUTE
+                "${if (days > 0) "${days}d " else ""}${if (hours > 0) "${hours}h " else ""}${if (minutes > 0) "${minutes}m " else ""}"
+            }
+        } ?: "0s"
     }
 }
 
