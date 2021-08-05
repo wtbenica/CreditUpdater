@@ -37,3 +37,23 @@ SET series = (
     )
 )
 WHERE series IS NULL;
+
+UPDATE m_character_appearance mca
+SET issue = (
+    SELECT sy.issue_id
+    FROM gcd_story sy
+    WHERE sy.id = mca.story_id
+    LIMIT 1)
+WHERE issue IS NULL;
+
+UPDATE m_character_appearance mca
+SET series = (
+    SELECT ie.series_id
+    FROM gcd_issue ie
+    WHERE ie.id IN (
+        SELECT sy.issue_id
+        FROM gcd_story sy
+        WHERE sy.id = mca.story_id
+    )
+)
+WHERE series IS NULL;
