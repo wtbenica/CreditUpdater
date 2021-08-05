@@ -1,155 +1,199 @@
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import Credentials.Companion.CHARACTER_STORIES_COMPLETE
+import Updater.Companion.clearTerminal
+import Updater.Companion.millisToPretty
+import Updater.Companion.storyCount
+import Updater.Companion.upFourLines
 import java.sql.*
-import java.time.Duration
-import java.time.Instant
+import kotlin.system.measureTimeMillis
 
-private const val TOTAL = 1770869L
+
+fun String.cleanup(): String = this.dropLastWhile { it == ' ' }.dropWhile { it == ' ' }
 
 class CharacterUpdater(private val conn: Connection?) {
 
-    private fun String.cleanup(): String = this.dropLastWhile { it == ' ' }.dropWhile { it == ' ' }
-
-    private fun Duration.fancy(): String {
-        val days = this.toHours() / 24
-        val hours = this.toHours() % 24
-        val minutes = this.toMinutes() % 60
-        val seconds = this.seconds % 60
-
-        return "${days}d ${hours}h ${minutes}m ${seconds}s"
-    }
-
     fun updateCharacters() {
+        clearTerminal()
+
+        var totalComplete: Long = CHARACTER_STORIES_COMPLETE
+
         val statement: Statement?
-        var resultSet: ResultSet? = null
-        val startTime = Instant.now()
+        var storyIds: ResultSet? = null
+
         try {
+            var totalTimeMillis: Long = 0
+
             statement = conn?.createStatement()
+            storyIds = getStoryIds(statement)
 
-            // Get storyids and character lists
-            val scriptSql = """SELECT g.id, g.characters
-                FROM gcd_story g
-                WHERE g.id > ${Credentials.INIT_INDEX}
-                ORDER BY g.id DESC """
+            var storyId: Int
+            while (storyIds?.next() == true) {
+                totalTimeMillis += measureTimeMillis workLoop@{
+                    storyId = storyIds.getInt("id")
+                    val publisherId: Int? = getPublisherId(storyId)
 
-            resultSet = statement?.executeQuery(scriptSql)
+                    val characterList = storyIds.getString("characters")
+                    if (characterList.isEmpty())
+                        return@workLoop
 
-            if (statement?.execute(scriptSql) == true) {
-                resultSet = statement.resultSet
-            }
+                    val characters = splitOnOuterSemicolons(characterList)
+                    for (character in characters) {
+                        val (openParen, closeParen) = parenthesesIndexes(character)
+                        val (openBracket, closeBracket) = bracketIndexes(character)
 
-            var numComplete = Credentials.INIT_COMPLETE
-            while (resultSet?.next() == true) {
-                val storyId = resultSet.getInt("id")
-                val currentTime = Instant.now()
-                val percentComplete = ((numComplete.toFloat() / TOTAL) * 10000).toInt().toFloat() / 100
+                        val endIndexName = minOf(openBracket ?: character.length, openParen ?: character.length)
+                        val name: String = Updater.prepareName(character.substring(0, endIndexName))
 
-                val elapsedTime = Duration.between(startTime, currentTime)
-                val timePer = elapsedTime.dividedBy(numComplete)
-                val numRemain = TOTAL - numComplete
-                val remaining = timePer.multipliedBy(numRemain)
-                println("$storyId $numComplete/$TOTAL ${percentComplete}% $numRemain remain")
-                println("time per: ${timePer.toNanos()} elapsed: ${elapsedTime.fancy()} remain: ${remaining.fancy()}")
-                println()
-
-                numComplete++
-
-                val publisherId: Int? = getPublisherId(storyId)
-                val characterList = resultSet.getString("characters")
-
-                if (characterList.isEmpty())
-                    continue
-
-                val characters = splitOnOuterSemicolons(characterList)
-
-                for (character in characters) {
-                    val openParen = character.indexOf('(').let {
-                        if (it < 0) null else it
-                    }
-                    val closeParen = character.indexOf(')', openParen ?: 0).let {
-                        if (it < 0) null else it
-                    }
-                    val openBracket = character.indexOf('[').let {
-                        if (it < 0) null else it
-                    }
-                    val closeBracket = character.lastIndexOf(']').let {
-                        if (it < 0) null else it
-                    }
-
-                    val name: String = Updater.prepareName(
-                        character.substring(0, minOf(openBracket ?: character.length, openParen ?: character.length))
-                            .cleanup()
-                    )
-
-                    if (name.isNotEmpty()) {
-                        val appearanceInfo: String? =
-                            if (openParen != null && closeParen != null) {
-                                try {
-                                    character.substring(openParen + 1, closeParen).cleanup()
-                                } catch (e: StringIndexOutOfBoundsException) {
-                                    println("ch: $character op: $openParen cp: $closeParen $e")
-                                    throw e
-                                }
-                            } else {
-                                null
-                            }
-
-                        // need to check for internal brackets. maybe?
-                        val bracketedText: String? =
-                            if (openBracket != null && closeBracket != null && closeBracket > openBracket) {
-                                try {
-                                    character.substring(openBracket + 1, closeBracket).cleanup()
-                                } catch (e: StringIndexOutOfBoundsException) {
-                                    println("ch: $character ob: $openBracket cb: $closeBracket $e")
-                                    throw e
-                                }
-                            } else {
-                                null
-                            }
-
-                        val splitText: MutableList<String>? = bracketedText?.let { splitOnOuterSemicolons(it) }
-
-                        var alterEgo: String? = null
-                        var notes: String? = null
-                        var membership: String? = null
-                        if (splitText != null) {
-                            if (splitText.size > 2) {
-                                membership = bracketedText
-                            } else {
-                                if (splitText.size > 0) {
-                                    alterEgo = splitText[0].cleanup()
-                                }
-                                if (splitText.size == 2) {
-                                    notes = splitText[1].cleanup()
-                                }
-                            }
+                        if (name.isNotEmpty()) {
+                            val appearanceInfo: String? = extractAppearanceInfo(openParen, closeParen, character)
+                            // need to check for internal brackets. maybe?
+                            val bracketedText: String? = extractBracketedText(openBracket, closeBracket, character)
+                            val splitText: MutableList<String>? = bracketedText?.let { splitOnOuterSemicolons(it) }
+                            val (alterEgo: String?, notes: String?, membership: String?) =
+                                parseBracketedText(splitText, bracketedText)
+                            val characterId: Int? = publisherId?.let { getCharacterId(name, alterEgo, it) }
+                            characterId?.let { getCharacterAppearance(storyId, it, appearanceInfo, notes, membership) }
                         }
-
-                        val characterId: Int? = publisherId?.let { getCharacterId(name, alterEgo, it) }
-
-                        characterId?.let { getCharacterAppearance(storyId, it, appearanceInfo, notes, membership) }
                     }
+
+                    val numComplete = ++totalComplete - CHARACTER_STORIES_COMPLETE
+                    val pctComplete: String = storyCount?.let { (totalComplete.toFloat() / it).toPercent() } ?: "???"
+
+                    val averageTime: Long = totalTimeMillis / numComplete
+                    val remainingTime: Long? = storyCount?.let {
+                        averageTime * (it - numComplete)
+                    }
+                    val pair = millisToPretty(remainingTime)
+                    val fair = millisToPretty(totalTimeMillis)
+
+                    upFourLines()
+
+                    println("Extract Character StoryId: $storyId")
+                    println("Complete: $totalComplete${storyCount?.let { "/$it" } ?: ""} $pctComplete")
+                    println("Avg: ${averageTime}ms")
+                    println("Elapsed: $fair ETR: $pair")
                 }
             }
+            println("END\n\n\n")
         } catch (ex: SQLException) {
             ex.printStackTrace()
         } finally {
-            Updater.closeResultSet(resultSet)
+            Updater.closeResultSet(storyIds)
         }
     }
 
+    private fun getStoryIds(statement: Statement?): ResultSet? {
+        // Get storyids and character lists
+        var resultSet: ResultSet?
+        val scriptSql = """SELECT g.id, g.characters
+                    FROM gcd_story g
+                    WHERE g.id > ${Credentials.CHARACTER_STORY_START}
+                    ORDER BY g.id """
+
+        resultSet = statement?.executeQuery(scriptSql)
+
+        if (statement?.execute(scriptSql) == true) {
+            resultSet = statement.resultSet
+        }
+        return resultSet
+    }
+
+    private fun parseBracketedText(
+        splitText: MutableList<String>?,
+        bracketedText: String?
+    ): Triple<String?, String?, String?> {
+        var alterEgo: String? = null
+        var notes: String? = null
+        var membership: String? = null
+        if (splitText != null) {
+            if (splitText.size > 2) {
+                membership = bracketedText
+            } else {
+                if (splitText.size > 0) {
+                    alterEgo = splitText[0].cleanup()
+                }
+                if (splitText.size == 2) {
+                    notes = splitText[1].cleanup()
+                }
+            }
+        }
+        return Triple(alterEgo, notes, membership)
+    }
+
+    private fun extractBracketedText(
+        openBracket: Int?,
+        closeBracket: Int?,
+        character: String
+    ) = if (openBracket != null && closeBracket != null && closeBracket > openBracket) {
+        try {
+            character.substring(openBracket + 1, closeBracket).cleanup()
+        } catch (e: StringIndexOutOfBoundsException) {
+            println("ch: $character ob: $openBracket cb: $closeBracket $e")
+            throw e
+        }
+    } else {
+        null
+    }
+
+    private fun extractAppearanceInfo(
+        openParen: Int?,
+        closeParen: Int?,
+        character: String
+    ) = if (openParen != null && closeParen != null) {
+        try {
+            character.substring(openParen + 1, closeParen).cleanup()
+        } catch (e: StringIndexOutOfBoundsException) {
+            println("ch: $character op: $openParen cp: $closeParen $e")
+            throw e
+        }
+    } else {
+        null
+    }
+
+    private fun bracketIndexes(character: String): Pair<Int?, Int?> {
+        val openBracket = character.indexOf('[').let {
+            if (it < 0) null else it
+        }
+        val closeBracket = character.lastIndexOf(']').let {
+            if (it < 0) null else it
+        }
+        return Pair(openBracket, closeBracket)
+    }
+
+    private fun parenthesesIndexes(character: String): Pair<Int?, Int?> {
+        val openParen = character.indexOf('(').let {
+            if (it < 0) null else it
+        }
+        val closeParen = character.indexOf(')', openParen ?: 0).let {
+            if (it < 0) null else it
+        }
+        return Pair(openParen, closeParen)
+    }
+
+    /**
+     * getCharacterAppearance - either returns
+     *
+     * @param storyId
+     * @param publisherId
+     * @param appearanceInfo
+     * @param notes
+     * @param membership
+     */
     private fun getCharacterAppearance(
         storyId: Int,
         publisherId: Int,
         appearanceInfo: String?,
         notes: String?,
         membership: String?
-    ) =
+    ): Int? =
         lookupCharacterAppearance(storyId, publisherId)
             ?: makeCharacterAppearance(storyId, publisherId, appearanceInfo, notes, membership)
 
-    private fun getCharacterId(name: String, alterEgo: String?, publisherId: Int) =
+    /**
+     * getCharacterId - either returns existing character id, or attempts to create a character record
+     *
+     * @return character id or null on error
+     */
+    private fun getCharacterId(name: String, alterEgo: String?, publisherId: Int): Int? =
         lookupCharacter(name, alterEgo, publisherId) ?: makeCharacter(name, alterEgo, publisherId)
 
     // "xxxxxx [xxxxx]; xxxxx [xxxxxx [xxx]; xxxx [xxxx]]"
@@ -263,7 +307,7 @@ class CharacterUpdater(private val conn: Connection?) {
         appearanceInfo: String?,
         notes: String?,
         membership: String?
-    ) {
+    ): Int? {
         val statement: PreparedStatement?
 
         val sql = """
@@ -278,8 +322,18 @@ class CharacterUpdater(private val conn: Connection?) {
         statement?.setString(4, notes)
         statement?.setString(5, membership)
 
-        CoroutineScope(Dispatchers.IO).launch {
-            statement?.executeUpdate()
+        val affectedRows = statement?.executeUpdate()
+
+        return if (affectedRows == 0) {
+            null
+        } else {
+            statement!!.generatedKeys.use { generatedKeys ->
+                if (generatedKeys.next()) {
+                    generatedKeys.getInt(1)
+                } else {
+                    null
+                }
+            }
         }
     }
 

@@ -1,4 +1,6 @@
+import Credentials.Companion.CREDITS_STORIES_COMPLETE
 import Credentials.Companion.PASSWORD
+import Credentials.Companion.UPDATE_DATABASE
 import Credentials.Companion.USERNAME
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -18,73 +20,64 @@ fun main(args: Array<String>) = runBlocking {
     updater.update()
 }
 
-private const val MILLIS_PER_SECOND = 1000
-private const val MILLIS_PER_MINUTE = 60 * MILLIS_PER_SECOND
-private const val MILLIS_PER_HOUR = 60 * MILLIS_PER_MINUTE
-private const val MILLIS_PER_DAY = 24 * MILLIS_PER_HOUR
+internal const val MILLIS_PER_SECOND = 1000
+internal const val MILLIS_PER_MINUTE = 60 * MILLIS_PER_SECOND
+internal const val MILLIS_PER_HOUR = 60 * MILLIS_PER_MINUTE
+internal const val MILLIS_PER_DAY = 24 * MILLIS_PER_HOUR
 
+
+fun Float.toPercent(): String {
+    val decimal = (this * 10000).toInt().toFloat() / 100
+    return "$decimal%"
+}
 
 class Updater {
-    private var conn: Connection? = null
+    internal var conn: Connection? = getConnection()
+
+    init {
+        storyCount = getDbStoryCount()
+    }
+
 
     suspend fun update() {
-        try {
-            getConnection()
-
-            CharacterUpdater(conn).updateCharacters()
-
-            val updateDatabase = coroutineScope {
-                async {
-                    addTables()
-                    shrinkDatabase()
-                }
-            }
-            val update = coroutineScope {
-                async {
-                    updateDatabase.await().let {
-                        println("Starting Credits...")
-                        updateCredits()
+        coroutineScope {
+            try {
+//                launch {
+//                    println("Starting Characters...")
+//                    CharacterUpdater(conn).updateCharacters()
+//                }
+//
+                val updateDatabase = async {
+                    if (UPDATE_DATABASE) {
+                        addTables()
+                        shrinkDatabase()
                     }
                 }
+
+                val update = async {
+                    updateDatabase.await().let {
+                        println("Starting Credits...")
+//                        updateCredits()
+                    }
+                }
+                update.await().let {
+                    println("TAG?@")
+//                    addIssueSeriesToCredits()
+                }
+            } finally {
+                closeConn()
             }
-            update.await().let {
-                addIssueSeriesToCredits()
-            }
-        } finally {
-            closeConn()
         }
     }
 
-    private fun addTables() = runSqlScript(ADD_MODIFY_TABLES_PATH)
+    private fun addTables() = runSqlScript2(ADD_MODIFY_TABLES_PATH)
     private fun shrinkDatabase() = runSqlScript(SHRINK_DATABASE_PATH)
     private fun addIssueSeriesToCredits() = runSqlScript(ADD_ISSUE_SERIES_TO_CREDITS_PATH)
 
     private fun updateCredits() {
-        var count: Int? = null
-        var current = Credentials.CREDITS_STORY_START + 1
+        clearTerminal()
 
-        val getCountStmt: Statement?
-        var getCountResultSet: ResultSet? = null
-
-        try {
-            getCountStmt = conn?.createStatement()
-            val scriptSql = """SELECT COUNT(*) AS count
-                FROM gcd_story g;"""
-
-            getCountResultSet = getCountStmt?.executeQuery(scriptSql)
-
-            if (getCountStmt?.execute(scriptSql) == true) {
-                getCountResultSet = getCountStmt.resultSet
-            }
-
-            if (getCountResultSet?.next() == true) {
-                count = getCountResultSet.getInt("count")
-            }
-        } catch (ex: SQLException) {
-            ex.printStackTrace()
-        } finally {
-            closeResultSet(getCountResultSet)
-        }
+        var totalComplete: Long = CREDITS_STORIES_COMPLETE
 
         val getStoriesStmt: Statement?
         var getStoriesResultSet: ResultSet? = null
@@ -104,10 +97,11 @@ class Updater {
                 getStoriesResultSet = getStoriesStmt.resultSet
             }
 
+            var storyId: Int
             while (getStoriesResultSet?.next() == true) {
-                println("Starting: $current${count?.let { "/$it" }}")
-
                 totalTimeMillis += measureTimeMillis {
+                    storyId = getStoriesResultSet.getInt("id")
+
                     val scriptNames = getStoriesResultSet.getString("script").split(';')
                     val pencilsNames = getStoriesResultSet.getString("pencils").split(';')
                     val inksNames = getStoriesResultSet.getString("inks").split(';')
@@ -115,33 +109,64 @@ class Updater {
                     val lettersNames = getStoriesResultSet.getString("letters").split(';')
                     val editingNames = getStoriesResultSet.getString("editing").split(';')
 
-                    val storyId = getStoriesResultSet.getInt("id")
-
                     makeCredits(scriptNames, storyId, 1)
                     makeCredits(pencilsNames, storyId, 2)
                     makeCredits(inksNames, storyId, 3)
                     makeCredits(colorsNames, storyId, 4)
                     makeCredits(lettersNames, storyId, 5)
                     makeCredits(editingNames, storyId, 6)
-                }
 
-                val averageTime: Long = totalTimeMillis / (current - Credentials.CREDITS_STORY_START)
-                val remainingTime: Long? = count?.let {
-                    averageTime * (it - current)
-                }
-                val pair = Companion.millisToPretty(remainingTime)
-                val fair = Companion.millisToPretty(totalTimeMillis)
+                    val numComplete = ++totalComplete - CREDITS_STORIES_COMPLETE
+                    val pctComplete: String = storyCount?.let { (totalComplete.toFloat() / it).toPercent() } ?: "???"
 
-                println("Complete: ${current++}${count?.let { "/$it" }}")
-                println("Avg: ${averageTime}ms")
-                println("Elapsed: $fair ETR: $pair")
-                println()
+                    val averageTime: Long = totalTimeMillis / numComplete
+                    val remainingTime: Long? = storyCount?.let {
+                        averageTime * (it - numComplete)
+                    }
+                    val pair = millisToPretty(remainingTime)
+                    val fair = millisToPretty(totalTimeMillis)
+
+                    upFourLines()
+
+                    println("Extract Credit StoryId: $storyId")
+                    println("Complete: $totalComplete${storyCount?.let { "/$it" } ?: ""} $pctComplete")
+                    println("Avg: ${averageTime}ms")
+                    println("Elapsed: $fair ETR: $pair")
+                }
             }
-            println("END")
+            println("END\n\n\n")
         } catch (ex: SQLException) {
             ex.printStackTrace()
         } finally {
             closeResultSet(getStoriesResultSet)
+        }
+    }
+
+    private fun getDbStoryCount(): Int? {
+        val getCountStmt: Statement?
+        var getCountResultSet: ResultSet? = null
+
+        return try {
+            getCountStmt = conn?.createStatement()
+            val scriptSql = """SELECT COUNT(*) AS count
+                    FROM gcd_story g;"""
+
+            getCountResultSet = getCountStmt?.executeQuery(scriptSql)
+
+            if (getCountStmt?.execute(scriptSql) == true) {
+                getCountResultSet = getCountStmt.resultSet
+            }
+
+            if (getCountResultSet?.next() == true) {
+                getCountResultSet.getInt("count")
+            } else {
+                null
+            }
+        } catch (ex: SQLException) {
+            ex.printStackTrace()
+            null
+        } finally {
+            closeResultSet(getCountResultSet)
         }
     }
 
@@ -252,20 +277,22 @@ class Updater {
         insertStoryCreditStmt?.executeUpdate()
     }
 
-    private fun getConnection() {
+    private fun getConnection(): Connection? {
         val connectionProps = Properties()
         connectionProps["user"] = USERNAME
         connectionProps["password"] = PASSWORD
 
-        try {
-            conn = DriverManager.getConnection(
+        return try {
+            DriverManager.getConnection(
                 "jdbc:mysql://127.0.0.1:3306/gcdb2",
                 connectionProps
             )
         } catch (ex: SQLException) {
             ex.printStackTrace()
+            null
         } catch (ex: Exception) {
             ex.printStackTrace()
+            null
         }
     }
 
@@ -306,7 +333,60 @@ class Updater {
         }
     }
 
+    private fun runSqlScript2(sqlScriptPath: String) {
+        val stmt = conn?.createStatement()
+        try {
+            val fr = FileReader(File(sqlScriptPath))
+            val br = BufferedReader(fr)
+            val sb = StringBuffer()
+            var s: String?
+            while (br.readLine().also { s = it } != null) {
+                sb.append(s)
+            }
+            br.close()
+            val instructions = sb.toString().split(';')
+            instructions.forEach {
+                if (it != "") {
+                    println("This is $it")
+                    println()
+                    stmt?.execute(it)
+                }
+            }
+        } catch (sqlEx: SQLException) {
+            sqlEx.printStackTrace()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     companion object {
+        enum class CursorMovement(val value: String) {
+            UP("[1A"), LINE_START("[9D"), CLEAR("[2J");
+
+            override fun toString(): String = value
+        }
+
+        fun clearTerminal() {
+            print("$ESC${CursorMovement.CLEAR}")     // clear terminal first
+        }
+
+        fun upFourLines() {
+            for (aec in cursorUpFourLines) {
+                print("$ESC$aec")
+            }
+        }
+
+        var storyCount: Int? = null
+        val ESC = "\u001B"  // escape code
+        val cursorUpFourLines =
+            arrayOf(
+                CursorMovement.UP,
+                CursorMovement.UP,
+                CursorMovement.UP,
+                CursorMovement.UP,
+                CursorMovement.LINE_START
+            )
+
         private const val ADD_MODIFY_TABLES_PATH = "./src/main/kotlin/my_tables.sql"
         private const val SHRINK_DATABASE_PATH = "./src/main/kotlin/remove_records.sql"
         private const val ADD_ISSUE_SERIES_TO_CREDITS_PATH = "src/main/kotlin/add_issue_series_to_credits.sql"
@@ -326,10 +406,10 @@ class Updater {
             res = res.replace(Regex("\\s*\\[[^]]*]\\s*"), "")
             res = res.replace(Regex("\\s*\\?\\s*"), "")
             res = res.replace(Regex("^\\s*"), "")
-            return res
+            return res.cleanup()
         }
 
-        private fun millisToPretty(remainingTime: Long?): String = remainingTime?.let {
+        internal fun millisToPretty(remainingTime: Long?): String = remainingTime?.let {
             if (it < MILLIS_PER_MINUTE) {
                 "0s"
             } else {
