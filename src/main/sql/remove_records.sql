@@ -1,24 +1,23 @@
-/*
-    This script will limit the records in the database based on certain criteria
-    that are shown in the 'bad_publishers' and 'bad_series' views
-    */
+#     This script will limit the records in the database based on certain criteria
+#     that are shown in the 'bad_publishers' and 'bad_series' views;
 
- CREATE OR REPLACE VIEW bad_publishers
- AS
- (
- SELECT gp.id
- FROM gcd_publisher gp
- WHERE gp.country_id != 225
-    OR gp.year_began < 1900 );
 
- CREATE OR REPLACE VIEW bad_series
- AS
- (
- SELECT gs.id
- FROM gcd_series gs
- WHERE gs.country_id != 225
-    OR gs.language_id != 25
-    OR gs.publisher_id IN (SELECT * FROM bad_publishers));
+CREATE OR REPLACE VIEW bad_publishers
+AS
+(
+SELECT gp.id
+FROM gcd_publisher gp
+WHERE gp.country_id != 225
+   OR gp.year_began < 1900 );
+
+CREATE OR REPLACE VIEW bad_series
+AS
+(
+SELECT gs.id
+FROM gcd_series gs
+WHERE gs.country_id != 225
+   OR gs.language_id != 25
+   OR gs.publisher_id IN (SELECT * FROM bad_publishers));
 
 
  CREATE OR REPLACE VIEW bad_issues
