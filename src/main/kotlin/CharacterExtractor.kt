@@ -47,7 +47,7 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
         }
     }
 
-    override fun extract(
+    override suspend fun extract(
         extractFrom: ResultSet,
         destDatabase: String?
     ): Int {
@@ -85,18 +85,18 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
                     }
 
                     appearance?.let {
-                        CoroutineScope(Dispatchers.Default).launch {
-                            appearanceCollector.addToSet(it)
-                        }
+                        appearanceCollector.addToSet(it)
                     }
                 }
             }
         }
+
         return storyId
     }
 
     override fun finish() {
         appearanceCollector.save()
+        println("FINISHING")
     }
 
     private fun getCharacterId(
