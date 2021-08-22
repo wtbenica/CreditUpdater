@@ -1,7 +1,10 @@
 # If the issue and series columns don't already exist, then it adds them 
 # to the gcd_story_credit and m_character_appearance tables
-# Then creates the m_story_credit table
+# Then creates the m_story_credit table;
 
+###########################################################################
+# Add issue/series columns to story_credit and fk constraints             #
+##########################################################################;
 SELECT COUNT(*)
 INTO @exist
 FROM information_schema.columns
@@ -67,17 +70,48 @@ SET @query_add_fk_series_to_story_credit =
 PREPARE stmt FROM @query_add_fk_series_to_story_credit;
 EXECUTE stmt;
 
+###########################################################################
+# Create extracted item tables if not exist                               #
+##########################################################################;
+CREATE TABLE IF NOT EXISTS m_character
+(
+    id           BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name         TEXT NOT NULL,
+    alter_ego    TEXT,
+    publisher_id INTEGER REFERENCES gcd_publisher (id)
+);
 
+CREATE TABLE IF NOT EXISTS m_character_appearance
+(
+    id           BIGINT PRIMARY KEY AUTO_INCREMENT,
+    details      LONGTEXT,
+    character_id BIGINT NOT NULL REFERENCES m_character (id),
+    story_id     INT    NOT NULL REFERENCES gcd_story (id),
+    notes        LONGTEXT,
+    membership   LONGTEXT,
+    issue_id     INT REFERENCES gcd_issue (id),
+    series_id    INT REFERENCES gcd_series (id)
+);
+
+CREATE TABLE IF NOT EXISTS m_story_credit AS (
+    SELECT *
+    FROM gcd_story_credit
+    WHERE FALSE
+);
+
+###########################################################################
+# Add issue/series columns and fk constraints to extract tables           #
+##########################################################################;
 SELECT COUNT(*)
 INTO @exist
 FROM information_schema.columns
 WHERE table_schema = 'gcdb2'
-  AND column_name = 'issue'
+  AND column_name = 'issue_id'
   AND table_name = 'm_character_appearance'
 LIMIT 1;
 
 SET @query_add_issue_to_character_appearance =
-        IF(@exist <= 0, 'ALTER TABLE gcdb2.m_character_appearance ADD COLUMN issue INT DEFAULT NULL',
+        IF(@exist <= 0, 'ALTER TABLE gcdb2.m_character_appearance ADD COLUMN issue_id INT DEFAULT NULL',
            'SELECT \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_issue_to_character_appearance;
@@ -133,13 +167,6 @@ SET @query_add_fk_series_to_character_appearance =
 PREPARE stmt FROM @query_add_fk_series_to_character_appearance;
 EXECUTE stmt;
 
-
-CREATE TABLE IF NOT EXISTS m_story_credit AS (
-    SELECT *
-    FROM gcd_story_credit
-    WHERE FALSE
-);
-
 SELECT COUNT(*)
 INTO @exist
 FROM information_schema.key_column_usage
@@ -149,7 +176,7 @@ WHERE table_schema = 'gcdb2'
 
 SET @query_add_pk_id_to_m_story_credit =
         IF(@exist <= 0,
-           'ALTER TABLE m_story_credit MODIFY COLUMN id INT PRIMARY KEY AUTO_INCREMENT',
+           'ALTER TABLE m_story_credit MODIFY COLUMN id BIGINT PRIMARY KEY AUTO_INCREMENT',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_creator_to_m_story_credit;
