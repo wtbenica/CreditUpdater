@@ -5,7 +5,7 @@ import java.sql.ResultSet
 import java.sql.SQLException
 
 class CreditExtractor(database: String, conn: Connection) : Extractor(database, conn) {
-    override fun extract(
+    override suspend fun extract(
         extractFrom: ResultSet,
         destDatabase: String?
     ): Int {

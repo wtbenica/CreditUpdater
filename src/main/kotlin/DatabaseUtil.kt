@@ -3,6 +3,7 @@ import Credentials.Companion.USERNAME
 import TerminalUtil.Companion.clearTerminal
 import TerminalUtil.Companion.millisToPretty
 import TerminalUtil.Companion.upNLines
+import kotlinx.coroutines.coroutineScope
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
@@ -106,7 +107,7 @@ class DatabaseUtil {
             }
         }
 
-        internal fun updateItems(
+        internal suspend fun updateItems(
             items: (Statement?) -> ResultSet?,
             numCompleteInit: Long,
             itemCount: Int?,
@@ -130,25 +131,28 @@ class DatabaseUtil {
                 extractedValues = items(statement)
 
                 while (extractedValues?.next() == true) {
-                    totalTimeMillis += measureTimeMillis {
-                        val itemId: Int = extractor.extract(extractedValues, destDatabase)
+                    coroutineScope {
+                        totalTimeMillis += measureTimeMillis {
+                            val itemId: Int = extractor.extract(extractedValues, destDatabase)
 
-                        val numComplete = ++totalComplete - numCompleteInit
-                        val pctComplete: String = itemCount?.let { (totalComplete.toFloat() / it).toPercent() } ?: "???"
+                            val numComplete = ++totalComplete - numCompleteInit
+                            val pctComplete: String =
+                                itemCount?.let { (totalComplete.toFloat() / it).toPercent() } ?: "???"
 
-                        val averageTime: Long = totalTimeMillis / numComplete
-                        val remainingTime: Long? = itemCount?.let {
-                            averageTime * (it - numComplete)
+                            val averageTime: Long = totalTimeMillis / numComplete
+                            val remainingTime: Long? = itemCount?.let {
+                                averageTime * (it - numComplete)
+                            }
+                            val pair = millisToPretty(remainingTime)
+                            val fair = millisToPretty(totalTimeMillis)
+
+                            upNLines(4)
+
+                            println("Extract $extractedItem $fromValue: $itemId")
+                            println("Complete: $totalComplete${itemCount?.let { "/$it" } ?: ""} $pctComplete")
+                            println("Avg: ${averageTime}ms")
+                            println("Elapsed: $fair ETR: $pair")
                         }
-                        val pair = millisToPretty(remainingTime)
-                        val fair = millisToPretty(totalTimeMillis)
-
-                        upNLines(4)
-
-                        println("Extract $extractedItem $fromValue: $itemId")
-                        println("Complete: $totalComplete${itemCount?.let { "/$it" } ?: ""} $pctComplete")
-                        println("Avg: ${averageTime}ms")
-                        println("Elapsed: $fair ETR: $pair")
                     }
                 }
                 println("END\n\n\n")

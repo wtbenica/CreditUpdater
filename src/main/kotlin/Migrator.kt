@@ -38,7 +38,7 @@ class Migrator {
                         WHERE g.id > $CHARACTER_STORY_START_NEW
                         AND g.modified > '$LAST_UPDATED'
                         ORDER BY g.id 
-                        LIMIT 100"""
+                        LIMIT 20"""
 
                     sourceConn?.let { it1 ->
                         updateItems(

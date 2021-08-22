@@ -17,7 +17,7 @@ abstract class Extractor(
     protected val conn: Connection
 ) {
 
-    abstract fun extract(
+    abstract suspend fun extract(
         extractFrom: ResultSet,
         destDatabase: String? = null
     ): Int
