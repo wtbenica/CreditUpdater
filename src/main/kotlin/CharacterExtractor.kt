@@ -42,6 +42,7 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
         @Synchronized
         fun save() {
             println("Saving character appearances")
+            DatabaseUtil.numLines++
             makeCharacterAppearance(appearances, database, conn)
             _appearances.clear()
         }
@@ -365,6 +366,7 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
 
         statement?.executeUpdate()
         println("Inserted ${appearances.size} appearances")
+        DatabaseUtil.numLines++
     }
 
     private fun makeCharacter(
