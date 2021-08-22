@@ -37,8 +37,7 @@ class Migrator {
                         FROM $NEW_DATABASE.good_story g
                         WHERE g.id > $CHARACTER_STORY_START_NEW
                         AND g.modified > '$LAST_UPDATED'
-                        ORDER BY g.id 
-                        LIMIT 20"""
+                        ORDER BY g.id """
 
                     sourceConn?.let { it1 ->
                         updateItems(
@@ -55,7 +54,7 @@ class Migrator {
             }
 
             updateCharacters.await().let {
-                println("Done.")
+                println("Done extracting characters.")
             }
 
 //            val updateCredits = async {

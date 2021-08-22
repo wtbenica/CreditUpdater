@@ -13,6 +13,8 @@ import kotlin.system.measureTimeMillis
 
 class DatabaseUtil {
     companion object {
+        var numLines = 0
+
         internal fun getConnection(database: String): Connection? {
             val connectionProps = Properties()
             connectionProps["user"] = USERNAME
@@ -146,12 +148,14 @@ class DatabaseUtil {
                             val pair = millisToPretty(remainingTime)
                             val fair = millisToPretty(totalTimeMillis)
 
-                            upNLines(4)
+                            upNLines(numLines)
+                            numLines = 0
 
                             println("Extract $extractedItem $fromValue: $itemId")
                             println("Complete: $totalComplete${itemCount?.let { "/$it" } ?: ""} $pctComplete")
                             println("Avg: ${averageTime}ms")
                             println("Elapsed: $fair ETR: $pair")
+                            numLines += 4
                         }
                     }
                 }
