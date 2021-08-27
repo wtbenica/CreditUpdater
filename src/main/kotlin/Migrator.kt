@@ -1,5 +1,7 @@
 import Credentials.Companion.CHARACTER_STORIES_COMPLETE_NEW
 import Credentials.Companion.CHARACTER_STORY_START_NEW
+import Credentials.Companion.CREDITS_STORIES_COMPLETE_NEW
+import Credentials.Companion.CREDITS_STORY_START_NEW
 import Credentials.Companion.LAST_UPDATED
 import Credentials.Companion.NEW_DATABASE
 import Credentials.Companion.PRIMARY_DATABASE
@@ -13,43 +15,25 @@ import java.sql.Connection
 class Migrator {
     suspend fun migrate() {
         println("Migrating to $PRIMARY_DATABASE since $LAST_UPDATED")
-
-        val sourceConn: Connection? = DatabaseUtil.getConnection(NEW_DATABASE)
-        val destConn: Connection? = DatabaseUtil.getConnection(PRIMARY_DATABASE)
+        println("Getting connections")
+        val newDbConn: Connection? by lazy { DatabaseUtil.getConnection(NEW_DATABASE) }
+        val primaryDbConn: Connection? by lazy { DatabaseUtil.getConnection(PRIMARY_DATABASE) }
 
         coroutineScope {
             val updateTables = async {
                 println("starting tables...")
-//                Updater.addTablesNew(sourceConn)
-//                Updater.addIssueSeriesToCreditsNew(sourceConn)
+//                addTablesNew(newDbConn)
             }
 
             val storyCount = getItemCount(
-                conn = sourceConn,
+                conn = newDbConn,
                 tableName = "$NEW_DATABASE.good_story",
                 condition = "WHERE g.modified > '$LAST_UPDATED'"
             )
 
             val updateCharacters = async {
                 updateTables.await().let {
-                    println("starting characters...")
-                    val scriptSql = """SELECT g.id, g.characters
-                        FROM $NEW_DATABASE.good_story g
-                        WHERE g.id > $CHARACTER_STORY_START_NEW
-                        AND g.modified > '$LAST_UPDATED'
-                        ORDER BY g.id """
-
-                    sourceConn?.let { it1 ->
-                        updateItems(
-                            items = runQuery(scriptSql),
-                            numCompleteInit = CHARACTER_STORIES_COMPLETE_NEW,
-                            itemCount = storyCount,
-                            extractedItem = "Character",
-                            fromValue = "Story",
-                            extractor = CharacterExtractor(NEW_DATABASE, it1),
-                            conn = it1
-                        )
-                    }
+//                    extractCharactersAndAppearances(newDbConn, storyCount)
                 }
             }
 
@@ -57,31 +41,102 @@ class Migrator {
                 println("Done extracting characters.")
             }
 
-//            val updateCredits = async {
-//                updateCharacters.await().let {
-//                    println("starting creators...")
-//                    val scriptSql = """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
-//                        FROM gcd_story g
-//                        WHERE g.id > $CREDITS_STORY_START_NEW
-//                        AND g.issue_id IN (
-//                            SELECT gi.id
-//                            FROM $NEW_DATABASE.good_issue gi
-//                            WHERE gi.modified > '$LAST_UPDATED'
-//                        )
-//                        ORDER BY g.id """
-//                    
-//                    updateItems(
-//                        getItemIds = runQuery(scriptSql),
-//                        database = NEW_DATABASE,
-//                        numCompleteInit = CREDITS_STORIES_COMPLETE_NEW,
-//                        itemCount = storyCount,
-//                        extractedItem = "Credit",
-//                        fromValue = "StoryId",
-//                        extractItemFrom = Updater::extractCreditsFromStory,
-//                        conn = sourceConn
-//                    )
-//                }
-//            }
+            val updateCredits = async {
+                updateCharacters.await().let {
+                    extractCredits(newDbConn, storyCount)
+                }
+            }
+
+            updateCredits.await().let {
+                addIssueSeriesToCreditsNew(newDbConn)
+                println("Done updating credits")
+            }
+
+            migrateRecords()
+        }
+    }
+
+    private fun migrateRecords() {
+        
+    }
+
+    private suspend fun extractCredits(sourceConn: Connection?, storyCount: Int?) {
+        println("starting credits...")
+        val scriptSql = """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
+                            FROM gcd_story g
+                            WHERE g.id > $CREDITS_STORY_START_NEW
+                            AND g.type_id IN (6, 19)
+                            AND g.issue_id IN (
+                                SELECT gi.id
+                                FROM $NEW_DATABASE.good_issue gi
+                            )
+                            AND g.modified > '$LAST_UPDATED'
+                            ORDER BY g.id """
+
+        sourceConn?.let {
+            updateItems(
+                items = runQuery(scriptSql),
+                numCompleteInit = CREDITS_STORIES_COMPLETE_NEW,
+                itemCount = storyCount,
+                extractedItem = "Credit",
+                fromValue = "StoryId",
+                extractor = CreditExtractor(NEW_DATABASE, it),
+                conn = it
+            )
+        }
+    }
+
+    private suspend fun extractCharactersAndAppearances(
+        sourceConn: Connection?,
+        storyCount: Int?
+    ) {
+        println("starting characters...")
+        val scriptSql = """SELECT g.id, g.characters
+                            FROM $NEW_DATABASE.good_story g
+                            WHERE g.id > $CHARACTER_STORY_START_NEW
+                            AND g.modified > '$LAST_UPDATED'
+                            ORDER BY g.id """
+
+        sourceConn?.let {
+            updateItems(
+                items = runQuery(scriptSql),
+                numCompleteInit = CHARACTER_STORIES_COMPLETE_NEW,
+                itemCount = storyCount,
+                extractedItem = "Character",
+                fromValue = "Story",
+                extractor = CharacterExtractor(NEW_DATABASE, it),
+                conn = it
+            )
+        }
+
+        fun transferNewItems() {
+            // Publishers
+            val sql = """SELECT *
+                FROM $NEW_DATABASE.good_publishers
+                WHERE TRUE;
+            """
+            // getPublishers
+            // getForeignKeys
+            // addForeignKeys
+            // addPublishers
+
+            // Series
+
+            // Issues
+
+            // Stories
+
+            // Creators
+
+            // NameDetails
+
+            // StoryCredits
+
+            // MStoryCredits
+
+            // MCharacters
+
+            // MCharacterAppearances
         }
     }
 
