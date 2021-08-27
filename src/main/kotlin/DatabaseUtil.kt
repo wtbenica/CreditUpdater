@@ -65,12 +65,13 @@ class DatabaseUtil {
                 val instructions = sb.toString().split(';')
                 instructions.forEach { instr ->
                     if (instr != "") {
-                        println("This is $instr")
+                        println(instr)
                         println()
                         stmt?.let { executor(it, instr) }
                     }
                 }
             } catch (sqlEx: SQLException) {
+                
             }
         }
 
