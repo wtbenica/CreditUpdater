@@ -7,7 +7,7 @@ class TerminalUtil {
         }
 
         fun clearTerminal() {
-            print("$ESC${CursorMovement.CLEAR}")     // clear terminal first
+            println("$ESC${CursorMovement.CLEAR}")     // clear terminal first
         }
 
         fun upFourLines() {
