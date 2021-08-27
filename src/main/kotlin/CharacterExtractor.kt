@@ -1,7 +1,9 @@
 import Credentials.Companion.COLLECTOR_LIMIT
 import Credentials.Companion.PRIMARY_DATABASE
 import DatabaseUtil.Companion.closeResultSet
+import DatabaseUtil.Companion.numLines
 import kotlinx.coroutines.*
+import java.lang.Integer.min
 import java.sql.*
 import java.time.Instant
 
@@ -42,7 +44,7 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
         @Synchronized
         fun save() {
             println("Saving character appearances")
-            DatabaseUtil.numLines++
+            numLines++
             makeCharacterAppearance(appearances, database, conn)
             _appearances.clear()
         }
@@ -339,7 +341,7 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
         val sql = StringBuilder()
         sql.append(
             """
-               INSERT INTO ${database}.m_character_appearance(id, details, character_id, story_id, notes, membership)
+               INSERT IGNORE INTO ${database}.m_character_appearance(id, details, character_id, story_id, notes, membership)
                VALUES 
             """
         )
@@ -366,7 +368,7 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
 
         statement?.executeUpdate()
         println("Inserted ${appearances.size} appearances")
-        DatabaseUtil.numLines++
+        numLines++
     }
 
     private fun makeCharacter(
@@ -376,14 +378,14 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
     ): Int? {
         val statement: PreparedStatement?
         var characterId: Int? = null
-
+        val truncatedName = name.substring(0, min(255, name.length))
         val sql = """
            INSERT INTO ${database}.m_character(name, alter_ego, publisher_id)
            VALUE (?, ?, ?)
         """
 
         statement = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
-        statement?.setString(1, name)
+        statement?.setString(1, truncatedName)
         statement?.setString(2, alterEgo)
         statement?.setInt(3, publisherId)
 

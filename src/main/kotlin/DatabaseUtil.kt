@@ -13,6 +13,7 @@ import kotlin.system.measureTimeMillis
 
 class DatabaseUtil {
     companion object {
+        @Volatile
         var numLines = 0
 
         internal fun getConnection(database: String): Connection? {
