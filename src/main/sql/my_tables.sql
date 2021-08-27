@@ -14,7 +14,7 @@ WHERE table_schema = 'gcdb2'
 LIMIT 1;
 
 SET @query_add_issue_to_story_credit =
-        IF(@exist <= 0, 'ALTER TABLE gcdb2.gcd_story_credit ADD COLUMN issue INT DEFAULT NULL',
+        IF(@exist <= 0, 'ALTER TABLE gcdb2.gcd_story_credit ADD COLUMN issue_id INT DEFAULT NULL',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_issue_to_story_credit;
@@ -31,7 +31,7 @@ WHERE table_schema = 'gcdb2'
   AND referenced_column_name = 'id';
 
 SET @query_add_fk_issue_to_story_credit =
-        IF(@exist <= 0, 'ALTER TABLE gcdb2.gcd_story_credit ADD FOREIGN KEY (issue) REFERENCES gcd_issue (id)',
+        IF(@exist <= 0, 'ALTER TABLE gcdb2.gcd_story_credit ADD FOREIGN KEY (issue_id) REFERENCES gcd_issue (id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_issue_to_story_credit;
@@ -47,7 +47,7 @@ WHERE table_schema = 'gcdb2'
 LIMIT 1;
 
 SET @query_add_series_to_story_credit =
-        IF(@exist <= 0, 'ALTER TABLE gcdb2.gcd_story_credit ADD COLUMN series INT DEFAULT NULL',
+        IF(@exist <= 0, 'ALTER TABLE gcdb2.gcd_story_credit ADD COLUMN series_id INT DEFAULT NULL',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_series_to_story_credit;
@@ -64,7 +64,7 @@ WHERE table_schema = 'gcdb2'
   AND referenced_column_name = 'id';
 
 SET @query_add_fk_series_to_story_credit =
-        IF(@exist <= 0, 'ALTER TABLE gcdb2.gcd_story_credit ADD FOREIGN KEY (series) REFERENCES gcd_series (id)',
+        IF(@exist <= 0, 'ALTER TABLE gcdb2.gcd_story_credit ADD FOREIGN KEY (series_id) REFERENCES gcd_series (id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_series_to_story_credit;
@@ -75,32 +75,39 @@ EXECUTE stmt;
 ##########################################################################;
 CREATE TABLE IF NOT EXISTS m_character
 (
-    id           BIGINT PRIMARY KEY AUTO_INCREMENT,
-    name         TEXT NOT NULL,
-    alter_ego    TEXT,
-    publisher_id INTEGER REFERENCES gcd_publisher (id)
+    id           INTEGER PRIMARY KEY AUTO_INCREMENT,
+    name         VARCHAR(255) NOT NULL,
+    alter_ego    VARCHAR(255),
+    publisher_id INTEGER REFERENCES gcd_publisher (id),
+    INDEX (name),
+    INDEX (alter_ego),
+    UNIQUE INDEX (name, alter_ego, publisher_id)
 );
 
 CREATE TABLE IF NOT EXISTS m_character_appearance
 (
-    id           BIGINT PRIMARY KEY AUTO_INCREMENT,
-    details      LONGTEXT,
-    character_id BIGINT NOT NULL REFERENCES m_character (id),
-    story_id     INT    NOT NULL REFERENCES gcd_story (id),
-    notes        LONGTEXT,
+    id           INTEGER PRIMARY KEY AUTO_INCREMENT,
+    details      VARCHAR(255),
+    character_id INTEGER NOT NULL,
+    story_id     INTEGER NOT NULL,
+    notes        VARCHAR(255),
     membership   LONGTEXT,
-    issue_id     INT REFERENCES gcd_issue (id),
-    series_id    INT REFERENCES gcd_series (id)
+    issue_id     INTEGER DEFAULT NULL,
+    series_id    INTEGER REFERENCES new_gcd_dump.gcd_series (id),
+    FOREIGN KEY (character_id) REFERENCES m_character (id),
+    FOREIGN KEY (story_id) REFERENCES gcd_story (id),
+    FOREIGN KEY (issue_id) REFERENCES gcd_issue (id),
+    FOREIGN KEY (series_id) REFERENCES gcd_series (id),
+    INDEX (notes),
+    INDEX (details),
+    UNIQUE INDEX (details, character_id, story_id, notes)
 );
 
-CREATE TABLE IF NOT EXISTS m_story_credit AS (
-    SELECT *
-    FROM gcd_story_credit
-    WHERE FALSE
-);
+CREATE TABLE IF NOT EXISTS m_story_credit LIKE gcd_story_credit;
 
 ###########################################################################
-# Add issue/series columns and fk constraints to extract tables           #
+# Add issue/series columns and fk constraints to extract tables for       #
+# legacy databases that haven't been updated yet (delete at some point)   #                        #
 ##########################################################################;
 SELECT COUNT(*)
 INTO @exist
@@ -128,7 +135,7 @@ WHERE table_schema = 'gcdb2'
   AND referenced_column_name = 'id';
 
 SET @query_add_fk_issue_to_character_appearance =
-        IF(@exist <= 0, 'ALTER TABLE gcdb2.m_character_appearance ADD FOREIGN KEY (issue) REFERENCES gcd_issue (id)',
+        IF(@exist <= 0, 'ALTER TABLE gcdb2.m_character_appearance ADD FOREIGN KEY (issue_id) REFERENCES gcd_issue (id)',
            'SELECT \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_issue_to_character_appearance;
@@ -161,7 +168,8 @@ WHERE table_schema = 'gcdb2'
   AND referenced_column_name = 'id';
 
 SET @query_add_fk_series_to_character_appearance =
-        IF(@exist <= 0, 'ALTER TABLE gcdb2.m_character_appearance ADD FOREIGN KEY (series) REFERENCES gcd_series (id)',
+        IF(@exist <= 0,
+           'ALTER TABLE gcdb2.m_character_appearance ADD FOREIGN KEY (series_id) REFERENCES gcd_series (id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_series_to_character_appearance;
@@ -176,7 +184,7 @@ WHERE table_schema = 'gcdb2'
 
 SET @query_add_pk_id_to_m_story_credit =
         IF(@exist <= 0,
-           'ALTER TABLE m_story_credit MODIFY COLUMN id BIGINT PRIMARY KEY AUTO_INCREMENT',
+           'ALTER TABLE gcdb2.m_story_credit MODIFY COLUMN id INT PRIMARY KEY AUTO_INCREMENT',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_creator_to_m_story_credit;
@@ -194,7 +202,7 @@ WHERE table_schema = 'gcdb2'
 
 SET @query_add_fk_creator_to_m_story_credit =
         IF(@exist <= 0,
-           'ALTER TABLE m_story_credit ADD FOREIGN KEY (creator_id) REFERENCES gcd_creator_name_detail(id)',
+           'ALTER TABLE gcdb2.m_story_credit ADD FOREIGN KEY (creator_id) REFERENCES gcd_creator_name_detail(id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_creator_to_m_story_credit;
@@ -212,7 +220,7 @@ WHERE table_schema = 'gcdb2'
 
 SET @query_add_fk_credit_type_to_m_story_credit =
         IF(@exist <= 0,
-           'ALTER TABLE m_story_credit ADD FOREIGN KEY (credit_type_id) REFERENCES gcd_credit_type (id)',
+           'ALTER TABLE gcdb2.m_story_credit ADD FOREIGN KEY (credit_type_id) REFERENCES gcd_credit_type (id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_credit_type_to_m_story_credit;
@@ -230,7 +238,7 @@ WHERE table_schema = 'gcdb2'
 
 SET @query_add_fk_issue_to_m_story_credit =
         IF(@exist <= 0,
-           'ALTER TABLE m_story_credit ADD FOREIGN KEY (issue) REFERENCES gcd_issue (id)',
+           'ALTER TABLE gcdb2.m_story_credit ADD FOREIGN KEY (issue) REFERENCES gcd_issue (id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_issue_to_m_story_credit;
@@ -248,7 +256,7 @@ WHERE table_schema = 'gcdb2'
 
 SET @query_add_fk_series_to_m_story_credit =
         IF(@exist <= 0,
-           'ALTER TABLE m_story_credit ADD FOREIGN KEY (series) REFERENCES gcd_series (id)',
+           'ALTER TABLE gcdb2.m_story_credit ADD FOREIGN KEY (series_id) REFERENCES gcd_series (id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_series_to_m_story_credit;
@@ -266,7 +274,7 @@ WHERE table_schema = 'gcdb2'
 
 SET @query_add_fk_story_to_m_story_credit =
         IF(@exist <= 0,
-           'ALTER TABLE m_story_credit ADD FOREIGN KEY (story_id) REFERENCES gcd_story (id)',
+           'ALTER TABLE gcdb2.m_story_credit ADD FOREIGN KEY (story_id) REFERENCES gcd_story (id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_story_to_m_story_credit;

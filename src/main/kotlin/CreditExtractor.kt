@@ -127,6 +127,40 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
             closeResultSet(resultSet)
         }
 
+        if (storyCreditId == null) {
+            val statement2: PreparedStatement?
+            try {
+                val getMStoryCreditIdSql = """
+                    SELECT gsc.id
+                    FROM ${database}.m_story_credit gsc
+                    WHERE gsc.creator_id = ?
+                    AND gsc.story_id = ?
+                    AND gsc.credit_type_id = ?
+            """
+
+                statement2 = conn.prepareStatement(getMStoryCreditIdSql)
+                statement2?.setInt(1, gcndId)
+                statement2?.setInt(2, storyId)
+                statement2?.setInt(3, roleId)
+
+                resultSet = statement2?.executeQuery()
+
+                if (statement2?.execute() == true) {
+                    resultSet = statement2.resultSet
+                }
+
+                if (resultSet?.next() == true) {
+                    storyCreditId = resultSet.getInt("id")
+                }
+            } catch (sqlEx: SQLException) {
+                sqlEx.printStackTrace()
+            } catch (e: java.lang.Exception) {
+                e.printStackTrace()
+            } finally {
+                closeResultSet(resultSet)
+            }
+        }
+
         return storyCreditId
     }
 
@@ -134,7 +168,7 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
         val insertStoryCreditStmt: PreparedStatement?
 
         val insertStoryCreditSql = """
-                            INSERT INTO m_story_credit(created, modified, deleted, is_credited, is_signed, uncertain, signed_as, credited_as, credit_name, creator_id, credit_type_id, story_id, signature_id)
+                            INSERT INTO $database.m_story_credit(created, modified, deleted, is_credited, is_signed, uncertain, signed_as, credited_as, credit_name, creator_id, credit_type_id, story_id, signature_id)
                              VALUE (CURTIME(), CURTIME(), 0, 0, 0, 0, '', '', '', ?, ?, ?, NULL)
                         """
 
