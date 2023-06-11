@@ -2,121 +2,23 @@ import Credentials.Companion.CHARACTER_STORIES_COMPLETE_NEW
 import Credentials.Companion.CHARACTER_STORY_START_NEW
 import Credentials.Companion.CREDITS_STORIES_COMPLETE_NEW
 import Credentials.Companion.CREDITS_STORY_START_NEW
-import Credentials.Companion.NEW_DATABASE
+import Credentials.Companion.INCOMING_DATABASE
 import Credentials.Companion.PRIMARY_DATABASE
 import DatabaseUtil.Companion.getItemCount
-import DatabaseUtil.Companion.runQuery
-import DatabaseUtil.Companion.updateItems
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import java.sql.Connection
-import java.sql.SQLException
 
-abstract class Doer(protected val targetSchema: String) {
-
-    protected var conn: Connection? = run {
-        println("Getting connection to ${targetSchema}...")
-        DatabaseUtil.getConnection(targetSchema)
-    }
-
-    protected fun closeConn() {
-        if (conn != null) {
-            try {
-                conn?.close()
-            } catch (sqlEx: SQLException) {
-                sqlEx.printStackTrace()
-            }
-            conn = null
-        }
-    }
-    
-    companion object {
-        suspend fun extractCharactersAndAppearances(
-            conn: Connection?,
-            storyCount: Int?,
-            schema: String,
-            lastIdCompleted: Long,
-            numComplete: Long
-        ) {
-            println("Starting Characters...")
-
-            val scriptSql = """SELECT g.id, g.characters
-                        FROM $schema.stories_to_migrate g
-                        WHERE g.id > $lastIdCompleted
-                        ORDER BY g.id """
-
-            conn?.let {
-                updateItems(
-                    items = runQuery(scriptSql),
-                    numCompleteInit = numComplete,
-                    itemCount = storyCount,
-                    extractedItem = "Character",
-                    fromValue = "Story",
-                    extractor = CharacterExtractor(schema, it),
-                    conn = it
-                )
-            }
-
-            fun transferNewItems() {
-                // Publishers
-                val sql = """SELECT *
-            FROM $schema.good_publishers
-            WHERE TRUE;
-        """
-                // getPublishers
-                // getForeignKeys
-                // addForeignKeys
-                // addPublishers
-
-                // Series
-
-                // Issues
-
-                // Stories
-
-                // Creators
-
-                // NameDetails
-
-                // StoryCredits
-
-                // MStoryCredits
-
-                // MCharacters
-
-                // MCharacterAppearances
-            }
-        }
-
-        suspend fun extractCredits(
-            sourceConn: Connection?, storyCount: Int?, schema: String, lastIdCompleted: Long, numComplete: Long
-        ) {
-            println("starting credits...")
-            val scriptSql = """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
-                            FROM ${schema}.stories_to_migrate g
-                            WHERE g.id > $lastIdCompleted
-                            ORDER BY g.id """
-
-            sourceConn?.let {
-                updateItems(
-                    items = runQuery(scriptSql),
-                    numCompleteInit = numComplete,
-                    itemCount = storyCount,
-                    extractedItem = "Credit",
-                    fromValue = "StoryId",
-                    extractor = CreditExtractor(schema, it),
-                    conn = it
-                )
-            }
-        }
-
-    }
-}
-
-class Migrator : Doer(NEW_DATABASE) {
+/**
+ * Migrator - migrates the data from the old database to the new database.
+ *
+ * @constructor Create empty Migrator
+ */
+class Migrator : Doer(INCOMING_DATABASE) {
+    /** Migrate - migrates the data from the old database to the new database. */
     suspend fun migrate() {
         coroutineScope {
-            try {
+            databaseConnection?.use { conn ->
                 println("Migrating to $PRIMARY_DATABASE from $targetSchema")
 
                 val updateTables = async {
@@ -168,26 +70,50 @@ class Migrator : Doer(NEW_DATABASE) {
                     println("Starting migration")
                     migrateRecords(conn)
                 }
-            } finally {
-                closeConn()
-            }
+            } ?: logger.info { "No connection to $targetSchema" }
         }
     }
 
-    private fun migrateRecords(newDbConn: Connection?) {
+    /**
+     * Migrate records - migrates the records from the old database to the new
+     *
+     * @param newDbConn The connection to the new database.
+     */
+    private fun migrateRecords(newDbConn: Connection) {
         DatabaseUtil.runSqlScriptUpdate(newDbConn, MIGRATE_PATH_NEW)
     }
 
     companion object {
+        /**
+         * This SQL script adds issue_id and series_id columns to the
+         * gcd_story_credit and m_character_appearance tables if they don't already
+         * exist. It then creates the m_story_credit, m_character_appearance, and
+         * m_character tables. The script also creates several views of "good"
+         * items based on certain criteria, and creates tables for items that need
+         * to be migrated to the new database. Finally, the script adds constraints
+         * and indexes to the m_character and m_character_appearance tables.
+         */
         private const val ADD_MODIFY_TABLES_PATH_NEW = "./src/main/sql/my_tables_new.sql"
-        private const val ADD_ISSUE_SERIES_TO_CREDITS_PATH_NEW = "src/main/sql/add_issue_series_to_credits_new.sql"
+
+        private const val ADD_ISSUE_SERIES_TO_CREDITS_PATH_NEW =
+            "src/main/sql/add_issue_series_to_credits_new.sql"
+
         private const val MIGRATE_PATH_NEW = "src/main/sql/migrate.sql"
 
-        internal fun addTablesNew(connection: Connection?) =
+        /**
+         * Add tables new - adds tables to the new database.
+         *
+         * @param connection The connection to the new database.
+         */
+        internal fun addTablesNew(connection: Connection) =
             DatabaseUtil.runSqlScriptQuery(connection, ADD_MODIFY_TABLES_PATH_NEW)
 
-        internal fun addIssueSeriesToCreditsNew(connection: Connection?) =
+        /**
+         * Add issue series to credits new - adds the issue_id and series_id columns
+         *
+         * @param connection The connection to the new database.
+         */
+        internal fun addIssueSeriesToCreditsNew(connection: Connection) =
             DatabaseUtil.runSqlScriptUpdate(connection, ADD_ISSUE_SERIES_TO_CREDITS_PATH_NEW)
-
     }
 }

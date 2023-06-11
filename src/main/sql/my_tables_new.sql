@@ -9,8 +9,8 @@ SELECT COUNT(*)
 INTO @exists
 FROM information_schema.columns
 WHERE table_schema = 'new_gcd_dump'
-  AND table_name = 'gcd_story_credit'
-  AND column_name = 'issue_id';
+  AND column_name = 'issue_id'
+  AND table_name = 'gcd_story_credit';
 
 SET @query_ngd_story_credit_issue_id_exists =
         IF(@exists <= 0, 'ALTER TABLE new_gcd_dump.gcd_story_credit ADD COLUMN issue_id INT DEFAULT NULL',

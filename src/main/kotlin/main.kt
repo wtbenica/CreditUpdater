@@ -1,12 +1,10 @@
 import kotlinx.coroutines.runBlocking
 
-var i = 0
-
 fun main(args: Array<String>) = runBlocking {
     println("${args.size}")
 
     if (args.isEmpty())
-        Updater().update()
+        PrimaryDatabaseInitializer().update()
     else if (args.size == 1 && args[0] == "migrate") {
         Migrator().migrate()
     }

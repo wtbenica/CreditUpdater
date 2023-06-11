@@ -1,21 +1,26 @@
+/**
+ * Terminal util - utility functions for the terminal, mainly for tidying output.
+ *
+ * @constructor Create empty Terminal util
+ */
 class TerminalUtil {
     companion object {
-        enum class CursorMovement(val value: String) {
+        enum class CursorMovement(private val value: String) {
             UP("[1A"), LINE_START("[9D"), CLEAR("[2J");
 
             override fun toString(): String = value
         }
 
+        /** Clear terminal - clears the terminal. */
         fun clearTerminal() {
             println("$ESC${CursorMovement.CLEAR}")     // clear terminal first
         }
 
-        fun upFourLines() {
-            for (aec in cursorUpFourLines) {
-                print("$ESC$aec")
-            }
-        }
-
+        /**
+         * Up n lines - move the cursor up n lines and to the start of the line.
+         *
+         * @param n the number of lines to move up
+         */
         fun upNLines(n: Int) {
             for (i in 0..n) {
                 print("$ESC${CursorMovement.UP}")
@@ -23,18 +28,19 @@ class TerminalUtil {
             print("$ESC${CursorMovement.LINE_START}")
         }
 
-        //        var storyCount: Int? = null
         private const val ESC = "\u001B"  // escape code
 
-        private val cursorUpFourLines =
-            arrayOf(
-                CursorMovement.UP,
-                CursorMovement.UP,
-                CursorMovement.UP,
-                CursorMovement.UP,
-                CursorMovement.LINE_START
-            )
-
+        /**
+         * Converts a duration in milliseconds to a human-readable string format.
+         *
+         * @param remainingTime the duration in milliseconds
+         * @return a string representing the duration in the format "Xd Yh Zm",
+         *     where X is the number of days, Y is the number of hours, and Z is
+         *     the number of minutes. If any of these values is zero, the
+         *     corresponding part of the string is omitted. If the duration is less
+         *     than one minute, the function returns the string "0s". If the
+         *     duration is null, the function also returns "0s".
+         */
         internal fun millisToPretty(remainingTime: Long?): String = remainingTime?.let {
             if (it < MILLIS_PER_MINUTE) {
                 "0s"

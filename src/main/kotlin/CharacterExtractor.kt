@@ -1,63 +1,56 @@
 import Credentials.Companion.COLLECTOR_LIMIT
 import Credentials.Companion.PRIMARY_DATABASE
-import DatabaseUtil.Companion.closeResultSet
 import DatabaseUtil.Companion.numLines
-import kotlinx.coroutines.*
+import mu.KLogger
+import mu.KotlinLogging
 import java.lang.Integer.min
 import java.sql.*
 import java.time.Instant
 
+val Any.logger: KLogger
+    get() = KotlinLogging.logger(this::class.java.name)
 
+/**
+ * Character extractor - extracts character records and character
+ * appearance records from the 'character' text field in gcd_story
+ * and creates linked entries for them in the 'm_character' and
+ * 'm_character_appearance' tables.
+ *
+ * @param database the database to which to write the extracted character
+ *     and appearance data.
+ * @param conn
+ */
 class CharacterExtractor(database: String, conn: Connection) : Extractor(database, conn) {
+    override val extractedItem: String = "Character"
+    override val fromValue: String = "Story"
+
     @Volatile
-    private var _appearanceCollector: Collector? = null
-    private val lastUpdated = Instant.MAX.epochSecond
+    private var _newAppearanceInsertionBuffer: NewAppearanceInsertionBuffer? = null
 
-    private val appearanceCollector: Collector
-        get() = _appearanceCollector ?: synchronized(this) {
-            Collector(database, conn)
+    private val newAppearanceInsertionBuffer: NewAppearanceInsertionBuffer
+        get() = _newAppearanceInsertionBuffer ?: synchronized(this) {
+            NewAppearanceInsertionBuffer(database, conn)
         }.also {
-            _appearanceCollector = it
+            _newAppearanceInsertionBuffer = it
         }
 
-
-    inner class Collector(private val database: String, private val conn: Connection?) {
-        private val _appearances: MutableSet<Appearance> = mutableSetOf()
-        private val appearances: Set<Appearance>
-            get() = _appearances
-        private var lastUpdated: Long = Instant.MAX.epochSecond
-
-        @Synchronized
-        fun addToSet(appearance: Appearance?) {
-            if (appearance == null) {
-                save()
-            } else {
-                _appearances.add(appearance)
-                lastUpdated = Instant.now().epochSecond
-
-                if (_appearances.size >= COLLECTOR_LIMIT) {
-                    save()
-                }
-            }
-        }
-
-        @Synchronized
-        fun save() {
-            println("Saving character appearances")
-            numLines++
-            makeCharacterAppearance(appearances, database, conn)
-            _appearances.clear()
-        }
-    }
-
+    /**
+     * Extracts characters from a result set and adds them to the
+     * [newAppearanceInsertionBuffer] for database insertion.
+     *
+     * @param resultSet The result set of stories from which to extract
+     *     characters.
+     * @param destDatabase The destination database.
+     * @return the story id of the story from which characters were extracted.
+     */
     override suspend fun extract(
-        extractFrom: ResultSet,
+        resultSet: ResultSet,
         destDatabase: String?
     ): Int {
-        val storyId = extractFrom.getInt("id")
+        val storyId = resultSet.getInt("id")
         val publisherId: Int? = getPublisherId(storyId, conn)
 
-        val characterList = extractFrom.getString("characters")
+        val characterList = resultSet.getString("characters")
 
         if (characterList.isNotEmpty()) {
             val characters = splitOnOuterSemicolons(characterList)
@@ -65,20 +58,29 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
                 val (openParen, closeParen) = parenthesesIndexes(character)
                 val (openBracket, closeBracket) = bracketIndexes(character)
 
-                val endIndexName = minOf(openBracket ?: character.length, openParen ?: character.length)
+                val endIndexName =
+                    minOf(openBracket ?: character.length, openParen ?: character.length)
                 val name: String = character.substring(0, endIndexName).prepareName()
 
                 if (name.isNotEmpty()) {
-                    val appearanceInfo: String? = extractAppearanceInfo(openParen, closeParen, character)
+                    val appearanceInfo: String? =
+                        extractAppearanceInfo(openParen, closeParen, character)
+
                     // need to check for internal brackets. maybe?
-                    val bracketedText: String? = extractBracketedText(openBracket, closeBracket, character)
-                    val splitText: MutableList<String>? = bracketedText?.let { splitOnOuterSemicolons(it) }
+                    val bracketedText: String? =
+                        extractBracketedText(openBracket, closeBracket, character)
+
+                    val splitText: List<String>? =
+                        bracketedText?.let { splitOnOuterSemicolons(it) }
+
                     val (alterEgo: String?, notes: String?, membership: String?) =
                         parseBracketedText(splitText, bracketedText)
+
                     val characterId: Int? =
-                        publisherId?.let { getCharacterId(name, alterEgo, it, destDatabase) }
+                        publisherId?.let { upsertCharacter(name, alterEgo, it) }
+
                     val appearance: Appearance? = characterId?.let {
-                        getCharacterAppearance(
+                        Appearance(
                             storyId,
                             it,
                             appearanceInfo,
@@ -88,7 +90,7 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
                     }
 
                     appearance?.let {
-                        appearanceCollector.addToSet(it)
+                        newAppearanceInsertionBuffer.addToBuffer(it)
                     }
                 }
             }
@@ -98,63 +100,61 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
     }
 
     override fun finish() {
-        appearanceCollector.save()
-        println("FINISHING")
+        newAppearanceInsertionBuffer.save()
+        logger.info { "FINISHING" }
     }
 
-    private fun getCharacterId(
+    /**
+     * Gets the ID of a character with the given name, alter ego, and publisher
+     * ID. If the character does not exist in the database, it is inserted and
+     * the new ID is returned.
+     *
+     * @param name The name of the character.
+     * @param alterEgo The alter ego of the character, or null if the character
+     *     does not have an alter ego.
+     * @param publisherId The ID of the publisher of the character.
+     * @return The ID of the character, or null if the character could not be
+     *     found or inserted.
+     */
+    private fun upsertCharacter(
         name: String,
         alterEgo: String?,
         publisherId: Int,
-        destDatabase: String? = null
     ): Int? = lookupCharacter(name, alterEgo, publisherId, database, conn)
-        ?: makeCharacter(
+        ?: insertCharacter(
             name,
             alterEgo,
             publisherId
         )
 
-    data class Appearance(
-        val storyId: Int,
-        val characterId: Int,
-        val appearanceInfo: String?,
-        val notes: String?,
-        val membership: String?,
-        val id: Int = 0
-    )
-
     /**
-     * getCharacterAppearance - either returns
+     * Parses bracketed text and returns a triple of strings containing the
+     * alter ego and notes, or a list of team members.
      *
-     * @param storyId
-     * @param characterId
-     * @param appearanceInfo
-     * @param notes
-     * @param membership
+     * @param splitText The text to parse, split into a list of strings.
+     * @param bracketedText The bracketed text to parse.
+     * @return A triple of strings containing the alter ego, notes, and team
+     *     members.
      */
-    private fun getCharacterAppearance(
-        storyId: Int,
-        characterId: Int,
-        appearanceInfo: String?,
-        notes: String?,
-        membership: String?
-    ): Appearance = Appearance(storyId, characterId, appearanceInfo, notes, membership, 0)
-
-
     private fun parseBracketedText(
-        splitText: MutableList<String>?,
+        splitText: List<String>?,
         bracketedText: String?
     ): Triple<String?, String?, String?> {
         var alterEgo: String? = null
         var notes: String? = null
         var membership: String? = null
+
+        // Check if the split text is not null
         if (splitText != null) {
+            // If the split text has more than two elements, assume the bracketed text is a list of team members
             if (splitText.size > 2) {
                 membership = bracketedText
             } else {
-                if (splitText.size > 0) {
+                // If the split text has at least one element, assume the first element is the alter ego
+                if (splitText.isNotEmpty()) {
                     alterEgo = splitText[0].cleanup()
                 }
+                // If the split text has two elements, assume the second element is the notes
                 if (splitText.size == 2) {
                     notes = splitText[1].cleanup()
                 }
@@ -163,21 +163,40 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
         return Triple(alterEgo, notes, membership)
     }
 
+    /**
+     * Extract bracketed text - extracts the text that appears between
+     * [openBracket] and [closeBracket] in the given [character] string.
+     *
+     * @param openBracket the index of the opening bracket
+     * @param closeBracket the index of the closing bracket
+     * @param character a character appearance string in the format "Name
+     *     [Alter Ego/Notes?/Membership?] (Appearance Info)"
+     */
     private fun extractBracketedText(
         openBracket: Int?,
         closeBracket: Int?,
         character: String
-    ) = if (openBracket != null && closeBracket != null && closeBracket > openBracket) {
+    ) = if ((openBracket == null) || (closeBracket == null) || (closeBracket <= openBracket)) {
+        null
+    } else {
         try {
-            character.substring(openBracket + 1, closeBracket).cleanup()
+            character.substring(openBracket + 1, closeBracket).cleanup().ifBlank { null }
         } catch (e: StringIndexOutOfBoundsException) {
-            println("ch: $character ob: $openBracket cb: $closeBracket $e")
+            logger.info { "ch: $character ob: $openBracket cb: $closeBracket $e" }
             throw e
         }
-    } else {
-        null
     }
 
+    /**
+     * Extract appearance info - extracts the appearance info (e.g. cameo,
+     * first appearance, death, etc.) that appears between [openParen] and
+     * [closeParen] in the given [character] string.
+     *
+     * @param openParen the index of the opening parenthesis
+     * @param closeParen the index of the closing parenthesis
+     * @param character a character appearance string in the format "Name
+     *     [Alter Ego] (Appearance Info)"
+     */
     private fun extractAppearanceInfo(
         openParen: Int?,
         closeParen: Int?,
@@ -186,192 +205,111 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
         try {
             character.substring(openParen + 1, closeParen).cleanup()
         } catch (e: StringIndexOutOfBoundsException) {
-            println("ch: $character op: $openParen cp: $closeParen $e")
+            logger.info { "ch: $character op: $openParen cp: $closeParen $e" }
             throw e
         }
     } else {
         null
     }
 
+    /**
+     * Finds the indices of the first opening and closing square brackets in
+     * the given [character] string.
+     *
+     * @param character the string to search for square brackets
+     * @return a pair of integers representing the indices of the opening and
+     *     closing square brackets, respectively. If either index is `null`, it
+     *     means that the corresponding parenthesis was not found in the
+     *     string.
+     */
     private fun bracketIndexes(character: String): Pair<Int?, Int?> {
-        val openBracket = character.indexOf('[').let {
-            if (it < 0) null else it
-        }
-        val closeBracket = character.lastIndexOf(']').let {
-            if (it < 0) null else it
-        }
-        return Pair(openBracket, closeBracket)
+        val openBracket = character.indexOf('[')
+        val closeBracket = character.lastIndexOf(']')
+        return Pair(openBracket.takeIf { it >= -1 }, closeBracket.takeIf { it >= -1 })
     }
 
+    /**
+     * Finds the indices of the first opening and closing parentheses in the
+     * given [character] string.
+     *
+     * @param character the string to search for parentheses
+     * @return a pair of integers representing the indices of the opening and
+     *     closing parentheses, respectively. If either index is `null`, it
+     *     means that the corresponding parenthesis was not found in the
+     *     string.
+     */
     private fun parenthesesIndexes(character: String): Pair<Int?, Int?> {
-        val openParen = character.indexOf('(').let {
-            if (it < 0) null else it
-        }
-        val closeParen = character.indexOf(')', openParen ?: 0).let {
-            if (it < 0) null else it
-        }
-        return Pair(openParen, closeParen)
+        val openParen = character.indexOf('(')
+        val closeParen = character.indexOf(')', openParen)
+        return Pair(openParen.takeIf { it >= -1 }, closeParen.takeIf { it >= -1 })
     }
 
-    // "xxxxxx [xxxxx]; xxxxx [xxxxxx [xxx]; xxxx [xxxx]]"
-// -> ["xxxxxx [xxxxx]", "xxxxx [xxxxxx [xxx]; xxxx [xxxx]"]
-    private fun splitOnOuterSemicolons(listString: String): MutableList<String> {
-        var bracketCount = 0
-        var parenCount = 0
-        val splitPoints = mutableListOf<Int>()
-
-
-        listString.forEachIndexed { idx, c ->
-            when (c) {
-                '[' -> bracketCount++
-                ']' -> bracketCount--
-                '(' -> parenCount++
-                ')' -> parenCount--
-                ';' -> if (bracketCount <= 0 && parenCount <= 0) {
-                    splitPoints.add(idx)
+    /**
+     * Splits a string into substrings based on semicolons that are not inside
+     * brackets or parentheses.
+     *
+     * @param input the input string to split
+     * @return a mutable list of substrings
+     */
+    private fun splitOnOuterSemicolons(input: String): List<String> {
+        var depth = 0
+        var start = 0
+        val characters = mutableListOf<String>()
+        for (i in input.indices) {
+            when (input[i]) {
+                '(', '[' -> depth++
+                ')', ']' -> depth--
+                ';' -> if (depth == 0) {
+                    characters.add(input.substring(start, i))
+                    start = i + 1
                 }
             }
         }
-
-        if (splitPoints.lastOrNull() != listString.length) {
-            splitPoints.add(listString.length)
-        }
-
-        val characters = mutableListOf<String>()
-        var startIndex = 0
-        for (index in splitPoints) {
-            characters.add(listString.substring(startIndex, index))
-            startIndex = index + 1
-        }
+        characters.add(input.substring(start))
         return characters
     }
 
     /**
-     * Looks in primary database then [database] for matching character. INE creates
-     * and inserts a new record.
-     *
-     * @param storyId
-     * @param characterId
-     * @param appearanceInfo
-     * @param notes
-     * @param membership
-     * @param database
-     * @param conn
-     * @return
+     * Insert character appearances - inserts [appearances] into [database]
+     * using [conn]
      */
-    /* TODO:
-    WHEN IT COMES TIME TO MIGRATE MY IDEA IS THIS:
-        FOR EACH CHARACTER:
-            SAVE 'OLD' ID
-            SET ID TO ZERO TO GET AUTO INCREMENT ID ON INSERT
-            GET ALL APPEARANCES FOR 'OLD' ID
-            
-            FOR EACH OF THOSE APPEARANCES:
-                (because new character, must be new appearance)
-                SET CHARACTER ID FIELD TO NEW ID
-                TRY AND CHECK AGAINST DUPLICATE ENTRIES
-                INSERT
-                REMOVE
-        EVERY APPEARANCE LEFT COMES FROM AN EXISTING CHARACTER AND IS POSSIBLY A DUPLICATE
-        INSERT/UPDATE/IGNORE AS APPROPRIATE
-     */
-//        private fun lookupCharacterAppearance(
-//            storyId: Int,
-//            characterId: Int,
-//            appearanceInfo: String?,
-//            notes: String?,
-//            membership: String?,
-//            database: String,
-//            conn: Connection?
-//        ): Appearance? {
-//            var result: Appearance? = null
-//            var resultSet: ResultSet? = null
-//
-//            // this is just duplicate checking which is unlikely 
-//            try {
-//                val getCharacterSql = """
-//               SELECT *
-//               FROM ${database}.m_character_appearance mca
-//               WHERE mca.story_id = ?
-//               AND mca.character_id = ?
-//            """
-//
-//                val statement = conn?.prepareStatement(getCharacterSql)
-//                statement?.setInt(1, storyId)
-//                statement?.setInt(2, characterId)
-//
-//                resultSet = statement?.executeQuery()
-//
-//                if (statement?.execute() == true) {
-//                    resultSet = statement.resultSet
-//                }
-//
-//                val appearanceId: Int? = resultSet?.let j@{
-//                    return@j if (it.next()) resultSet.getInt("id")
-//                    else null
-//                }
-//                appearanceId?.let {
-//                    result = Appearance(
-//                        storyId = storyId,
-//                        characterId = characterId,
-//                        appearanceInfo = appearanceInfo ?: resultSet?.getString("details"),
-//                        notes = notes ?: resultSet?.getString("notes"),
-//                        membership = membership ?: resultSet?.getString("membership"),
-//                        id = it
-//                    )
-//                }
-//            } catch (sqlEx: SQLException) {
-//                sqlEx.printStackTrace()
-//            } catch (e: java.lang.Exception) {
-//                e.printStackTrace()
-//            } finally {
-//                closeResultSet(resultSet)
-//            }
-//
-//            return result
-//        }
-
-    private fun makeCharacterAppearance(
+    private fun insertCharacterAppearances(
         appearances: Set<Appearance>,
         database: String,
         conn: Connection?
     ) {
-        val statement: PreparedStatement?
-        var argIndex = 1
-        val sql = StringBuilder()
-        sql.append(
-            """
+        val sql = """
                INSERT IGNORE INTO ${database}.m_character_appearance(id, details, character_id, story_id, notes, membership)
-               VALUES 
-            """
-        )
+               VALUES (?, ?, ?, ?, ?, ?)
+            """.trimIndent()
 
-        appearances.forEachIndexed { index, _ ->
-            sql.append("""(?, ?, ?, ?, ?, ?)""")
-            if (index + 1 < appearances.size)
-                sql.append(
-                    """,
-                    """
-                )
+        conn?.prepareStatement(sql).use { statement ->
+            appearances.forEach { appearance ->
+                statement?.setInt(1, appearance.id)
+                statement?.setString(2, appearance.appearanceInfo)
+                statement?.setInt(3, appearance.characterId)
+                statement?.setInt(4, appearance.storyId)
+                statement?.setString(5, appearance.notes)
+                statement?.setString(6, appearance.membership)
+                statement?.addBatch()
+            }
+
+            statement?.executeBatch()
+            logger.info { "Inserted ${appearances.size} appearances" }
+            numLines++
         }
-
-        statement = conn?.prepareStatement(sql.toString())
-
-        appearances.forEach {
-            statement?.setInt(argIndex++, it.id)
-            statement?.setString(argIndex++, it.appearanceInfo)
-            statement?.setInt(argIndex++, it.characterId)
-            statement?.setInt(argIndex++, it.storyId)
-            statement?.setString(argIndex++, it.notes)
-            statement?.setString(argIndex++, it.membership)
-        }
-
-        statement?.executeUpdate()
-        println("Inserted ${appearances.size} appearances")
-        numLines++
     }
 
-    private fun makeCharacter(
+    /**
+     * Insert character - inserts [name], [alterEgo], and [publisherId] into
+     * [database] table m_character
+     *
+     * @param name character name
+     * @param alterEgo character alter ego
+     * @param publisherId publisher id
+     * @return inserted character's id
+     */
+    private fun insertCharacter(
         name: String,
         alterEgo: String?,
         publisherId: Int
@@ -399,94 +337,83 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
         return characterId
     }
 
+    /**
+     * Lookup character - looks up character by [name], [alterEgo], and
+     * [publisherId]. If [checkPrimary] is true, [PRIMARY_DATABASE] is checked
+     * first, then [database]. If [checkPrimary] is false, only [database]
+     * is checked. If [checkPrimary] is true, [PRIMARY_DATABASE] will not be
+     * checked, only [database].
+     *
+     * @param name character name
+     * @param alterEgo character alter ego
+     * @param publisherId publisher id
+     * @param database database to check
+     * @param conn connection to use
+     * @param checkPrimary whether or not to check [PRIMARY_DATABASE] first
+     * @return character id if found, null otherwise
+     */
     private fun lookupCharacter(
         name: String,
         alterEgo: String?,
         publisherId: Int,
         database: String,
-        conn: Connection?
+        conn: Connection?,
+        checkPrimary: Boolean = database != PRIMARY_DATABASE
     ): Int? {
         var characterId: Int? = null
-        var resultSet: ResultSet? = null
-
-        try {
-            // Lookup in primary db
-            var getCharacterSql = """
-                    SELECT *
-                    FROM ${PRIMARY_DATABASE}.m_character mc
-                    WHERE mc.name = '${escapeSingleQuotes(name)}'
-                    AND mc.publisher_id = $publisherId
-                    AND mc.alter_ego """
-
-            getCharacterSql += if (alterEgo == null) {
-                "IS NULL"
-            } else {
-                "= '${escapeSingleQuotes(alterEgo)}'"
-            }
-
-            val statement = conn?.prepareStatement(getCharacterSql)
-
-            resultSet = statement?.executeQuery()!!
-
-            if (statement.execute()) {
-                resultSet = statement.resultSet
-            }
-
-            if (resultSet?.next() == true) {
-                characterId = resultSet.getInt("id")
-            }
-
-            if (characterId == null && database != PRIMARY_DATABASE) {
-                try {
-                    var getCharacterSqlDest = """
-                                SELECT *
-                                FROM ${database}.m_character mc
-                                WHERE mc.name = '${escapeSingleQuotes(name)}'
-                                AND mc.publisher_id = $publisherId
-                                AND mc.alter_ego 
-                            """
-
-                    getCharacterSqlDest += if (alterEgo == null) {
-                        "IS NULL"
-                    } else {
-                        "= '${escapeSingleQuotes(alterEgo)}'"
-                    }
-
-                    val statementDest: PreparedStatement = conn.prepareStatement(getCharacterSqlDest)
-
-                    resultSet = statementDest.executeQuery()!!
-
-                    if (statementDest.execute()) {
-                        resultSet = statementDest.resultSet
-                    }
-
-                    if (resultSet?.next() == true) {
-                        resultSet.let {
-                            characterId = it.getInt("id")
-                        }
-                    }
-                } catch (sqlEx: SQLException) {
-                    sqlEx.printStackTrace()
-                } catch (e: java.lang.Exception) {
-                    e.printStackTrace()
-                }
-            }
-        } catch (sqlEx: SQLException) {
-            sqlEx.printStackTrace()
-        } catch (e: java.lang.Exception) {
-            e.printStackTrace()
-        } finally {
-            closeResultSet(resultSet)
+        val db = if (checkPrimary) {
+            PRIMARY_DATABASE
+        } else {
+            database
         }
 
+        try {
+            val getCharacterSql = """
+            SELECT *
+            FROM $db.m_character mc
+            WHERE mc.name = ?
+            AND mc.publisher_id = ?
+            AND mc.alter_ego ${if (alterEgo == null) "IS NULL" else "= ?"}
+        """
+
+            conn?.prepareStatement(getCharacterSql).use { statement ->
+                statement?.setString(1, name)
+                statement?.setInt(2, publisherId)
+                if (alterEgo != null) {
+                    statement?.setString(3, alterEgo)
+                }
+
+                statement?.executeQuery().use { resultSet ->
+                    if (resultSet?.next() == true) {
+                        characterId = resultSet.getInt("id")
+                    }
+                }
+            }
+
+            if (characterId == null && database != PRIMARY_DATABASE && checkPrimary) {
+                characterId =
+                    lookupCharacter(
+                        name = name,
+                        alterEgo = alterEgo,
+                        publisherId = publisherId,
+                        database = database,
+                        conn = conn,
+                        checkPrimary = false
+                    )
+            }
+        } catch (sqlEx: SQLException) {
+            logger.error("Error looking up character", sqlEx)
+        }
         return characterId
     }
 
-    private fun escapeSingleQuotes(name: String) = name.replace("'", "\\\'")
-
+    /**
+     * Get publisher id - gets publisher id for [storyId] from [conn]
+     *
+     * @return publisher id if found, null otherwise
+     */
     private fun getPublisherId(storyId: Int, conn: Connection?): Int? {
         var publisherId: Int? = null
-        var resultSet: ResultSet? = null
 
         try {
             val getPublisherSql = """
@@ -497,26 +424,82 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
                WHERE g.id = ?
             """
 
-            val statement = conn?.prepareStatement(getPublisherSql)
-            statement?.setInt(1, storyId)
+            conn?.prepareStatement(getPublisherSql).use { statement ->
+                statement?.setInt(1, storyId)
 
-            resultSet = statement?.executeQuery()
-
-            if (statement?.execute() == true) {
-                resultSet = statement.resultSet
-            }
-
-            if (resultSet?.next() == true) {
-                publisherId = resultSet.getInt("publisher_id")
+                statement?.executeQuery().use { resultSet ->
+                    if (resultSet?.next() == true) {
+                        publisherId = resultSet.getInt("publisher_id")
+                    }
+                }
             }
         } catch (sqlEx: SQLException) {
             sqlEx.printStackTrace()
         } catch (e: java.lang.Exception) {
             e.printStackTrace()
-        } finally {
-            closeResultSet(resultSet)
         }
 
         return publisherId
     }
+
+    /**
+     * A buffer for temporarily storing new character appearances before saving
+     * them to the database. This buffer is designed to improve performance by
+     * allowing multiple appearances to be saved at once.
+     *
+     * @property database the name of the database to save the appearances to
+     * @property conn the database connection to use for saving the appearances
+     */
+    inner class NewAppearanceInsertionBuffer(
+        private val database: String,
+        private val conn: Connection?
+    ) {
+        private val _appearances: MutableSet<Appearance> = mutableSetOf()
+        private val appearances: Set<Appearance>
+            get() = _appearances
+        private var lastUpdated: Long = Instant.MAX.epochSecond
+
+        /**
+         * Adds a new appearance to the buffer. If the buffer has reached its
+         * limit, the current set of appearances will be saved to the database.
+         *
+         * @param appearance the appearance to add to the buffer
+         */
+        @Synchronized
+        fun addToBuffer(appearance: Appearance?) {
+            if (appearance != null) {
+                // Add the appearance to the set and update the timestamp
+                _appearances.add(appearance)
+                lastUpdated = Instant.now().epochSecond
+
+                // If the set has reached the collector limit, save the current set of appearances
+                if (_appearances.size >= COLLECTOR_LIMIT) {
+                    save()
+                }
+            }
+        }
+
+        /**
+         * Saves the current set of appearances in the buffer to the database.
+         * This method is synchronized to prevent multiple threads from saving the
+         * buffer simultaneously.
+         */
+        @Synchronized
+        fun save() {
+            logger.info { "Saving character appearances" }
+            numLines++
+            insertCharacterAppearances(appearances, database, conn)
+            _appearances.clear()
+        }
+    }
+
+    /** Appearance - represents a character appearance in a story. */
+    data class Appearance(
+        val storyId: Int,
+        val characterId: Int,
+        val appearanceInfo: String?,
+        val notes: String?,
+        val membership: String?,
+        val id: Int = 0
+    )
 }
