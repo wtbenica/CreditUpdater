@@ -1,6 +1,7 @@
 import Converter.CharacterExtractor
 import Converter.CreditExtractor
 import db.DatabaseUtil
+import di.DaggerDatabaseComponent
 import java.sql.Connection
 
 /**
