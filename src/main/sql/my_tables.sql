@@ -106,75 +106,8 @@ CREATE TABLE IF NOT EXISTS m_character_appearance
 CREATE TABLE IF NOT EXISTS m_story_credit LIKE gcd_story_credit;
 
 ###########################################################################
-# Add issue/series columns and fk constraints to extract tables for       #
-# legacy databases that haven't been updated yet (delete at some point)   #                        #
+# Add constraints to m_story_credit                                       #
 ##########################################################################;
-SELECT COUNT(*)
-INTO @exist
-FROM information_schema.columns
-WHERE table_schema = 'gcdb2'
-  AND column_name = 'issue_id'
-  AND table_name = 'm_character_appearance'
-LIMIT 1;
-
-SET @query_add_issue_to_character_appearance =
-        IF(@exist <= 0, 'ALTER TABLE gcdb2.m_character_appearance ADD COLUMN issue_id INT DEFAULT NULL',
-           'SELECT \'Column Exists\' status');
-
-PREPARE stmt FROM @query_add_issue_to_character_appearance;
-EXECUTE stmt;
-
-
-SELECT COUNT(*)
-INTO @exist
-FROM information_schema.key_column_usage
-WHERE table_schema = 'gcdb2'
-  AND table_name = 'm_character_appearance'
-  AND column_name = 'issue'
-  AND referenced_table_name = 'gcd_issue'
-  AND referenced_column_name = 'id';
-
-SET @query_add_fk_issue_to_character_appearance =
-        IF(@exist <= 0, 'ALTER TABLE gcdb2.m_character_appearance ADD FOREIGN KEY (issue_id) REFERENCES gcd_issue (id)',
-           'SELECT \'Column Exists\' status');
-
-PREPARE stmt FROM @query_add_fk_issue_to_character_appearance;
-EXECUTE stmt;
-
-
-SELECT COUNT(*)
-INTO @exist
-FROM information_schema.columns
-WHERE table_schema = 'gcdb2'
-  AND column_name = 'series'
-  AND table_name = 'm_character_appearance'
-LIMIT 1;
-
-SET @query_add_series_to_character_appearance =
-        IF(@exist <= 0, 'ALTER TABLE gcdb2.m_character_appearance ADD COLUMN series INT DEFAULT NULL',
-           'select \'Column Exists\' status');
-
-PREPARE stmt FROM @query_add_series_to_character_appearance;
-EXECUTE stmt;
-
-
-SELECT COUNT(*)
-INTO @exist
-FROM information_schema.key_column_usage
-WHERE table_schema = 'gcdb2'
-  AND table_name = 'm_character_appearance'
-  AND column_name = 'series'
-  AND referenced_table_name = 'gcd_series'
-  AND referenced_column_name = 'id';
-
-SET @query_add_fk_series_to_character_appearance =
-        IF(@exist <= 0,
-           'ALTER TABLE gcdb2.m_character_appearance ADD FOREIGN KEY (series_id) REFERENCES gcd_series (id)',
-           'select \'Column Exists\' status');
-
-PREPARE stmt FROM @query_add_fk_series_to_character_appearance;
-EXECUTE stmt;
-
 SELECT COUNT(*)
 INTO @exist
 FROM information_schema.key_column_usage
