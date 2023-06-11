@@ -1,6 +1,7 @@
+package Converter
+
 import Credentials.Companion.COLLECTOR_LIMIT
 import Credentials.Companion.PRIMARY_DATABASE
-import DatabaseUtil.Companion.numLines
 import mu.KLogger
 import mu.KotlinLogging
 import java.lang.Integer.min
@@ -296,7 +297,6 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
 
             statement?.executeBatch()
             logger.info { "Inserted ${appearances.size} appearances" }
-            numLines++
         }
     }
 
@@ -487,7 +487,6 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
         @Synchronized
         fun save() {
             logger.info { "Saving character appearances" }
-            numLines++
             insertCharacterAppearances(appearances, database, conn)
             _appearances.clear()
         }

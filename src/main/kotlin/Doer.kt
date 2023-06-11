@@ -1,3 +1,6 @@
+import Converter.CharacterExtractor
+import Converter.CreditExtractor
+import db.DatabaseUtil
 import java.sql.Connection
 
 /**
@@ -7,53 +10,49 @@ import java.sql.Connection
  * @property targetSchema The schema to use.
  */
 abstract class Doer(protected val targetSchema: String) {
+    private val databaseComponent = DaggerDatabaseComponent.create()
+    protected val database = DatabaseUtil(targetSchema, databaseComponent)
+
     /** The connection to [targetSchema]. */
     protected val databaseConnection: Connection?
-        get() = run {
-            println("Getting connection to ${targetSchema}...")
-            DatabaseUtil.getConnection(targetSchema)
-        }
+        get() = database.getConnection()
 
-    companion object {
+    /**
+     * Extract credits - extracts non-relational creator credits from stories
+     * in [sourceSchema].stories_to_migrate
+     *
+     * @param sourceConn The connection to the source database.
+     * @param storyCount The number of stories in the database.
+     * @param sourceSchema The schema with the stories_to_migrate table.
+     * @param lastIdCompleted The last id that was completed.
+     * @param numComplete The number of items that have been completed.
+     */
+    suspend fun extractCredits(
+        sourceConn: Connection?,
+        storyCount: Int?,
+        sourceSchema: String,
+        lastIdCompleted: Long,
+        numComplete: Long
+    ) {
+        println("starting credits...")
         /**
-         * Extract credits - extracts non-relational creator credits from stories
-         * in [sourceSchema].stories_to_migrate
-         *
-         * @param sourceConn The connection to the source database.
-         * @param storyCount The number of stories in the database.
-         * @param sourceSchema The schema with the stories_to_migrate table.
-         * @param lastIdCompleted The last id that was completed.
-         * @param numComplete The number of items that have been completed.
+         * Script sql - an sql snippet to get the writer, penciller, inker,
+         * colorist, letterer, and editor from the database.
          */
-        suspend fun extractCredits(
-            sourceConn: Connection?,
-            storyCount: Int?,
-            sourceSchema: String,
-            lastIdCompleted: Long,
-            numComplete: Long
-        ) {
-            println("starting credits...")
-            /**
-             * Script sql - an sql snippet to get the writer, penciller, inker,
-             * colorist, letterer, and editor from the database.
-             */
-            val scriptSql =
-                """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
+        val scriptSql =
+            """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
                             FROM ${sourceSchema}.stories_to_migrate g
                             WHERE g.id > $lastIdCompleted
                             ORDER BY g.id """
 
-            sourceConn?.let {
-                DatabaseUtil.updateItems(
-                    getItems = scriptSql,
-                    startingComplete = numComplete,
-                    totalItems = storyCount,
-                    extractor = CreditExtractor(sourceSchema, it),
-                    conn = it
-                )
-            }
+        sourceConn?.let {
+            database.updateItems(
+                getItems = scriptSql,
+                startingComplete = numComplete,
+                totalItems = storyCount,
+                extractor = CreditExtractor(sourceSchema, it),
+            )
         }
-
     }
 
     /**
@@ -85,12 +84,11 @@ abstract class Doer(protected val targetSchema: String) {
                 ORDER BY g.id """
 
         conn?.let {
-            DatabaseUtil.updateItems(
+            database.updateItems(
                 getItems = scriptSql,
                 startingComplete = numComplete,
                 totalItems = storyCount,
                 extractor = CharacterExtractor(schema, it),
-                conn = it
             )
         }
     }

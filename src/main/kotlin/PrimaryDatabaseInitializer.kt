@@ -1,3 +1,4 @@
+import Converter.logger
 import Credentials.Companion.ADD_ISSUE_SERIES_TO_CREDITS_PATH
 import Credentials.Companion.ADD_MODIFY_TABLES_PATH
 import Credentials.Companion.CHARACTER_STORIES_NUM_COMPLETE
@@ -9,7 +10,6 @@ import Credentials.Companion.SHRINK_DATABASE_PATH
 import Credentials.Companion.UPDATE_CHARACTERS
 import Credentials.Companion.UPDATE_CREDITS
 import Credentials.Companion.UPDATE_DATABASE
-import DatabaseUtil.Companion.getItemCount
 import kotlinx.coroutines.coroutineScope
 import java.sql.Connection
 
@@ -47,7 +47,7 @@ class PrimaryDatabaseInitializer : Doer(targetSchema = PRIMARY_DATABASE) {
                     shrinkDatabase(conn)
                 }
 
-                val storyCount = getItemCount(
+                val storyCount = database.getItemCount(
                     conn = conn,
                     tableName = "$targetSchema.gcd_story"
                 )
@@ -78,70 +78,77 @@ class PrimaryDatabaseInitializer : Doer(targetSchema = PRIMARY_DATABASE) {
         }
     }
 
-    companion object {
-        /**
-         * Adds the 'issue' and 'series' columns to the 'gcd_story_credit'
-         * and 'm_character_appearance' tables, respectively, if they don't
-         * already exist. Then creates the 'm_story_credit' table if it doesn't
-         * exist. Also adds foreign key constraints to the 'gcd_story_credit',
-         * 'm_character_appearance', and 'm_story_credit' tables, as needed.
-         * Finally, creates the 'm_character' and 'm_character_appearance' tables
-         * if they don't exist.
-         *
-         * Note: This code block uses SQL statements to modify the database schema
-         * and create tables. It assumes that the database connection is already
-         * established and that the user has the necessary permissions to execute
-         * these statements.
-         *
-         * @param connection The connection to the database.
-         */
-        internal fun addTables(connection: Connection) =
-            DatabaseUtil.runSqlScriptQuery(connection, ADD_MODIFY_TABLES_PATH)
+    /**
+     * Adds the 'issue' and 'series' columns to the 'gcd_story_credit'
+     * and 'm_character_appearance' tables, respectively, if they don't
+     * already exist. Then creates the 'm_story_credit' table if it doesn't
+     * exist. Also adds foreign key constraints to the 'gcd_story_credit',
+     * 'm_character_appearance', and 'm_story_credit' tables, as needed.
+     * Finally, creates the 'm_character' and 'm_character_appearance' tables
+     * if they don't exist.
+     *
+     * Note: This code block uses SQL statements to modify the database schema
+     * and create tables. It assumes that the database connection is already
+     * established and that the user has the necessary permissions to execute
+     * these statements.
+     *
+     * @param connection The connection to the database.
+     */
+    internal fun addTables(connection: Connection) =
+        database.runSqlScriptQuery(
+            conn = connection,
+            sqlScriptPath = ADD_MODIFY_TABLES_PATH
+        )
 
-        /**
-         * Adds the 'issue' and 'series' columns to the 'gcd_story_credit'
-         * and 'm_character_appearance' tables, respectively, if they don't
-         * already exist. Also creates the 'm_story_credit' table if it doesn't
-         * exist. Adds foreign key constraints to the 'gcd_story_credit',
-         * 'm_character_appearance', and 'm_story_credit' tables, as needed.
-         * Finally, creates the 'm_character' and 'm_character_appearance' tables
-         * if they don't exist.
-         *
-         * Note: This function assumes that the database connection is already
-         * established and that the user has the necessary permissions to execute
-         * these statements.
-         *
-         * @param connection The connection to the database.
-         */
-        internal fun shrinkDatabase(connection: Connection) =
-            DatabaseUtil.runSqlScriptUpdate(connection, SHRINK_DATABASE_PATH)
+    /**
+     * Adds the 'issue' and 'series' columns to the 'gcd_story_credit'
+     * and 'm_character_appearance' tables, respectively, if they don't
+     * already exist. Also creates the 'm_story_credit' table if it doesn't
+     * exist. Adds foreign key constraints to the 'gcd_story_credit',
+     * 'm_character_appearance', and 'm_story_credit' tables, as needed.
+     * Finally, creates the 'm_character' and 'm_character_appearance' tables
+     * if they don't exist.
+     *
+     * Note: This function assumes that the database connection is already
+     * established and that the user has the necessary permissions to execute
+     * these statements.
+     *
+     * @param connection The connection to the database.
+     */
+    internal fun shrinkDatabase(connection: Connection) =
+        database.runSqlScriptUpdate(
+            conn = connection,
+            sqlScriptPath = SHRINK_DATABASE_PATH
+        )
 
-        /**
-         * Updates the 'issue_id' and 'series_id' columns in the 'gcd_story_credit'
-         * and 'm_story_credit' tables, respectively, by setting them to the
-         * corresponding values in the 'gcd_issue' and 'gcd_series' tables. The
-         * 'issue_id' and 'series_id' columns are set to NULL if they don't already
-         * have a value.
-         *
-         * Then, creates a temporary table 'story_with_missing_issue' that contains
-         * the IDs of stories that have a NULL 'issue_id' value. Deletes records
-         * from 'm_character_appearance' table where the 'story_id' matches the IDs
-         * in 'story_with_missing_issue'.
-         *
-         * Finally, updates the 'issue_id' and 'series_id' columns in the
-         * 'm_character_appearance' table by setting them to the corresponding
-         * values in the 'gcd_issue' and 'gcd_series' tables. The 'issue_id' and
-         * 'series_id' columns are set to NULL if they don't already have a value.
-         *
-         * Note: This function assumes that the database connection is already
-         * established and that the user has the necessary permissions to execute
-         * these statements.
-         *
-         * @param connection The connection to the database.
-         */
-        internal fun addIssueSeriesToCredits(connection: Connection) =
-            DatabaseUtil.runSqlScriptUpdate(connection, ADD_ISSUE_SERIES_TO_CREDITS_PATH)
+    /**
+     * Updates the 'issue_id' and 'series_id' columns in the 'gcd_story_credit'
+     * and 'm_story_credit' tables, respectively, by setting them to the
+     * corresponding values in the 'gcd_issue' and 'gcd_series' tables. The
+     * 'issue_id' and 'series_id' columns are set to NULL if they don't already
+     * have a value.
+     *
+     * Then, creates a temporary table 'story_with_missing_issue' that contains
+     * the IDs of stories that have a NULL 'issue_id' value. Deletes records
+     * from 'm_character_appearance' table where the 'story_id' matches the IDs
+     * in 'story_with_missing_issue'.
+     *
+     * Finally, updates the 'issue_id' and 'series_id' columns in the
+     * 'm_character_appearance' table by setting them to the corresponding
+     * values in the 'gcd_issue' and 'gcd_series' tables. The 'issue_id' and
+     * 'series_id' columns are set to NULL if they don't already have a value.
+     *
+     * Note: This function assumes that the database connection is already
+     * established and that the user has the necessary permissions to execute
+     * these statements.
+     *
+     * @param connection The connection to the database.
+     */
+    internal fun addIssueSeriesToCredits(connection: Connection) =
+        database.runSqlScriptUpdate(
+            conn = connection,
+            sqlScriptPath = ADD_ISSUE_SERIES_TO_CREDITS_PATH
+        )
 
-    }
 }
 
