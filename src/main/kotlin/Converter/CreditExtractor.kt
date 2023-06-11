@@ -1,4 +1,5 @@
-import DatabaseUtil.Companion.closeResultSet
+package Converter
+
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
@@ -70,7 +71,8 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
 
     /**
      * Make credit - checks for an existing story credit for [extractedName],
-     * [storyId], and [roleId]. If one does not exist, it creates one with [makeStoryCredit].
+     * [storyId], and [roleId]. If one does not exist, it creates one with
+     * [makeStoryCredit].
      *
      * @param extractedName the name to check
      * @param storyId the story id
@@ -96,8 +98,6 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
      */
     private fun getGcnd(extractedName: String, conn: Connection?): Int? {
         var gcndId: Int? = null
-        val getCondStmt: PreparedStatement?
-        var gcndResultSet: ResultSet? = null
 
         try {
             val getGcndSql = """
@@ -106,26 +106,22 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
                WHERE gcnd.name = ?                
             """
 
-            getCondStmt = conn?.prepareStatement(getGcndSql)
-            getCondStmt?.setString(1, extractedName)
+            conn?.prepareStatement(getGcndSql).use { getCondStmt ->
+                getCondStmt?.setString(1, extractedName)
 
-            gcndResultSet = getCondStmt?.executeQuery()
-
-            if (getCondStmt?.execute() == true) {
-                gcndResultSet = getCondStmt.resultSet
-            }
-
-            if (gcndResultSet?.next() == true) {
-                gcndId = gcndResultSet.getInt("id")
-            } else {
-                // TODO: save extracted_name storyId, Role to file
+                getCondStmt?.executeQuery()?.use { gcndResultSet ->
+                    if (gcndResultSet.next()) {
+                        gcndId = gcndResultSet.getInt("id")
+                    } else {
+                        // TODO: save extracted_name storyId, Role to file
+                        logger.error("")
+                    }
+                }
             }
         } catch (sqlEx: SQLException) {
             sqlEx.printStackTrace()
         } catch (e: java.lang.Exception) {
             e.printStackTrace()
-        } finally {
-            closeResultSet(gcndResultSet)
         }
 
         return gcndId
@@ -143,8 +139,6 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
      */
     private fun getStoryCredit(gcndId: Int, storyId: Int, roleId: Int): Int? {
         var storyCreditId: Int? = null
-        val statement: PreparedStatement?
-        var resultSet: ResultSet? = null
 
         try {
             /** Get story credit id sql */
@@ -156,30 +150,24 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
                     AND gsc.credit_type_id = ?
             """
 
-            statement = conn.prepareStatement(getStoryCreditIdSql)
-            statement?.setInt(1, gcndId)
-            statement?.setInt(2, storyId)
-            statement?.setInt(3, roleId)
+            conn.prepareStatement(getStoryCreditIdSql)?.use { statement ->
+                statement.setInt(1, gcndId)
+                statement.setInt(2, storyId)
+                statement.setInt(3, roleId)
 
-            resultSet = statement?.executeQuery()
-
-            if (statement?.execute() == true) {
-                resultSet = statement.resultSet
-            }
-
-            if (resultSet?.next() == true) {
-                storyCreditId = resultSet.getInt("id")
+                statement.executeQuery().use { resultSet ->
+                    if (resultSet?.next() == true) {
+                        storyCreditId = resultSet.getInt("id")
+                    }
+                }
             }
         } catch (sqlEx: SQLException) {
             sqlEx.printStackTrace()
         } catch (e: java.lang.Exception) {
             e.printStackTrace()
-        } finally {
-            closeResultSet(resultSet)
         }
 
         if (storyCreditId == null) {
-            val statement2: PreparedStatement?
             try {
                 val getMStoryCreditIdSql = """
                     SELECT gsc.id
@@ -189,26 +177,21 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
                     AND gsc.credit_type_id = ?
             """
 
-                statement2 = conn.prepareStatement(getMStoryCreditIdSql)
-                statement2?.setInt(1, gcndId)
-                statement2?.setInt(2, storyId)
-                statement2?.setInt(3, roleId)
+                conn.prepareStatement(getMStoryCreditIdSql)?.use { statement2 ->
+                    statement2.setInt(1, gcndId)
+                    statement2.setInt(2, storyId)
+                    statement2.setInt(3, roleId)
 
-                resultSet = statement2?.executeQuery()
-
-                if (statement2?.execute() == true) {
-                    resultSet = statement2.resultSet
-                }
-
-                if (resultSet?.next() == true) {
-                    storyCreditId = resultSet.getInt("id")
+                    statement2.executeQuery().use { resultSet ->
+                        if (resultSet?.next() == true) {
+                            storyCreditId = resultSet.getInt("id")
+                        }
+                    }
                 }
             } catch (sqlEx: SQLException) {
                 sqlEx.printStackTrace()
             } catch (e: java.lang.Exception) {
                 e.printStackTrace()
-            } finally {
-                closeResultSet(resultSet)
             }
         }
 
