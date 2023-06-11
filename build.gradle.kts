@@ -1,8 +1,7 @@
-import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.8.20"
+    kotlin("jvm") version "1.8.10"
     kotlin("kapt") version "1.5.31"
     application
     id("org.jetbrains.dokka") version "1.5.31"
@@ -26,7 +25,7 @@ dependencies {
         version = "1.7.1"
     )
 
-    kapt("com.google.dagger:dagger-compiler:2.38.1")
+    kapt("com.google.dagger:dagger-compiler:2.46.1")
 
     testImplementation(dependencyNotation = "org.junit.jupiter:junit-jupiter-api:5.9.3")
     testRuntimeOnly(dependencyNotation = "org.junit.jupiter:junit-jupiter-engine:5.9.3")

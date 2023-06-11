@@ -31,7 +31,7 @@ class DatabaseUtil(
     databaseComponent: DatabaseComponent
 ) {
     @Inject
-    private lateinit var connectionSource: ConnectionSource
+    internal lateinit var connectionSource: ConnectionSource
 
     init {
         databaseComponent.inject(this)
