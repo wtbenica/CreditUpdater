@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.com.intellij.openapi.vfs.StandardFileSystems.jar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -7,8 +8,9 @@ plugins {
     id("org.jetbrains.dokka") version "1.5.31"
 }
 
-group = "me.wbenica"
+group = "benica.dev"
 version = "1.0-SNAPSHOT"
+
 
 repositories {
     mavenCentral()
@@ -16,10 +18,12 @@ repositories {
 }
 
 dependencies {
+    implementation(kotlin("stdlib"))
     implementation(group = "com.google.dagger", name = "dagger", version = "2.46.1")
     implementation(group = "com.beust", name = "jcommander", version = "1.81")
     implementation(group = "io.github.microutils", name = "kotlin-logging", version = "3.0.5")
     implementation(group = "mysql", name = "mysql-connector-java", version = "8.0.33")
+    implementation(kotlin("stdlib"))
     implementation(
         group = "org.jetbrains.kotlinx",
         name = "kotlinx-coroutines-core",
@@ -45,6 +49,13 @@ tasks.withType<KotlinCompile> {
 tasks.withType<JavaCompile> {
     sourceCompatibility = JavaVersion.VERSION_1_8.toString()
     targetCompatibility = JavaVersion.VERSION_1_8.toString()
+}
+
+tasks.withType<Jar> {
+    manifest {
+        attributes["Main-Class"] = ".MainKt"
+    }
+    from(sourceSets.main.get().output.classesDirs)
 }
 
 kapt {

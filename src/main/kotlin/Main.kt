@@ -7,45 +7,50 @@ import dev.benica.credit_updater.doers.Migrator
 import dev.benica.credit_updater.doers.PrimaryDatabaseInitializer
 import kotlinx.coroutines.runBlocking
 
-fun main(args: Array<String>) = runBlocking {
-    println(args.size.toString())
+object Main {
+    @JvmStatic
+    fun main(args: Array<String>) {
+        runBlocking {
+            println(args.size.toString())
 
-    val app = CLIParser()
+            val app = CLIParser()
 
-    try {
-        app.parse(args)
+            try {
+                app.parse(args)
 
-        when {
-            app.help -> {
+                when {
+                    app.help -> {
+                        app.usage
+                        return@runBlocking
+                    }
+                    app.quiet -> {
+                        System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "error")
+                    }
+                    app.prepare != null -> {
+                        PrimaryDatabaseInitializer(app.prepare).update()
+                    }
+                    app.migrate != null -> {
+                        Migrator().migrate()
+                    }
+                    else -> {
+                        PrimaryDatabaseInitializer().update()
+                    }
+                }
+            } catch (e: com.beust.jcommander.ParameterException) {
+                logger.error("Error parsing command line arguments", e)
                 app.usage
-                return@runBlocking
+            } catch (e: Exception) {
+                logger.error("Error parsing command line arguments", e)
+            } finally {
+                app.parsedCommand
             }
-            app.quiet -> {
-                System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "error")
-            }
-            app.prepare != null -> {
-                PrimaryDatabaseInitializer(app.prepare).update()
-            }
-            app.migrate != null -> {
+
+            if (args.isEmpty())
+                PrimaryDatabaseInitializer().update()
+            else if (args.size == 1 && args[0] == "migrate") {
                 Migrator().migrate()
             }
-            else -> {
-                PrimaryDatabaseInitializer().update()
-            }
         }
-    } catch (e: com.beust.jcommander.ParameterException) {
-        logger.error("Error parsing command line arguments", e)
-        app.usage
-    } catch (e: Exception) {
-        logger.error("Error parsing command line arguments", e)
-    } finally {
-        app.parsedCommand
-    }
-
-    if (args.isEmpty())
-        PrimaryDatabaseInitializer().update()
-    else if (args.size == 1 && args[0] == "migrate") {
-        Migrator().migrate()
     }
 }
 

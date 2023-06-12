@@ -8,13 +8,13 @@
 SELECT COUNT(*)
 INTO @exist
 FROM information_schema.columns
-WHERE table_schema = 'gcdb2'
+WHERE table_schema = '<schema>'
   AND column_name = 'issue'
   AND table_name = 'gcd_story_credit'
 LIMIT 1;
 
 SET @query_add_issue_to_story_credit =
-        IF(@exist <= 0, 'ALTER TABLE gcdb2.gcd_story_credit ADD COLUMN issue_id INT DEFAULT NULL',
+        IF(@exist <= 0, 'ALTER TABLE <schema>.gcd_story_credit ADD COLUMN issue_id INT DEFAULT NULL',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_issue_to_story_credit;
@@ -24,14 +24,14 @@ EXECUTE stmt;
 SELECT COUNT(*)
 INTO @exist
 FROM information_schema.key_column_usage
-WHERE table_schema = 'gcdb2'
+WHERE table_schema = '<schema>'
   AND table_name = 'gcd_story_credit'
   AND column_name = 'issue'
   AND referenced_table_name = 'gcd_issue'
   AND referenced_column_name = 'id';
 
 SET @query_add_fk_issue_to_story_credit =
-        IF(@exist <= 0, 'ALTER TABLE gcdb2.gcd_story_credit ADD FOREIGN KEY (issue_id) REFERENCES gcd_issue (id)',
+        IF(@exist <= 0, 'ALTER TABLE <schema>.gcd_story_credit ADD FOREIGN KEY (issue_id) REFERENCES gcd_issue (id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_issue_to_story_credit;
@@ -41,13 +41,13 @@ EXECUTE stmt;
 SELECT COUNT(*)
 INTO @exist
 FROM information_schema.columns
-WHERE table_schema = 'gcdb2'
+WHERE table_schema = '<schema>'
   AND column_name = 'series'
   AND table_name = 'gcd_story_credit'
 LIMIT 1;
 
 SET @query_add_series_to_story_credit =
-        IF(@exist <= 0, 'ALTER TABLE gcdb2.gcd_story_credit ADD COLUMN series_id INT DEFAULT NULL',
+        IF(@exist <= 0, 'ALTER TABLE <schema>.gcd_story_credit ADD COLUMN series_id INT DEFAULT NULL',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_series_to_story_credit;
@@ -57,14 +57,14 @@ EXECUTE stmt;
 SELECT COUNT(*)
 INTO @exist
 FROM information_schema.key_column_usage
-WHERE table_schema = 'gcdb2'
+WHERE table_schema = '<schema>'
   AND table_name = 'gcd_story_credit'
   AND column_name = 'series'
   AND referenced_table_name = 'gcd_series'
   AND referenced_column_name = 'id';
 
 SET @query_add_fk_series_to_story_credit =
-        IF(@exist <= 0, 'ALTER TABLE gcdb2.gcd_story_credit ADD FOREIGN KEY (series_id) REFERENCES gcd_series (id)',
+        IF(@exist <= 0, 'ALTER TABLE <schema>.gcd_story_credit ADD FOREIGN KEY (series_id) REFERENCES gcd_series (id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_series_to_story_credit;
@@ -111,13 +111,13 @@ CREATE TABLE IF NOT EXISTS m_story_credit LIKE gcd_story_credit;
 SELECT COUNT(*)
 INTO @exist
 FROM information_schema.key_column_usage
-WHERE table_schema = 'gcdb2'
+WHERE table_schema = '<schema>'
   AND table_name = 'm_story_credit'
   AND constraint_name = 'PRIMARY';
 
 SET @query_add_pk_id_to_m_story_credit =
         IF(@exist <= 0,
-           'ALTER TABLE gcdb2.m_story_credit MODIFY COLUMN id INT PRIMARY KEY AUTO_INCREMENT',
+           'ALTER TABLE <schema>.m_story_credit MODIFY COLUMN id INT PRIMARY KEY AUTO_INCREMENT',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_creator_to_m_story_credit;
@@ -127,7 +127,7 @@ EXECUTE stmt;
 SELECT COUNT(*)
 INTO @exist
 FROM information_schema.key_column_usage
-WHERE table_schema = 'gcdb2'
+WHERE table_schema = '<schema>'
   AND table_name = 'm_story_credit'
   AND column_name = 'creator_id'
   AND referenced_table_name = 'gcd_creator_name_detail'
@@ -135,7 +135,7 @@ WHERE table_schema = 'gcdb2'
 
 SET @query_add_fk_creator_to_m_story_credit =
         IF(@exist <= 0,
-           'ALTER TABLE gcdb2.m_story_credit ADD FOREIGN KEY (creator_id) REFERENCES gcd_creator_name_detail(id)',
+           'ALTER TABLE <schema>.m_story_credit ADD FOREIGN KEY (creator_id) REFERENCES gcd_creator_name_detail(id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_creator_to_m_story_credit;
@@ -145,7 +145,7 @@ EXECUTE stmt;
 SELECT COUNT(*)
 INTO @exist
 FROM information_schema.key_column_usage
-WHERE table_schema = 'gcdb2'
+WHERE table_schema = '<schema>'
   AND table_name = 'm_story_credit'
   AND column_name = 'credit_type_id'
   AND referenced_table_name = 'gcd_credit_type'
@@ -153,7 +153,7 @@ WHERE table_schema = 'gcdb2'
 
 SET @query_add_fk_credit_type_to_m_story_credit =
         IF(@exist <= 0,
-           'ALTER TABLE gcdb2.m_story_credit ADD FOREIGN KEY (credit_type_id) REFERENCES gcd_credit_type (id)',
+           'ALTER TABLE <schema>.m_story_credit ADD FOREIGN KEY (credit_type_id) REFERENCES gcd_credit_type (id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_credit_type_to_m_story_credit;
@@ -163,7 +163,7 @@ EXECUTE stmt;
 SELECT COUNT(*)
 INTO @exist
 FROM information_schema.key_column_usage
-WHERE table_schema = 'gcdb2'
+WHERE table_schema = '<schema>'
   AND table_name = 'm_story_credit'
   AND column_name = 'issue'
   AND referenced_table_name = 'gcd_issue'
@@ -171,7 +171,7 @@ WHERE table_schema = 'gcdb2'
 
 SET @query_add_fk_issue_to_m_story_credit =
         IF(@exist <= 0,
-           'ALTER TABLE gcdb2.m_story_credit ADD FOREIGN KEY (issue) REFERENCES gcd_issue (id)',
+           'ALTER TABLE <schema>.m_story_credit ADD FOREIGN KEY (issue) REFERENCES gcd_issue (id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_issue_to_m_story_credit;
@@ -181,7 +181,7 @@ EXECUTE stmt;
 SELECT COUNT(*)
 INTO @exist
 FROM information_schema.key_column_usage
-WHERE table_schema = 'gcdb2'
+WHERE table_schema = '<schema>'
   AND table_name = 'm_story_credit'
   AND column_name = 'series'
   AND referenced_table_name = 'gcd_series'
@@ -189,7 +189,7 @@ WHERE table_schema = 'gcdb2'
 
 SET @query_add_fk_series_to_m_story_credit =
         IF(@exist <= 0,
-           'ALTER TABLE gcdb2.m_story_credit ADD FOREIGN KEY (series_id) REFERENCES gcd_series (id)',
+           'ALTER TABLE <schema>.m_story_credit ADD FOREIGN KEY (series_id) REFERENCES gcd_series (id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_series_to_m_story_credit;
@@ -199,7 +199,7 @@ EXECUTE stmt;
 SELECT COUNT(*)
 INTO @exist
 FROM information_schema.key_column_usage
-WHERE table_schema = 'gcdb2'
+WHERE table_schema = '<schema>'
   AND table_name = 'm_story_credit'
   AND column_name = 'story_id'
   AND referenced_table_name = 'gcd_story'
@@ -207,7 +207,7 @@ WHERE table_schema = 'gcdb2'
 
 SET @query_add_fk_story_to_m_story_credit =
         IF(@exist <= 0,
-           'ALTER TABLE gcdb2.m_story_credit ADD FOREIGN KEY (story_id) REFERENCES gcd_story (id)',
+           'ALTER TABLE <schema>.m_story_credit ADD FOREIGN KEY (story_id) REFERENCES gcd_story (id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_story_to_m_story_credit;
