@@ -34,7 +34,7 @@ class Credentials {
          * table. It creates the m_character and m_character_appearance tables if
          * they don't already exist.
          */
-        const val ADD_MODIFY_TABLES_PATH = "./src/main/sql/add_tables.sql"
+        const val ADD_MODIFY_TABLES_PATH = "src/main/sql/add_tables.sql"
 
         /**
          * This script creates several views that filter out records from the
@@ -47,7 +47,7 @@ class Credentials {
          * gcd_publisher tables based on certain criteria. Overall, this script is
          * used to limit the records in the database based on certain criteria.
          */
-        const val SHRINK_DATABASE_PATH = "./src/main/sql/remove_records.sql"
+        const val SHRINK_DATABASE_PATH = "src/main/sql/shrink_database.sql"
 
         /**
          * This SQL query updates the gcd_story_credit and m_story_credit

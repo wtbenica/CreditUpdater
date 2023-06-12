@@ -39,7 +39,7 @@ class PrimaryDatabaseInitializer(targetSchema: String? = null) :
      * 'gcd_story_credit', 'm_character_appearance', and 'm_story_credit'
      * tables, as needed.
      */
-    suspend fun update() {
+    suspend fun prepareDatabase() {
         coroutineScope {
             println("Updating $targetSchema")
             if (UPDATE_DATABASE) {
