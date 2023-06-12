@@ -1,21 +1,22 @@
-import Converter.logger
-import Credentials.Companion.ADD_ISSUE_SERIES_TO_CREDITS_PATH
-import Credentials.Companion.ADD_MODIFY_TABLES_PATH
-import Credentials.Companion.CHARACTER_STORIES_NUM_COMPLETE
-import Credentials.Companion.CHARACTER_STORY_ID_START
-import Credentials.Companion.CREDITS_STORIES_NUM_COMPLETE
-import Credentials.Companion.CREDITS_STORY_ID_START
-import Credentials.Companion.PRIMARY_DATABASE
-import Credentials.Companion.SHRINK_DATABASE_PATH
-import Credentials.Companion.UPDATE_CHARACTERS
-import Credentials.Companion.UPDATE_CREDITS
-import Credentials.Companion.UPDATE_DATABASE
+package dev.benica.credit_updater.doers
+
+import dev.benica.credit_updater.Credentials.Companion.ADD_ISSUE_SERIES_TO_CREDITS_PATH
+import dev.benica.credit_updater.Credentials.Companion.ADD_MODIFY_TABLES_PATH
+import dev.benica.credit_updater.Credentials.Companion.CHARACTER_STORIES_NUM_COMPLETE
+import dev.benica.credit_updater.Credentials.Companion.CHARACTER_STORY_ID_START
+import dev.benica.credit_updater.Credentials.Companion.CREDITS_STORIES_NUM_COMPLETE
+import dev.benica.credit_updater.Credentials.Companion.CREDITS_STORY_ID_START
+import dev.benica.credit_updater.Credentials.Companion.PRIMARY_DATABASE
+import dev.benica.credit_updater.Credentials.Companion.SHRINK_DATABASE_PATH
+import dev.benica.credit_updater.Credentials.Companion.UPDATE_CHARACTERS
+import dev.benica.credit_updater.Credentials.Companion.UPDATE_CREDITS
+import dev.benica.credit_updater.Credentials.Companion.UPDATE_DATABASE
 import kotlinx.coroutines.coroutineScope
-import java.sql.Connection
 
 /**
- * The PrimaryDatabaseInitializer class is responsible for preparing an
- * initial database installation from a gcd dump.
+ * The dev.benica.CreditUpdater.PrimaryDatabaseInitializer class is
+ * responsible for preparing an initial database installation from a gcd
+ * dump.
  * - It adds issue and series columns and fks to gcd_story_credit if they
  *   have not already been added
  * - It creates m_character, m_character_appearance, and m_story_credit
@@ -24,7 +25,8 @@ import java.sql.Connection
  * - It extracts character and appearance data from the gcd_story table
  * - It extracts credit data from the gcd_story table
  */
-class PrimaryDatabaseInitializer : Doer(targetSchema = PRIMARY_DATABASE) {
+class PrimaryDatabaseInitializer(targetSchema: String? = null) :
+    Doer(targetSchema = targetSchema ?: PRIMARY_DATABASE) {
     /**
      * Updates the database with new data from the GCD. This function adds
      * new tables to the database schema and shrinks the database size, if
@@ -39,42 +41,37 @@ class PrimaryDatabaseInitializer : Doer(targetSchema = PRIMARY_DATABASE) {
      */
     suspend fun update() {
         coroutineScope {
-            databaseConnection?.use { conn ->
-                println("Updating $targetSchema")
-                if (UPDATE_DATABASE) {
-                    println("Starting Database Updates...")
-                    addTables(conn)
-                    shrinkDatabase(conn)
-                }
+            println("Updating $targetSchema")
+            if (UPDATE_DATABASE) {
+                println("Starting Database Updates...")
+                addTables()
+                shrinkDatabase()
+            }
 
-                val storyCount = database.getItemCount(
-                    conn = conn,
-                    tableName = "$targetSchema.gcd_story"
+            val storyCount = database.getItemCount(
+                tableName = "$targetSchema.gcd_story"
+            )
+
+            if (UPDATE_CHARACTERS) {
+                extractCharactersAndAppearances(
+                    storyCount = storyCount,
+                    schema = targetSchema,
+                    lastIdCompleted = CHARACTER_STORY_ID_START,
+                    numComplete = CHARACTER_STORIES_NUM_COMPLETE
+                )
+            }
+
+            if (UPDATE_CREDITS) {
+                extractCredits(
+                    storyCount,
+                    targetSchema,
+                    CREDITS_STORY_ID_START,
+                    CREDITS_STORIES_NUM_COMPLETE
                 )
 
-                if (UPDATE_CHARACTERS) {
-                    extractCharactersAndAppearances(
-                        conn = conn,
-                        storyCount = storyCount,
-                        schema = targetSchema,
-                        lastIdCompleted = CHARACTER_STORY_ID_START,
-                        numComplete = CHARACTER_STORIES_NUM_COMPLETE
-                    )
-                }
-
-                if (UPDATE_CREDITS) {
-                    extractCredits(
-                        conn,
-                        storyCount,
-                        targetSchema,
-                        CREDITS_STORY_ID_START,
-                        CREDITS_STORIES_NUM_COMPLETE
-                    )
-
-                    println("Starting FKey updates")
-                    addIssueSeriesToCredits(conn)
-                }
-            } ?: logger.info { "No connection to $targetSchema" }
+                println("Starting FKey updates")
+                addIssueSeriesToCredits()
+            }
         }
     }
 
@@ -94,11 +91,7 @@ class PrimaryDatabaseInitializer : Doer(targetSchema = PRIMARY_DATABASE) {
      *
      * @param connection The connection to the database.
      */
-    internal fun addTables(connection: Connection) =
-        database.runSqlScriptQuery(
-            conn = connection,
-            sqlScriptPath = ADD_MODIFY_TABLES_PATH
-        )
+    private fun addTables() = database.runSqlScriptQuery(sqlScriptPath = ADD_MODIFY_TABLES_PATH)
 
     /**
      * Adds the 'issue' and 'series' columns to the 'gcd_story_credit'
@@ -115,11 +108,7 @@ class PrimaryDatabaseInitializer : Doer(targetSchema = PRIMARY_DATABASE) {
      *
      * @param connection The connection to the database.
      */
-    internal fun shrinkDatabase(connection: Connection) =
-        database.runSqlScriptUpdate(
-            conn = connection,
-            sqlScriptPath = SHRINK_DATABASE_PATH
-        )
+    private fun shrinkDatabase() = database.runSqlScriptUpdate(sqlScriptPath = SHRINK_DATABASE_PATH)
 
     /**
      * Updates the 'issue_id' and 'series_id' columns in the 'gcd_story_credit'
@@ -144,11 +133,8 @@ class PrimaryDatabaseInitializer : Doer(targetSchema = PRIMARY_DATABASE) {
      *
      * @param connection The connection to the database.
      */
-    internal fun addIssueSeriesToCredits(connection: Connection) =
-        database.runSqlScriptUpdate(
-            conn = connection,
-            sqlScriptPath = ADD_ISSUE_SERIES_TO_CREDITS_PATH
-        )
+    private fun addIssueSeriesToCredits() =
+        database.runSqlScriptUpdate(sqlScriptPath = ADD_ISSUE_SERIES_TO_CREDITS_PATH)
 
 }
 

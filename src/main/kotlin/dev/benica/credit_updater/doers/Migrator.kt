@@ -1,18 +1,20 @@
-import Converter.logger
-import Credentials.Companion.CHARACTER_STORIES_COMPLETE_NEW
-import Credentials.Companion.CHARACTER_STORY_START_NEW
-import Credentials.Companion.CREDITS_STORIES_COMPLETE_NEW
-import Credentials.Companion.CREDITS_STORY_START_NEW
-import Credentials.Companion.INCOMING_DATABASE
-import Credentials.Companion.PRIMARY_DATABASE
-import kotlinx.coroutines.async
+package dev.benica.credit_updater.doers
+
+import dev.benica.credit_updater.Credentials.Companion.CHARACTER_STORIES_COMPLETE_NEW
+import dev.benica.credit_updater.Credentials.Companion.CHARACTER_STORY_START_NEW
+import dev.benica.credit_updater.Credentials.Companion.CREDITS_STORIES_COMPLETE_NEW
+import dev.benica.credit_updater.Credentials.Companion.CREDITS_STORY_START_NEW
+import dev.benica.credit_updater.Credentials.Companion.INCOMING_DATABASE
+import dev.benica.credit_updater.Credentials.Companion.PRIMARY_DATABASE
+import dev.benica.credit_updater.converter.logger
 import kotlinx.coroutines.coroutineScope
 import java.sql.Connection
 
 /**
- * Migrator - migrates the data from the old database to the new database.
+ * dev.benica.CreditUpdater.Migrator - migrates the data from the old
+ * database to the new database.
  *
- * @constructor Create empty Migrator
+ * @constructor Create empty dev.benica.CreditUpdater.Migrator
  */
 class Migrator : Doer(INCOMING_DATABASE) {
     /** Migrate - migrates the data from the old database to the new database. */
@@ -25,12 +27,10 @@ class Migrator : Doer(INCOMING_DATABASE) {
                 addTablesNew(conn)
 
                 val storyCount = database.getItemCount(
-                    conn = conn,
                     tableName = "$targetSchema.stories_to_migrate",
                 )
 
                 extractCharactersAndAppearances(
-                    conn,
                     storyCount,
                     targetSchema,
                     CHARACTER_STORY_START_NEW,
@@ -40,7 +40,6 @@ class Migrator : Doer(INCOMING_DATABASE) {
                 println("Done extracting characters.")
 
                 extractCredits(
-                    conn,
                     storyCount,
                     targetSchema,
                     CREDITS_STORY_START_NEW,
@@ -62,7 +61,7 @@ class Migrator : Doer(INCOMING_DATABASE) {
      * @param newDbConn The connection to the new database.
      */
     private fun migrateRecords(newDbConn: Connection) {
-        database.runSqlScriptUpdate(newDbConn, MIGRATE_PATH_NEW)
+        database.runSqlScriptUpdate(MIGRATE_PATH_NEW)
     }
 
     /**
@@ -71,7 +70,7 @@ class Migrator : Doer(INCOMING_DATABASE) {
      * @param connection The connection to the new database.
      */
     internal fun addTablesNew(connection: Connection) =
-        database.runSqlScriptQuery(connection, ADD_MODIFY_TABLES_PATH_NEW)
+        database.runSqlScriptQuery(ADD_MODIFY_TABLES_PATH_NEW)
 
     /**
      * Add issue series to credits new - adds the issue_id and series_id
@@ -80,7 +79,7 @@ class Migrator : Doer(INCOMING_DATABASE) {
      * @param connection The connection to the new database.
      */
     internal fun addIssueSeriesToCreditsNew(connection: Connection) =
-        database.runSqlScriptUpdate(connection, ADD_ISSUE_SERIES_TO_CREDITS_PATH_NEW)
+        database.runSqlScriptUpdate(ADD_ISSUE_SERIES_TO_CREDITS_PATH_NEW)
 
     companion object {
         /**

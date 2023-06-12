@@ -1,21 +1,19 @@
-package db
+package dev.benica.credit_updater.db
 
-import Converter.Extractor
-import Converter.logger
-import TerminalUtil.Companion.clearTerminal
-import TerminalUtil.Companion.millisToPretty
-import TerminalUtil.Companion.upNLines
-import di.DatabaseComponent
+import dev.benica.credit_updater.converter.Extractor
+import dev.benica.credit_updater.converter.logger
+import dev.benica.credit_updater.TerminalUtil.Companion.clearTerminal
+import dev.benica.credit_updater.TerminalUtil.Companion.millisToPretty
+import dev.benica.credit_updater.TerminalUtil.Companion.upNLines
+import dev.benica.credit_updater.di.DatabaseComponent
+import dev.benica.credit_updater.toPercent
 import kotlinx.coroutines.coroutineScope
-import toPercent
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
 import java.sql.*
-import java.util.*
 import javax.inject.Inject
 import kotlin.system.measureTimeMillis
-
 
 abstract class ConnectionSource {
     abstract fun getConnection(database: String): Connection
@@ -43,7 +41,6 @@ class DatabaseUtil(
     /**
      * Get connection - gets a connection to the database.
      *
-     * @param database the database
      * @return the connection
      */
     internal fun getConnection(): Connection? =
@@ -61,47 +58,34 @@ class DatabaseUtil(
     /**
      * Run sql script query - runs a sql script using [Statement.execute]
      *
-     * @param conn the connection
      * @param sqlScriptPath the sql script path
      */
-    internal fun runSqlScriptQuery(conn: Connection, sqlScriptPath: String) =
-        runSqlScript(conn, sqlScriptPath) { stmt, instr -> stmt.execute(instr) }
+    internal fun runSqlScriptQuery(sqlScriptPath: String) =
+        runSqlScript(sqlScriptPath) { stmt, instr -> stmt.execute(instr) }
 
     /**
      * Run sql script update - runs a sql script using
      * [Statement.executeUpdate]
      *
-     * @param conn the connection
      * @param sqlScriptPath the sql script path
      */
-    internal fun runSqlScriptUpdate(conn: Connection, sqlScriptPath: String) =
-        runSqlScript(conn, sqlScriptPath) { stmt, instr -> stmt.executeUpdate(instr) }
+    internal fun runSqlScriptUpdate(sqlScriptPath: String) =
+        runSqlScript(sqlScriptPath) { stmt, instr -> stmt.executeUpdate(instr) }
 
     /**
      * Run sql script - runs a sql script using [executor]
      *
-     * @param conn the connection
      * @param sqlScriptPath the sql script path
      * @param executor the executor
      * @receiver the receiver
      */
     private fun runSqlScript(
-        conn: Connection,
         sqlScriptPath: String,
         executor: (Statement, String) -> Unit
     ) {
-        val stmt = conn.createStatement()
+        val stmt = connectionSource.getConnection(database).createStatement()
         try {
-            val file = File(sqlScriptPath)
-            val fr = FileReader(file)
-            val br = BufferedReader(fr)
-            val sb = StringBuffer()
-            var s: String?
-            while (br.readLine().also { s = it } != null) {
-                sb.append("$s ")
-            }
-            br.close()
-            val instructions = sb.toString().split(';')
+            val instructions = parseSqlScript(File(sqlScriptPath))
             instructions.forEach { instr ->
                 if (instr != "") {
                     println(instr)
@@ -109,33 +93,54 @@ class DatabaseUtil(
                     stmt?.let { executor(it, instr) }
                 }
             }
-
-            // TODO: This obviously looks better, but it doesn't work because the statements are
-            //  not on single lines, but instead semicolon-separated. If the sql files
-            //  were formatted differently, this would work.
-            //            file.useLines { lines ->
-            //                lines.forEach { line ->
-            //                    if (line.isNotBlank()) {
-            //                        executor(stmt, line)
-            //                    }
-            //                }
-            //            }
-
         } catch (sqlEx: SQLException) {
             logger.error("Error running SQL script", sqlEx)
         }
+    }
+    // TODO: This obviously looks better, but it doesn't work because the statements are
+    //  not on single lines, but instead semicolon-separated. If the sql files
+    //  were formatted differently, this would work.
+    //            file.useLines { lines ->
+    //                lines.forEach { line ->
+    //                    if (line.isNotBlank()) {
+    //                        executor(stmt, line)
+    //                    }
+    //                }
+    //            }
+
+
+    /**
+     * Parses a SQL script file and returns a list of individual SQL
+     * statements.
+     *
+     * This function reads the contents of the provided SQL script file and
+     * splits it into individual SQL statements based on the semicolon (;)
+     * delimiter. Any empty or whitespace-only statements are filtered out.
+     *
+     * @param file the SQL script file to parse
+     * @return a list of individual SQL statements extracted from the script
+     *     file
+     */
+    private fun parseSqlScript(file: File): List<String> {
+        val fr = FileReader(file)
+        val br = BufferedReader(fr)
+        val sb = StringBuffer()
+        var s: String?
+        while (br.readLine().also { s = it } != null) {
+            sb.append("$s ")
+        }
+        br.close()
+        return sb.toString().split(';').filter { it.isNotBlank() }
     }
 
     /**
      * Get item count - gets the number of items in a table.
      *
-     * @param conn the connection
      * @param tableName the table name
      * @param condition the condition
      * @return the item count
      */
     internal fun getItemCount(
-        conn: Connection?,
         tableName: String,
         condition: String? = null
     ): Int? {
@@ -151,15 +156,16 @@ class DatabaseUtil(
                 scriptSql.append(condition)
             val sql = scriptSql.toString()
 
-            conn?.prepareStatement(sql)?.use { getCountStmt: PreparedStatement ->
-                getCountStmt.executeQuery().use { getCountResultSet: ResultSet ->
-                    if (getCountResultSet.next()) {
-                        getCountResultSet.getInt("count")
-                    } else {
-                        null
+            connectionSource.getConnection(database).prepareStatement(sql)
+                ?.use { getCountStmt: PreparedStatement ->
+                    getCountStmt.executeQuery().use { getCountResultSet: ResultSet ->
+                        if (getCountResultSet.next()) {
+                            getCountResultSet.getInt("count")
+                        } else {
+                            null
+                        }
                     }
                 }
-            }
         } catch (ex: SQLException) {
             ex.printStackTrace()
             null
@@ -178,7 +184,6 @@ class DatabaseUtil(
      *     result set
      * @param destDatabase the destination database to use, or null to use the
      *     source database
-     * @param conn the database connection to use
      */
     internal suspend fun updateItems(
         getItems: String,

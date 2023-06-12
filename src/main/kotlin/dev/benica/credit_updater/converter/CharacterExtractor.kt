@@ -1,7 +1,7 @@
-package Converter
+package dev.benica.credit_updater.converter
 
-import Credentials.Companion.COLLECTOR_LIMIT
-import Credentials.Companion.PRIMARY_DATABASE
+import dev.benica.credit_updater.Credentials.Companion.COLLECTOR_LIMIT
+import dev.benica.credit_updater.Credentials.Companion.PRIMARY_DATABASE
 import mu.KLogger
 import mu.KotlinLogging
 import java.lang.Integer.min
