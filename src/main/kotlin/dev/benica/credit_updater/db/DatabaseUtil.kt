@@ -127,7 +127,8 @@ class DatabaseUtil(
         val sb = StringBuffer()
         var s: String?
         while (br.readLine().also { s = it } != null) {
-            sb.append("$s ")
+            val patchedStatement = s!!.replace("<schema>", database)
+            sb.append("$patchedStatement ")
         }
         br.close()
         return sb.toString().split(';').filter { it.isNotBlank() }

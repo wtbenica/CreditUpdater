@@ -8,7 +8,7 @@ class Credentials {
         // If either of these is changed, the sql scripts must be manually updated to match
         // IOW, don't change these
         const val PRIMARY_DATABASE = "gcdb"
-        const val INCOMING_DATABASE = "gcdb_new"
+        const val INCOMING_DATABASE = "gcdb_temp"
 
         // dev.benica.CreditUpdater.PrimaryDatabaseInitializer
         const val CREDITS_STORY_ID_START: Long = 0
@@ -34,7 +34,7 @@ class Credentials {
          * table. It creates the m_character and m_character_appearance tables if
          * they don't already exist.
          */
-        const val ADD_MODIFY_TABLES_PATH = "./src/main/sql/my_tables.sql"
+        const val ADD_MODIFY_TABLES_PATH = "./src/main/sql/add_tables.sql"
 
         /**
          * This script creates several views that filter out records from the
