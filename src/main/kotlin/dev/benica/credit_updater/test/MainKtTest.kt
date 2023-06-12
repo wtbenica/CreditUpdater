@@ -1,10 +1,10 @@
 package dev.benica.credit_updater.test
 
-import dev.benica.credit_updater.CLIParser
-import dev.benica.credit_updater.toPercent
+import CLIParser
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import toPercent
 
 internal class MainKtTest {
     private lateinit var parser: CLIParser
