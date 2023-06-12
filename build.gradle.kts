@@ -3,12 +3,13 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "1.8.10"
-    kotlin("kapt") version "1.5.31"
     application
+    kotlin("kapt") version "1.5.31"
     id("org.jetbrains.dokka") version "1.5.31"
+    id("com.github.johnrengelman.shadow") version "7.1.0"
 }
 
-group = "benica.dev"
+group = "dev.benica"
 version = "1.0-SNAPSHOT"
 
 
@@ -18,7 +19,7 @@ repositories {
 }
 
 dependencies {
-    implementation(kotlin("stdlib"))
+    implementation(kotlin("stdlib", "1.8.10"))
     implementation(group = "com.google.dagger", name = "dagger", version = "2.46.1")
     implementation(group = "com.beust", name = "jcommander", version = "1.81")
     implementation(group = "io.github.microutils", name = "kotlin-logging", version = "3.0.5")
@@ -42,26 +43,26 @@ tasks.test {
     useJUnitPlatform()
 }
 
-tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "1.8"
-}
-
-tasks.withType<JavaCompile> {
-    sourceCompatibility = JavaVersion.VERSION_1_8.toString()
-    targetCompatibility = JavaVersion.VERSION_1_8.toString()
-}
-
-tasks.withType<Jar> {
-    manifest {
-        attributes["Main-Class"] = ".MainKt"
-    }
-    from(sourceSets.main.get().output.classesDirs)
-}
-
-kapt {
-    correctErrorTypes = true
+kotlin {
+    jvmToolchain(17)
 }
 
 application {
     mainClass.set("MainKt")
+}
+
+tasks.jar {
+    manifest {
+        attributes["Main-Class"] = "MainKt"
+    }
+}
+
+tasks.shadowJar {
+    archiveBaseName.set("credit-updater")
+    archiveClassifier.set("")
+    archiveVersion.set("")
+    manifest {
+        attributes["Main-Class"] = "MainKt"
+    }
+    mergeServiceFiles()
 }

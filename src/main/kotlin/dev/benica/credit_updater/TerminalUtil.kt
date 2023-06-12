@@ -1,5 +1,9 @@
 package dev.benica.credit_updater
 
+import MILLIS_PER_DAY
+import MILLIS_PER_HOUR
+import MILLIS_PER_MINUTE
+
 /**
  * Terminal util - utility functions for the terminal, mainly for tidying output.
  *

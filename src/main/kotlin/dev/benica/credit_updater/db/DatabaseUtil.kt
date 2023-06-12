@@ -6,8 +6,8 @@ import dev.benica.credit_updater.TerminalUtil.Companion.clearTerminal
 import dev.benica.credit_updater.TerminalUtil.Companion.millisToPretty
 import dev.benica.credit_updater.TerminalUtil.Companion.upNLines
 import dev.benica.credit_updater.di.DatabaseComponent
-import dev.benica.credit_updater.toPercent
 import kotlinx.coroutines.coroutineScope
+import toPercent
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
