@@ -19,24 +19,22 @@ repositories {
 }
 
 dependencies {
-    implementation(kotlin("stdlib", "1.8.10"))
-    implementation(group = "com.google.dagger", name = "dagger", version = "2.46.1")
-    implementation(group = "com.beust", name = "jcommander", version = "1.81")
-    implementation(group = "io.github.microutils", name = "kotlin-logging", version = "3.0.5")
-    implementation(group = "mysql", name = "mysql-connector-java", version = "8.0.33")
-    implementation(kotlin("stdlib"))
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.10")
+    implementation("com.google.dagger", "dagger", "2.46.1")
+    implementation("com.beust", "jcommander", "1.82")
+    implementation("io.github.microutils", "kotlin-logging", "3.0.5")
+    implementation("ch.qos.logback:logback-classic:1.4.7")
+    implementation("mysql", "mysql-connector-java", "8.0.33")
     implementation(
-        group = "org.jetbrains.kotlinx",
-        name = "kotlinx-coroutines-core",
-        version = "1.7.1"
+        "org.jetbrains.kotlinx", "kotlinx-coroutines-core", "1.7.1"
     )
 
-    implementation("org.junit.jupiter:junit-jupiter-api:5.8.1")
+    implementation("org.junit.jupiter:junit-jupiter-api:5.9.2")
 
     kapt("com.google.dagger:dagger-compiler:2.46.1")
 
-    testImplementation(group = "org.junit.jupiter", name = "junit-jupiter-api", version = "5.8.1")
-    testRuntimeOnly(group = "org.junit.jupiter", name = "junit-jupiter-engine", version = "5.8.1")
+    testImplementation("org.junit.jupiter", "junit-jupiter-api", "5.9.2")
+    testRuntimeOnly("org.junit.jupiter", "junit-jupiter-engine", "5.9.2")
 }
 
 tasks.test {
