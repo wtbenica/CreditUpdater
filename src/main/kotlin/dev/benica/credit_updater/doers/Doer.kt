@@ -1,13 +1,15 @@
-import Converter.CharacterExtractor
-import Converter.CreditExtractor
-import db.DatabaseUtil
-import di.DaggerDatabaseComponent
+package dev.benica.credit_updater.doers
+
+import dev.benica.credit_updater.converter.CharacterExtractor
+import dev.benica.credit_updater.converter.CreditExtractor
+import dev.benica.credit_updater.db.DatabaseUtil
+import dev.benica.credit_updater.di.DaggerDatabaseComponent
 import java.sql.Connection
 
 /**
- * Doer - does the work of the Migrator and Updater.
+ * dev.benica.CreditUpdater.Doer - does the work of the dev.benica.CreditUpdater.Migrator and Updater.
  *
- * @constructor Create empty Doer
+ * @constructor Create empty dev.benica.CreditUpdater.Doer
  * @property targetSchema The schema to use.
  */
 abstract class Doer(protected val targetSchema: String) {
@@ -29,7 +31,6 @@ abstract class Doer(protected val targetSchema: String) {
      * @param numComplete The number of items that have been completed.
      */
     suspend fun extractCredits(
-        sourceConn: Connection?,
         storyCount: Int?,
         sourceSchema: String,
         lastIdCompleted: Long,
@@ -46,7 +47,7 @@ abstract class Doer(protected val targetSchema: String) {
                             WHERE g.id > $lastIdCompleted
                             ORDER BY g.id """
 
-        sourceConn?.let {
+        databaseConnection?.let {
             database.updateItems(
                 getItems = scriptSql,
                 startingComplete = numComplete,
@@ -67,7 +68,6 @@ abstract class Doer(protected val targetSchema: String) {
      * @param numComplete The number of items that have been completed.
      */
     suspend fun extractCharactersAndAppearances(
-        conn: Connection?,
         storyCount: Int?,
         schema: String,
         lastIdCompleted: Long,
@@ -84,7 +84,7 @@ abstract class Doer(protected val targetSchema: String) {
                 WHERE g.id > $lastIdCompleted
                 ORDER BY g.id """
 
-        conn?.let {
+        databaseConnection?.let {
             database.updateItems(
                 getItems = scriptSql,
                 startingComplete = numComplete,

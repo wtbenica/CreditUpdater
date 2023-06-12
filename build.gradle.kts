@@ -17,6 +17,7 @@ repositories {
 
 dependencies {
     implementation(group = "com.google.dagger", name = "dagger", version = "2.46.1")
+    implementation(group = "com.beust", name = "jcommander", version = "1.81")
     implementation(group = "io.github.microutils", name = "kotlin-logging", version = "3.0.5")
     implementation(group = "mysql", name = "mysql-connector-java", version = "8.0.33")
     implementation(
@@ -25,14 +26,16 @@ dependencies {
         version = "1.7.1"
     )
 
+    implementation("org.junit.jupiter:junit-jupiter-api:5.8.1")
+
     kapt("com.google.dagger:dagger-compiler:2.46.1")
 
-    testImplementation(dependencyNotation = "org.junit.jupiter:junit-jupiter-api:5.9.3")
-    testRuntimeOnly(dependencyNotation = "org.junit.jupiter:junit-jupiter-engine:5.9.3")
+    testImplementation(group = "org.junit.jupiter", name = "junit-jupiter-api", version = "5.8.1")
+    testRuntimeOnly(group = "org.junit.jupiter", name = "junit-jupiter-engine", version = "5.8.1")
 }
 
 tasks.test {
-    useJUnit()
+    useJUnitPlatform()
 }
 
 tasks.withType<KotlinCompile> {

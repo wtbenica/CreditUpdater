@@ -1,3 +1,5 @@
+package dev.benica.credit_updater
+
 class Credentials {
     companion object {
         const val USERNAME = "gcdb_updater"
@@ -8,7 +10,7 @@ class Credentials {
         const val PRIMARY_DATABASE = "gcdb"
         const val INCOMING_DATABASE = "gcdb_new"
 
-        // PrimaryDatabaseInitializer
+        // dev.benica.CreditUpdater.PrimaryDatabaseInitializer
         const val CREDITS_STORY_ID_START: Long = 0
         const val CREDITS_STORIES_NUM_COMPLETE: Long = 0
         const val CHARACTER_STORY_ID_START: Long = 0

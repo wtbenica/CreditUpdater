@@ -1,3 +1,5 @@
+package dev.benica.credit_updater
+
 /**
  * Terminal util - utility functions for the terminal, mainly for tidying output.
  *
