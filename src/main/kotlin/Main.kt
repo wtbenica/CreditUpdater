@@ -1,5 +1,4 @@
-import com.beust.jcommander.JCommander
-import com.beust.jcommander.Parameter
+import dev.benica.credit_updater.cli_parser.CLIParser
 import dev.benica.credit_updater.converter.logger
 import dev.benica.credit_updater.doers.Migrator
 import dev.benica.credit_updater.doers.PrimaryDatabaseInitializer
@@ -7,8 +6,6 @@ import kotlinx.coroutines.runBlocking
 
 fun main(args: Array<String>) {
     runBlocking {
-        println(args.size.toString())
-
         val app = CLIParser()
 
         try {
@@ -21,7 +18,7 @@ fun main(args: Array<String>) {
                 }
 
                 app.quiet -> {
-                    System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "error")
+                    // TODO: Set logger level to ERROR
                 }
 
                 app.prepare != null -> {
@@ -37,65 +34,17 @@ fun main(args: Array<String>) {
                 }
             }
         } catch (e: com.beust.jcommander.ParameterException) {
-            logger.error("Error parsing command line arguments", e)
+            val msg = if (e.message?.startsWith("Was passed main parameter '") == true) {
+                "Unrecognized argument: ${e.message?.substringAfter("'")?.substringBefore("'")}"
+            } else {
+                e.message
+            }
+            println(msg)
             app.usage
         } catch (e: Exception) {
-            logger.error("Error parsing command line arguments", e)
+            println(e)
         } finally {
             app.parsedCommand
-        }
-
-        if (args.isEmpty())
-            PrimaryDatabaseInitializer().update()
-        else if (args.size == 1 && args[0] == "migrate") {
-            Migrator().migrate()
-        }
-    }
-}
-
-class CLIParser {
-    private val commander: JCommander = JCommander.newBuilder()
-        .addObject(this)
-        .programName("CreditUpdater")
-        .build()
-
-    @Parameter(names = ["-h", "--help"], description = "print this message")
-    var help: Boolean = false
-
-    @Parameter(names = ["-q", "--quiet"], description = "Suppress non-error messages")
-    var quiet: Boolean = false
-
-    @Parameter(
-        names = ["-p", "--prepare"],
-        description = "Prepare new primary database",
-        arity = 1,
-    )
-    var prepare: String? = null
-
-    @Parameter(names = ["-m", "--migrate"], description = "Migrate primary database", arity = 2)
-    var migrate: List<String>? = null
-
-    val usage
-        get() = commander.usage()
-
-    val parsedCommand
-        get() = commander.parsedCommand
-
-    fun parse(args: Array<String>) {
-        val commander = JCommander.newBuilder()
-            .addObject(this)
-            .build()
-        commander.programName = "CreditUpdater"
-
-        try {
-            commander.parse(*args)
-        } catch (e: com.beust.jcommander.ParameterException) {
-            println(e.message)
-            commander.usage()
-        } catch (e: Exception) {
-            println(e.message)
-        } finally {
-            commander.parsedCommand
         }
     }
 }
