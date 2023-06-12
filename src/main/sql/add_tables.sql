@@ -9,7 +9,7 @@ SELECT COUNT(*)
 INTO @exist
 FROM information_schema.columns
 WHERE table_schema = '<schema>'
-  AND column_name = 'issue'
+  AND column_name = 'issue_id'
   AND table_name = 'gcd_story_credit'
 LIMIT 1;
 
@@ -26,7 +26,7 @@ INTO @exist
 FROM information_schema.key_column_usage
 WHERE table_schema = '<schema>'
   AND table_name = 'gcd_story_credit'
-  AND column_name = 'issue'
+  AND column_name = 'issue_id'
   AND referenced_table_name = 'gcd_issue'
   AND referenced_column_name = 'id';
 
@@ -42,7 +42,7 @@ SELECT COUNT(*)
 INTO @exist
 FROM information_schema.columns
 WHERE table_schema = '<schema>'
-  AND column_name = 'series'
+  AND column_name = 'series_id'
   AND table_name = 'gcd_story_credit'
 LIMIT 1;
 
@@ -59,7 +59,7 @@ INTO @exist
 FROM information_schema.key_column_usage
 WHERE table_schema = '<schema>'
   AND table_name = 'gcd_story_credit'
-  AND column_name = 'series'
+  AND column_name = 'series_id'
   AND referenced_table_name = 'gcd_series'
   AND referenced_column_name = 'id';
 
@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS m_character_appearance
 (
     id           INTEGER PRIMARY KEY AUTO_INCREMENT,
     details      VARCHAR(255),
-    character_id INTEGER NOT NULL,
+    character_id    INTEGER NOT NULL,
     story_id     INTEGER NOT NULL,
     notes        VARCHAR(255),
     membership   LONGTEXT,
@@ -165,13 +165,13 @@ INTO @exist
 FROM information_schema.key_column_usage
 WHERE table_schema = '<schema>'
   AND table_name = 'm_story_credit'
-  AND column_name = 'issue'
+  AND column_name = 'issue_id'
   AND referenced_table_name = 'gcd_issue'
   AND referenced_column_name = 'id';
 
 SET @query_add_fk_issue_to_m_story_credit =
         IF(@exist <= 0,
-           'ALTER TABLE <schema>.m_story_credit ADD FOREIGN KEY (issue) REFERENCES gcd_issue (id)',
+           'ALTER TABLE <schema>.m_story_credit ADD FOREIGN KEY (issue_id) REFERENCES gcd_issue (id)',
            'select \'Column Exists\' status');
 
 PREPARE stmt FROM @query_add_fk_issue_to_m_story_credit;
@@ -183,7 +183,7 @@ INTO @exist
 FROM information_schema.key_column_usage
 WHERE table_schema = '<schema>'
   AND table_name = 'm_story_credit'
-  AND column_name = 'series'
+  AND column_name = 'series_id'
   AND referenced_table_name = 'gcd_series'
   AND referenced_column_name = 'id';
 

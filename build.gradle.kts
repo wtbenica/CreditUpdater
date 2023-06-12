@@ -53,6 +53,9 @@ tasks.jar {
     manifest {
         attributes["Main-Class"] = "MainKt"
     }
+    from("src/main/sql") {
+        include ("**/*.sql")
+    }
 }
 
 tasks.shadowJar {

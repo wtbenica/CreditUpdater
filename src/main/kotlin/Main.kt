@@ -1,5 +1,4 @@
 import dev.benica.credit_updater.cli_parser.CLIParser
-import dev.benica.credit_updater.converter.logger
 import dev.benica.credit_updater.doers.Migrator
 import dev.benica.credit_updater.doers.PrimaryDatabaseInitializer
 import kotlinx.coroutines.runBlocking
@@ -22,7 +21,7 @@ fun main(args: Array<String>) {
                 }
 
                 app.prepare != null -> {
-                    PrimaryDatabaseInitializer(app.prepare).update()
+                    PrimaryDatabaseInitializer(app.prepare).prepareDatabase()
                 }
 
                 app.migrate != null -> {
@@ -30,7 +29,7 @@ fun main(args: Array<String>) {
                 }
 
                 else -> {
-                    PrimaryDatabaseInitializer().update()
+                    PrimaryDatabaseInitializer().prepareDatabase()
                 }
             }
         } catch (e: com.beust.jcommander.ParameterException) {
