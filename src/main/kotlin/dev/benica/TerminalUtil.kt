@@ -1,4 +1,4 @@
-package dev.benica.credit_updater
+package dev.benica
 
 import MILLIS_PER_DAY
 import MILLIS_PER_HOUR

@@ -1,5 +1,5 @@
 import com.beust.jcommander.ParameterException
-import dev.benica.credit_updater.cli_parser.CLIParser
+import dev.benica.cli_parser.CLIParser
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

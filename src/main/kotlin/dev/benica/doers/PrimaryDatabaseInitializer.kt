@@ -1,13 +1,17 @@
-package dev.benica.credit_updater.doers
+package dev.benica.doers
 
-import dev.benica.credit_updater.Credentials.Companion.ADD_ISSUE_SERIES_TO_CREDITS_PATH
-import dev.benica.credit_updater.Credentials.Companion.ADD_MODIFY_TABLES_PATH
-import dev.benica.credit_updater.Credentials.Companion.CHARACTER_STORIES_NUM_COMPLETE
-import dev.benica.credit_updater.Credentials.Companion.CHARACTER_STORY_ID_START
-import dev.benica.credit_updater.Credentials.Companion.PRIMARY_DATABASE
-import dev.benica.credit_updater.Credentials.Companion.SHRINK_DATABASE_PATH
-import dev.benica.credit_updater.Credentials.Companion.SHRINK_DATABASE_PRE_PATH
-import dev.benica.credit_updater.Credentials.Companion.UPDATE_CHARACTERS
+import dev.benica.Credentials.Companion.ADD_ISSUE_SERIES_TO_CREDITS_PATH
+import dev.benica.Credentials.Companion.ADD_MODIFY_TABLES_PATH
+import dev.benica.Credentials.Companion.CHARACTER_STORIES_NUM_COMPLETE
+import dev.benica.Credentials.Companion.CHARACTER_STORY_ID_START
+import dev.benica.Credentials.Companion.CREDITS_STORIES_NUM_COMPLETE
+import dev.benica.Credentials.Companion.CREDITS_STORY_ID_START
+import dev.benica.Credentials.Companion.PRIMARY_DATABASE
+import dev.benica.Credentials.Companion.SHRINK_DATABASE_PATH
+import dev.benica.Credentials.Companion.SHRINK_DATABASE_PRE_PATH
+import dev.benica.Credentials.Companion.UPDATE_CHARACTERS
+import dev.benica.Credentials.Companion.UPDATE_CREDITS
+import dev.benica.Credentials.Companion.UPDATE_DATABASE
 import kotlinx.coroutines.coroutineScope
 
 /**
@@ -38,13 +42,13 @@ class PrimaryDatabaseInitializer(targetSchema: String? = null) :
      */
     suspend fun prepareDatabase() {
         coroutineScope {
-//            println("Updating $targetSchema")
-//            if (UPDATE_DATABASE) {
-//                println("Starting Database Updates...")
-//                addTables()
-//                shrinkDatabase()
-//            }
-//
+            println("Updating $targetSchema")
+            if (UPDATE_DATABASE) {
+                println("Starting Database Updates...")
+                addTables()
+                shrinkDatabase()
+            }
+
             val storyCount = database.getItemCount(
                 tableName = "$targetSchema.gcd_story"
             )
@@ -58,18 +62,18 @@ class PrimaryDatabaseInitializer(targetSchema: String? = null) :
                     initial = true
                 )
             }
-//
-//            if (UPDATE_CREDITS) {
-//                extractCredits(
-//                    storyCount,
-//                    targetSchema,
-//                    CREDITS_STORY_ID_START,
-//                    CREDITS_STORIES_NUM_COMPLETE
-//                )
-//
-//                println("Starting FKey updates")
-//                addIssueSeriesToCredits()
-//            }
+
+            if (UPDATE_CREDITS) {
+                extractCredits(
+                    storyCount = storyCount,
+                    sourceSchema = targetSchema,
+                    lastIdCompleted = CREDITS_STORY_ID_START,
+                    numComplete = CREDITS_STORIES_NUM_COMPLETE
+                )
+
+                println("Starting FKey updates")
+                addIssueSeriesToCredits()
+            }
         }
     }
 

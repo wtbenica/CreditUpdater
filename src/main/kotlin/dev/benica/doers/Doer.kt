@@ -1,9 +1,9 @@
-package dev.benica.credit_updater.doers
+package dev.benica.doers
 
-import dev.benica.credit_updater.converter.CharacterExtractor
-import dev.benica.credit_updater.converter.CreditExtractor
-import dev.benica.credit_updater.db.DatabaseUtil
-import dev.benica.credit_updater.di.DaggerDatabaseComponent
+import dev.benica.converter.CharacterExtractor
+import dev.benica.converter.CreditExtractor
+import dev.benica.db.DatabaseUtil
+import dev.benica.di.DaggerDatabaseComponent
 import java.sql.Connection
 
 /**

@@ -1,4 +1,4 @@
-package dev.benica.credit_updater.doers
+package dev.benica.doers
 
 internal class PrimaryDatabaseInitializerTest {
 
