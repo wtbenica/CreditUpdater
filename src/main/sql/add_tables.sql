@@ -1,6 +1,7 @@
-# If the issue and series columns don't already exist, then it adds them 
-# to the gcd_story_credit and m_character_appearance tables
-# Then creates the m_story_credit table;
+# This script adds the m_character, m_character_appearance, and m_story_credit
+# tables to the <schema> schema. It also adds the issue_id and series_id columns
+# to the gcd_story_credit table and adds the foreign key constraints to the
+# m_character_appearance and m_story_credit tables.
 
 ###########################################################################
 # Add issue/series columns to story_credit and fk constraints             #
@@ -93,7 +94,7 @@ CREATE TABLE IF NOT EXISTS m_character_appearance
     notes        VARCHAR(255),
     membership   LONGTEXT,
     issue_id     INTEGER DEFAULT NULL,
-    series_id    INTEGER REFERENCES new_gcd_dump.gcd_series (id),
+    series_id    INTEGER REFERENCES gcd_series (id),
     FOREIGN KEY (character_id) REFERENCES m_character (id),
     FOREIGN KEY (story_id) REFERENCES gcd_story (id),
     FOREIGN KEY (issue_id) REFERENCES gcd_issue (id),
@@ -120,7 +121,7 @@ SET @query_add_pk_id_to_m_story_credit =
            'ALTER TABLE <schema>.m_story_credit MODIFY COLUMN id INT PRIMARY KEY AUTO_INCREMENT',
            'select \'Column Exists\' status');
 
-PREPARE stmt FROM @query_add_fk_creator_to_m_story_credit;
+PREPARE stmt FROM @query_add_pk_id_to_m_story_credit;
 EXECUTE stmt;
 
 

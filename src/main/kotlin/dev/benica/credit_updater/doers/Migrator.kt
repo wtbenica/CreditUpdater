@@ -8,7 +8,6 @@ import dev.benica.credit_updater.Credentials.Companion.INCOMING_DATABASE
 import dev.benica.credit_updater.Credentials.Companion.PRIMARY_DATABASE
 import dev.benica.credit_updater.converter.logger
 import kotlinx.coroutines.coroutineScope
-import java.sql.Connection
 
 /**
  * dev.benica.CreditUpdater.Migrator - migrates the data from the old
@@ -24,7 +23,7 @@ class Migrator : Doer(INCOMING_DATABASE) {
                 println("Migrating to $PRIMARY_DATABASE from $targetSchema")
 
                 println("starting tables...")
-                addTablesNew(conn)
+                addTablesNew()
 
                 val storyCount = database.getItemCount(
                     tableName = "$targetSchema.stories_to_migrate",
@@ -34,7 +33,8 @@ class Migrator : Doer(INCOMING_DATABASE) {
                     storyCount,
                     targetSchema,
                     CHARACTER_STORY_START_NEW,
-                    CHARACTER_STORIES_COMPLETE_NEW
+                    CHARACTER_STORIES_COMPLETE_NEW,
+                    false
                 )
 
                 println("Done extracting characters.")
@@ -46,11 +46,11 @@ class Migrator : Doer(INCOMING_DATABASE) {
                     CREDITS_STORIES_COMPLETE_NEW
                 )
 
-                addIssueSeriesToCreditsNew(conn)
+                addIssueSeriesToCreditsNew()
                 println("Done updating credits")
 
                 println("Starting migration")
-                migrateRecords(conn)
+                migrateRecords()
             } ?: logger.info { "No connection to $targetSchema" }
         }
     }
@@ -60,7 +60,7 @@ class Migrator : Doer(INCOMING_DATABASE) {
      *
      * @param newDbConn The connection to the new database.
      */
-    private fun migrateRecords(newDbConn: Connection) {
+    private fun migrateRecords() {
         database.runSqlScriptUpdate(MIGRATE_PATH_NEW)
     }
 
@@ -69,8 +69,8 @@ class Migrator : Doer(INCOMING_DATABASE) {
      *
      * @param connection The connection to the new database.
      */
-    internal fun addTablesNew(connection: Connection) =
-        database.runSqlScriptQuery(ADD_MODIFY_TABLES_PATH_NEW)
+    internal fun addTablesNew() =
+        database.executeSqlScript(ADD_MODIFY_TABLES_PATH_NEW)
 
     /**
      * Add issue series to credits new - adds the issue_id and series_id
@@ -78,7 +78,7 @@ class Migrator : Doer(INCOMING_DATABASE) {
      *
      * @param connection The connection to the new database.
      */
-    internal fun addIssueSeriesToCreditsNew(connection: Connection) =
+    internal fun addIssueSeriesToCreditsNew() =
         database.runSqlScriptUpdate(ADD_ISSUE_SERIES_TO_CREDITS_PATH_NEW)
 
     companion object {

@@ -28,7 +28,7 @@ class TerminalUtil {
          * @param n the number of lines to move up
          */
         fun upNLines(n: Int) {
-            for (i in 0..n) {
+            for (i in 1..n) {
                 print("$ESC${CursorMovement.UP}")
             }
             print("$ESC${CursorMovement.LINE_START}")
