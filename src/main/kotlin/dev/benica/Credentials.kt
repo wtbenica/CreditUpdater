@@ -1,4 +1,4 @@
-package dev.benica.credit_updater
+package dev.benica
 
 class Credentials {
     companion object {
@@ -13,13 +13,13 @@ class Credentials {
         // dev.benica.CreditUpdater.PrimaryDatabaseInitializer
         const val CREDITS_STORY_ID_START: Long = 0
         const val CREDITS_STORIES_NUM_COMPLETE: Long = 0
-        const val CHARACTER_STORY_ID_START: Long = 2174958
-        const val CHARACTER_STORIES_NUM_COMPLETE: Long = 1342353
+        const val CHARACTER_STORY_ID_START: Long = 0
+        const val CHARACTER_STORIES_NUM_COMPLETE: Long = 0
 
         // These only need to be changed if the process has been stopped or interrupted. Otherwise, leave them alone. Default values are 'true'.
-        const val UPDATE_DATABASE = true
+        const val UPDATE_DATABASE = false
+        const val UPDATE_CHARACTERS = false
         const val UPDATE_CREDITS = true
-        const val UPDATE_CHARACTERS = true
 
         // MIGRATE
         const val CREDITS_STORY_START_NEW: Long = 0
@@ -27,7 +27,7 @@ class Credentials {
         const val CHARACTER_STORY_START_NEW: Long = 0
         const val CHARACTER_STORIES_COMPLETE_NEW: Long = 0
 
-        const val COLLECTOR_LIMIT = 500
+        const val COLLECTOR_LIMIT = 50
 
         /**
          * This SQL query adds issue and series columns to the gcd_story_credit

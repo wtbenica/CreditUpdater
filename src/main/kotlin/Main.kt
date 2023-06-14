@@ -1,6 +1,6 @@
-import dev.benica.credit_updater.cli_parser.CLIParser
-import dev.benica.credit_updater.doers.Migrator
-import dev.benica.credit_updater.doers.PrimaryDatabaseInitializer
+import dev.benica.cli_parser.CLIParser
+import dev.benica.doers.Migrator
+import dev.benica.doers.PrimaryDatabaseInitializer
 import kotlinx.coroutines.runBlocking
 
 fun main(args: Array<String>) {

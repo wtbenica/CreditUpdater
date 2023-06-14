@@ -1,4 +1,4 @@
-package dev.benica.credit_updater.cli_parser
+package dev.benica.cli_parser
 
 import com.beust.jcommander.JCommander
 import com.beust.jcommander.Parameter

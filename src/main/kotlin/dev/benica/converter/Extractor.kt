@@ -1,4 +1,4 @@
-package dev.benica.credit_updater.converter
+package dev.benica.converter
 
 import java.sql.Connection
 import java.sql.ResultSet

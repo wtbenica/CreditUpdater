@@ -1,11 +1,11 @@
-package dev.benica.credit_updater.db
+package dev.benica.db
 
-import dev.benica.credit_updater.converter.Extractor
-import dev.benica.credit_updater.converter.logger
-import dev.benica.credit_updater.TerminalUtil.Companion.clearTerminal
-import dev.benica.credit_updater.TerminalUtil.Companion.millisToPretty
-import dev.benica.credit_updater.TerminalUtil.Companion.upNLines
-import dev.benica.credit_updater.di.DatabaseComponent
+import dev.benica.converter.Extractor
+import dev.benica.converter.logger
+import dev.benica.TerminalUtil.Companion.clearTerminal
+import dev.benica.TerminalUtil.Companion.millisToPretty
+import dev.benica.TerminalUtil.Companion.upNLines
+import dev.benica.di.DatabaseComponent
 import kotlinx.coroutines.coroutineScope
 import toPercent
 import java.io.BufferedReader

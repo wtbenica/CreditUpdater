@@ -1,12 +1,12 @@
-package dev.benica.credit_updater.di
+package dev.benica.di
 
 import dagger.Component
 import dagger.Module
 import dagger.Provides
-import dev.benica.credit_updater.Credentials.Companion.PASSWORD
-import dev.benica.credit_updater.Credentials.Companion.USERNAME
-import dev.benica.credit_updater.db.ConnectionSource
-import dev.benica.credit_updater.db.DatabaseUtil
+import dev.benica.Credentials.Companion.PASSWORD
+import dev.benica.Credentials.Companion.USERNAME
+import dev.benica.db.ConnectionSource
+import dev.benica.db.DatabaseUtil
 import java.sql.Connection
 import java.sql.DriverManager
 import java.util.*

@@ -1,12 +1,12 @@
-package dev.benica.credit_updater.doers
+package dev.benica.doers
 
-import dev.benica.credit_updater.Credentials.Companion.CHARACTER_STORIES_COMPLETE_NEW
-import dev.benica.credit_updater.Credentials.Companion.CHARACTER_STORY_START_NEW
-import dev.benica.credit_updater.Credentials.Companion.CREDITS_STORIES_COMPLETE_NEW
-import dev.benica.credit_updater.Credentials.Companion.CREDITS_STORY_START_NEW
-import dev.benica.credit_updater.Credentials.Companion.INCOMING_DATABASE
-import dev.benica.credit_updater.Credentials.Companion.PRIMARY_DATABASE
-import dev.benica.credit_updater.converter.logger
+import dev.benica.Credentials.Companion.CHARACTER_STORIES_COMPLETE_NEW
+import dev.benica.Credentials.Companion.CHARACTER_STORY_START_NEW
+import dev.benica.Credentials.Companion.CREDITS_STORIES_COMPLETE_NEW
+import dev.benica.Credentials.Companion.CREDITS_STORY_START_NEW
+import dev.benica.Credentials.Companion.INCOMING_DATABASE
+import dev.benica.Credentials.Companion.PRIMARY_DATABASE
+import dev.benica.converter.logger
 import kotlinx.coroutines.coroutineScope
 
 /**
