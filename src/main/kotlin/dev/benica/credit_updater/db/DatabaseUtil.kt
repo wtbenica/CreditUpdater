@@ -26,7 +26,7 @@ abstract class ConnectionSource {
  */
 class DatabaseUtil(
     private val database: String,
-    databaseComponent: DatabaseComponent
+    databaseComponent: DatabaseComponent,
 ) {
     @Inject
     internal lateinit var connectionSource: ConnectionSource
@@ -56,24 +56,33 @@ class DatabaseUtil(
 
 
     /**
-     * Run sql script query - runs a sql script using [Statement.execute]
+     * Run sql script - runs a sql script with CREATE TABLE statements.
+     *
+     * @param sqlScriptPath the sql script path
+     * @param verbose whether to print the sql script
+     */
+    internal fun executeSqlScript(sqlScriptPath: String, verbose: Boolean = true) =
+        runSqlScript(sqlScriptPath, verbose) { stmt, instr -> stmt.execute(instr) }
+
+    /**
+     * Run sql script query - runs a sql script with SELECT statements.
      *
      * @param sqlScriptPath the sql script path
      */
-    internal fun runSqlScriptQuery(sqlScriptPath: String) =
-        runSqlScript(sqlScriptPath) { stmt, instr -> stmt.execute(instr) }
+    internal fun runSqlScriptQuery(sqlScriptPath: String, verbose: Boolean = true) =
+        runSqlScript(sqlScriptPath, verbose) { stmt, instr -> stmt.executeQuery(instr) }
+
 
     /**
-     * Run sql script update - runs a sql script using
-     * [Statement.executeUpdate]
+     * Run sql script update - runs a sql script INSERT, UPDATE, DELETE and CREATE TABLE statements.
      *
      * @param sqlScriptPath the sql script path
      */
-    internal fun runSqlScriptUpdate(sqlScriptPath: String) =
-        runSqlScript(sqlScriptPath) { stmt, instr -> stmt.executeUpdate(instr) }
+    internal fun runSqlScriptUpdate(sqlScriptPath: String, verbose: Boolean = true) =
+        runSqlScript(sqlScriptPath, verbose) { stmt, instr -> stmt.executeUpdate(instr) }
 
     /**
-     * Run sql script - runs a sql script using [executor]
+     * Run sql script - runs a sql script using [executor].
      *
      * @param sqlScriptPath the sql script path
      * @param executor the executor
@@ -81,6 +90,7 @@ class DatabaseUtil(
      */
     private fun runSqlScript(
         sqlScriptPath: String,
+        verbose: Boolean = true,
         executor: (Statement, String) -> Unit
     ) {
         val stmt = connectionSource.getConnection(database).createStatement()
@@ -88,9 +98,18 @@ class DatabaseUtil(
             val instructions = parseSqlScript(File(sqlScriptPath))
             instructions.forEach { instr ->
                 if (instr != "") {
-                    println(instr)
-                    println()
-                    stmt?.let { executor(it, instr) }
+                    if (verbose) {
+                        println(instr.replace("\\s{2,}".toRegex(), "\n"))
+                        println()
+                    }
+                    if (!instr.startsWith('#')) {
+                        try {
+                            stmt?.let { executor(it, instr) }
+                        } catch (sqlEx: SQLException) {
+                            logger.error("Error running SQL script $instr", sqlEx)
+                            throw sqlEx
+                        }
+                    }
                 }
             }
         } catch (sqlEx: SQLException) {

@@ -1,6 +1,3 @@
-import org.jetbrains.kotlin.com.intellij.openapi.vfs.StandardFileSystems.jar
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
     kotlin("jvm") version "1.8.10"
     application
@@ -28,7 +25,10 @@ dependencies {
     implementation(
         "org.jetbrains.kotlinx", "kotlinx-coroutines-core", "1.7.1"
     )
-
+    // mockito
+    implementation("org.mockito:mockito-core:5.2.0")
+    implementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
+    // junit
     implementation("org.junit.jupiter:junit-jupiter-api:5.9.2")
 
     kapt("com.google.dagger:dagger-compiler:2.46.1")
@@ -54,7 +54,7 @@ tasks.jar {
         attributes["Main-Class"] = "MainKt"
     }
     from("src/main/sql") {
-        include ("**/*.sql")
+        include("**/*.sql")
     }
 }
 

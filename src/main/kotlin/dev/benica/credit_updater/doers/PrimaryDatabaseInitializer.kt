@@ -4,13 +4,10 @@ import dev.benica.credit_updater.Credentials.Companion.ADD_ISSUE_SERIES_TO_CREDI
 import dev.benica.credit_updater.Credentials.Companion.ADD_MODIFY_TABLES_PATH
 import dev.benica.credit_updater.Credentials.Companion.CHARACTER_STORIES_NUM_COMPLETE
 import dev.benica.credit_updater.Credentials.Companion.CHARACTER_STORY_ID_START
-import dev.benica.credit_updater.Credentials.Companion.CREDITS_STORIES_NUM_COMPLETE
-import dev.benica.credit_updater.Credentials.Companion.CREDITS_STORY_ID_START
 import dev.benica.credit_updater.Credentials.Companion.PRIMARY_DATABASE
 import dev.benica.credit_updater.Credentials.Companion.SHRINK_DATABASE_PATH
+import dev.benica.credit_updater.Credentials.Companion.SHRINK_DATABASE_PRE_PATH
 import dev.benica.credit_updater.Credentials.Companion.UPDATE_CHARACTERS
-import dev.benica.credit_updater.Credentials.Companion.UPDATE_CREDITS
-import dev.benica.credit_updater.Credentials.Companion.UPDATE_DATABASE
 import kotlinx.coroutines.coroutineScope
 
 /**
@@ -41,13 +38,13 @@ class PrimaryDatabaseInitializer(targetSchema: String? = null) :
      */
     suspend fun prepareDatabase() {
         coroutineScope {
-            println("Updating $targetSchema")
-            if (UPDATE_DATABASE) {
-                println("Starting Database Updates...")
-                addTables()
-                shrinkDatabase()
-            }
-
+//            println("Updating $targetSchema")
+//            if (UPDATE_DATABASE) {
+//                println("Starting Database Updates...")
+//                addTables()
+//                shrinkDatabase()
+//            }
+//
             val storyCount = database.getItemCount(
                 tableName = "$targetSchema.gcd_story"
             )
@@ -57,21 +54,22 @@ class PrimaryDatabaseInitializer(targetSchema: String? = null) :
                     storyCount = storyCount,
                     schema = targetSchema,
                     lastIdCompleted = CHARACTER_STORY_ID_START,
-                    numComplete = CHARACTER_STORIES_NUM_COMPLETE
+                    numComplete = CHARACTER_STORIES_NUM_COMPLETE,
+                    initial = true
                 )
             }
-
-            if (UPDATE_CREDITS) {
-                extractCredits(
-                    storyCount,
-                    targetSchema,
-                    CREDITS_STORY_ID_START,
-                    CREDITS_STORIES_NUM_COMPLETE
-                )
-
-                println("Starting FKey updates")
-                addIssueSeriesToCredits()
-            }
+//
+//            if (UPDATE_CREDITS) {
+//                extractCredits(
+//                    storyCount,
+//                    targetSchema,
+//                    CREDITS_STORY_ID_START,
+//                    CREDITS_STORIES_NUM_COMPLETE
+//                )
+//
+//                println("Starting FKey updates")
+//                addIssueSeriesToCredits()
+//            }
         }
     }
 
@@ -88,10 +86,8 @@ class PrimaryDatabaseInitializer(targetSchema: String? = null) :
      * and create tables. It assumes that the database connection is already
      * established and that the user has the necessary permissions to execute
      * these statements.
-     *
-     * @param connection The connection to the database.
      */
-    private fun addTables() = database.runSqlScriptQuery(sqlScriptPath = ADD_MODIFY_TABLES_PATH)
+    private fun addTables() = database.executeSqlScript(sqlScriptPath = ADD_MODIFY_TABLES_PATH)
 
     /**
      * Adds the 'issue' and 'series' columns to the 'gcd_story_credit'
@@ -105,10 +101,11 @@ class PrimaryDatabaseInitializer(targetSchema: String? = null) :
      * Note: This function assumes that the database connection is already
      * established and that the user has the necessary permissions to execute
      * these statements.
-     *
-     * @param connection The connection to the database.
      */
-    private fun shrinkDatabase() = database.runSqlScriptUpdate(sqlScriptPath = SHRINK_DATABASE_PATH)
+    private fun shrinkDatabase() {
+        database.executeSqlScript(sqlScriptPath = SHRINK_DATABASE_PRE_PATH)
+        database.executeSqlScript(sqlScriptPath = SHRINK_DATABASE_PATH)
+    }
 
     /**
      * Updates the 'issue_id' and 'series_id' columns in the 'gcd_story_credit'
@@ -130,11 +127,9 @@ class PrimaryDatabaseInitializer(targetSchema: String? = null) :
      * Note: This function assumes that the database connection is already
      * established and that the user has the necessary permissions to execute
      * these statements.
-     *
-     * @param connection The connection to the database.
      */
     private fun addIssueSeriesToCredits() =
-        database.runSqlScriptUpdate(sqlScriptPath = ADD_ISSUE_SERIES_TO_CREDITS_PATH)
+        database.executeSqlScript(sqlScriptPath = ADD_ISSUE_SERIES_TO_CREDITS_PATH)
 
 }
 

@@ -7,14 +7,14 @@ class Credentials {
 
         // If either of these is changed, the sql scripts must be manually updated to match
         // IOW, don't change these
-        const val PRIMARY_DATABASE = "gcdb"
+        const val PRIMARY_DATABASE = "gcdb_test"
         const val INCOMING_DATABASE = "gcdb_temp"
 
         // dev.benica.CreditUpdater.PrimaryDatabaseInitializer
         const val CREDITS_STORY_ID_START: Long = 0
         const val CREDITS_STORIES_NUM_COMPLETE: Long = 0
-        const val CHARACTER_STORY_ID_START: Long = 0
-        const val CHARACTER_STORIES_NUM_COMPLETE: Long = 0
+        const val CHARACTER_STORY_ID_START: Long = 2174958
+        const val CHARACTER_STORIES_NUM_COMPLETE: Long = 1342353
 
         // These only need to be changed if the process has been stopped or interrupted. Otherwise, leave them alone. Default values are 'true'.
         const val UPDATE_DATABASE = true
@@ -27,7 +27,7 @@ class Credentials {
         const val CHARACTER_STORY_START_NEW: Long = 0
         const val CHARACTER_STORIES_COMPLETE_NEW: Long = 0
 
-        const val COLLECTOR_LIMIT = 2500
+        const val COLLECTOR_LIMIT = 500
 
         /**
          * This SQL query adds issue and series columns to the gcd_story_credit
@@ -35,6 +35,13 @@ class Credentials {
          * they don't already exist.
          */
         const val ADD_MODIFY_TABLES_PATH = "src/main/sql/add_tables.sql"
+
+        /**
+         * This script creates several views that filter out records from the
+         * database based on certain criteria. These views are then used to delete
+         * records from various tables in the database.
+         */
+        const val SHRINK_DATABASE_PRE_PATH = "src/main/sql/shrink_database_pre.sql"
 
         /**
          * This script creates several views that filter out records from the
@@ -63,6 +70,5 @@ class Credentials {
          * the query.
          */
         const val ADD_ISSUE_SERIES_TO_CREDITS_PATH = "src/main/sql/add_issue_series_to_credits.sql"
-
     }
 }

@@ -1,11 +1,8 @@
-package dev.benica.credit_updater.test
-
 import com.beust.jcommander.ParameterException
 import dev.benica.credit_updater.cli_parser.CLIParser
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import toPercent
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 

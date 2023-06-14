@@ -2,6 +2,9 @@ package dev.benica.credit_updater.converter
 
 import dev.benica.credit_updater.Credentials.Companion.COLLECTOR_LIMIT
 import dev.benica.credit_updater.Credentials.Companion.PRIMARY_DATABASE
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import mu.KLogger
 import mu.KotlinLogging
 import java.lang.Integer.min
@@ -49,56 +52,164 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
         destDatabase: String?
     ): Int {
         val storyId = resultSet.getInt("id")
+        val characters = resultSet.getString("characters")
         val publisherId: Int? = getPublisherId(storyId, conn)
 
-        val characterList = resultSet.getString("characters")
+        val characterList: List<CharacterAppearance> = parseCharacters(characters)
 
-        if (characterList.isNotEmpty()) {
-            val characters = splitOnOuterSemicolons(characterList)
-            for (character in characters) {
-                val (openParen, closeParen) = parenthesesIndexes(character)
-                val (openBracket, closeBracket) = bracketIndexes(character)
+        for (character in characterList) {
+            val characterId = publisherId?.let {
+                when (character) {
+                    is Individual -> {
+                        upsertCharacter(character.name, character.alterEgo, it)
+                    }
 
-                val endIndexName =
-                    minOf(openBracket ?: character.length, openParen ?: character.length)
-                val name: String = character.substring(0, endIndexName).prepareName()
+                    is Team -> {
+                        upsertCharacter(character.name, null, it)
+                    }
+                }
+            }
 
-                if (name.isNotEmpty()) {
-                    val appearanceInfo: String? =
-                        extractAppearanceInfo(openParen, closeParen, character)
-
-                    // need to check for internal brackets. maybe?
-                    val bracketedText: String? =
-                        extractBracketedText(openBracket, closeBracket, character)
-
-                    val splitText: List<String>? =
-                        bracketedText?.let { splitOnOuterSemicolons(it) }
-
-                    val (alterEgo: String?, notes: String?, membership: String?) =
-                        parseBracketedText(splitText, bracketedText)
-
-                    val characterId: Int? =
-                        publisherId?.let { upsertCharacter(name, alterEgo, it) }
-
-                    val appearance: Appearance? = characterId?.let {
+            val appearance: Appearance? = characterId?.let {
+                when (character) {
+                    is Individual -> {
                         Appearance(
-                            storyId,
-                            it,
-                            appearanceInfo,
-                            notes,
-                            membership
+                            storyId = storyId,
+                            characterId = it,
+                            appearanceInfo = character.appearanceInfo,
+                            notes = null,
+                            membership = null
                         )
                     }
 
-                    appearance?.let {
-                        newAppearanceInsertionBuffer.addToBuffer(it)
+                    is Team -> {
+                        Appearance(
+                            storyId = storyId,
+                            characterId = it,
+                            appearanceInfo = character.appearanceInfo,
+                            notes = null,
+                            membership = character.members
+                        )
                     }
                 }
+            }
+
+            appearance?.let {
+                newAppearanceInsertionBuffer.addToBuffer(it)
             }
         }
 
         return storyId
     }
+
+
+    internal fun parseCharacters(characters: String): List<CharacterAppearance> {
+        val fixedInput = fixMissingBrackets(characters)
+        val characterList = mutableListOf<CharacterAppearance>()
+        val characterStrings = splitOnOuterSemicolons(fixedInput)
+        characterStrings.forEach { characterString ->
+            val (name, bracketedText, appearanceInfo) = splitString(characterString)
+
+            val (alterEgo: String?, membership: String?) =
+                parseBracketedText(bracketedText)
+
+            val isTeam = membership != null
+
+            if (name.isNotEmpty()) {
+                characterList.add(
+                    if (isTeam) {
+                        Team(name = name, members = bracketedText, appearanceInfo = appearanceInfo)
+                    } else {
+                        Individual(name = name, alterEgo = alterEgo, appearanceInfo = appearanceInfo)
+                    }
+                )
+            }
+        }
+        return characterList
+    }
+
+    /**
+     * Attempts to fix malformed character strings by adding missing brackets.
+     * It expects a string in the format: "name/team name [alter ego/membership] (appearance notes)"
+     *
+     * @param input the character string to fix.
+     * @return the fixed character string
+     */
+    internal fun fixMissingBrackets(input: String): String {
+        val stack = mutableListOf<Char>()
+        val fixedString = StringBuilder()
+        var depth = 0
+        var semicolonSeen = false
+
+        for (char in input) {
+            when (char) {
+                '[' -> {
+                    stack.add(char)
+                    depth++
+                }
+
+                ']' -> {
+                    if (stack.isNotEmpty() && stack.last() == '[') {
+                        depth--
+                        semicolonSeen = false
+                        stack.removeAt(stack.size - 1)
+                    }
+                }
+
+                ';' -> {
+                    if (depth == 2 && !semicolonSeen) {
+                        semicolonSeen = true
+                    } else if (depth == 2) {
+                        fixedString.append(']') // Add missing closing bracket
+                        depth--
+                        semicolonSeen = false
+                        stack.removeAt(stack.size - 1)
+                    }
+                }
+            }
+            fixedString.append(char)
+        }
+
+        // Add any remaining missing closing brackets
+        while (stack.isNotEmpty() && stack.last() == '[') {
+            fixedString.append(']')
+            stack.removeAt(stack.size - 1)
+        }
+
+        return fixedString.toString()
+    }
+
+    /**
+     * Parses a character string into name/team name, alter ego/membership, and appearance notes.
+     * It expects a string in the format: "name/team name [alter ego/membership] (appearance notes)"
+     *
+     * @param input the character string to parse.
+     * @return a triple containing the name/team name, alter ego/membership, and appearance notes.
+     */
+    fun splitString(input: String): Triple<String, String, String> {
+        // a regex to split "name [team name [or membership]] (appearance notes)" to "name", "team name [or membership]", and "appearance notes"
+//        val regex = Regex("""^(.*?)(?:\[(.*?)])?\s+?(?:\((.*?)\))?${"$"}""")
+
+        val regex = Regex("^([^\\[(]*)(?:\\[(.*)(?=]))?(?:[^(]+)?(?:\\((.*)(?=\\)))?")
+
+        val matchResult = regex.find(input)
+
+        val textBeforeBrackets = matchResult?.groupValues?.get(1)?.trim() ?: ""
+        val textInsideBrackets = matchResult?.groupValues?.get(2)?.trim() ?: ""
+        val textInsideParentheses = matchResult?.groupValues?.get(3)?.trim() ?: ""
+        return Triple(textBeforeBrackets, textInsideBrackets, textInsideParentheses)
+    }
+
+    sealed class CharacterAppearance {
+        abstract val name: String
+        abstract val appearanceInfo: String?
+    }
+
+    data class Individual(override val name: String, val alterEgo: String?, override val appearanceInfo: String?) :
+        CharacterAppearance()
+
+    data class Team(override val name: String, val members: String, override val appearanceInfo: String?) :
+        CharacterAppearance()
 
     override fun finish() {
         newAppearanceInsertionBuffer.save()
@@ -132,85 +243,28 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
      * Parses bracketed text and returns a triple of strings containing the
      * alter ego and notes, or a list of team members.
      *
-     * @param splitText The text to parse, split into a list of strings.
      * @param bracketedText The bracketed text to parse.
      * @return A triple of strings containing the alter ego, notes, and team
      *     members.
      */
-    private fun parseBracketedText(
-        splitText: List<String>?,
-        bracketedText: String?
-    ): Triple<String?, String?, String?> {
+    internal fun parseBracketedText(bracketedText: String?): Pair<String?, String?> {
+        val splitText = bracketedText?.let { splitOnOuterSemicolons(it) }
         var alterEgo: String? = null
-        var notes: String? = null
         var membership: String? = null
 
         // Check if the split text is not null
         if (splitText != null) {
             // If the split text has more than two elements, assume the bracketed text is a list of team members
-            if (splitText.size > 2) {
+            if (splitText.size > 1) {
                 membership = bracketedText
             } else {
                 // If the split text has at least one element, assume the first element is the alter ego
                 if (splitText.isNotEmpty()) {
                     alterEgo = splitText[0].cleanup()
                 }
-                // If the split text has two elements, assume the second element is the notes
-                if (splitText.size == 2) {
-                    notes = splitText[1].cleanup()
-                }
             }
         }
-        return Triple(alterEgo, notes, membership)
-    }
-
-    /**
-     * Extract bracketed text - extracts the text that appears between
-     * [openBracket] and [closeBracket] in the given [character] string.
-     *
-     * @param openBracket the index of the opening bracket
-     * @param closeBracket the index of the closing bracket
-     * @param character a character appearance string in the format "Name
-     *     [Alter Ego/Notes?/Membership?] (Appearance Info)"
-     */
-    private fun extractBracketedText(
-        openBracket: Int?,
-        closeBracket: Int?,
-        character: String
-    ) = if ((openBracket == null) || (closeBracket == null) || (closeBracket <= openBracket)) {
-        null
-    } else {
-        try {
-            character.substring(openBracket + 1, closeBracket).cleanup().ifBlank { null }
-        } catch (e: StringIndexOutOfBoundsException) {
-            logger.info { "ch: $character ob: $openBracket cb: $closeBracket $e" }
-            throw e
-        }
-    }
-
-    /**
-     * Extract appearance info - extracts the appearance info (e.g. cameo,
-     * first appearance, death, etc.) that appears between [openParen] and
-     * [closeParen] in the given [character] string.
-     *
-     * @param openParen the index of the opening parenthesis
-     * @param closeParen the index of the closing parenthesis
-     * @param character a character appearance string in the format "Name
-     *     [Alter Ego] (Appearance Info)"
-     */
-    private fun extractAppearanceInfo(
-        openParen: Int?,
-        closeParen: Int?,
-        character: String
-    ) = if (openParen != null && closeParen != null) {
-        try {
-            character.substring(openParen + 1, closeParen).cleanup()
-        } catch (e: StringIndexOutOfBoundsException) {
-            logger.info { "ch: $character op: $openParen cp: $closeParen $e" }
-            throw e
-        }
-    } else {
-        null
+        return Pair(alterEgo, membership)
     }
 
     /**
@@ -223,10 +277,10 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
      *     means that the corresponding parenthesis was not found in the
      *     string.
      */
-    private fun bracketIndexes(character: String): Pair<Int?, Int?> {
+    internal fun bracketIndexes(character: String): Pair<Int?, Int?> {
         val openBracket = character.indexOf('[')
         val closeBracket = character.lastIndexOf(']')
-        return Pair(openBracket.takeIf { it >= -1 }, closeBracket.takeIf { it >= -1 })
+        return Pair(openBracket.takeIf { it > -1 }, closeBracket.takeIf { it > -1 })
     }
 
     /**
@@ -234,15 +288,12 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
      * given [character] string.
      *
      * @param character the string to search for parentheses
-     * @return a pair of integers representing the indices of the opening and
-     *     closing parentheses, respectively. If either index is `null`, it
-     *     means that the corresponding parenthesis was not found in the
-     *     string.
+     * @return a pair of integers representing the indices of the opening and closing parentheses respectively. If either index is `null`, it means that the corresponding parenthesis was not found in the string.
      */
-    private fun parenthesesIndexes(character: String): Pair<Int?, Int?> {
+    internal fun parenthesesIndexes(character: String): Pair<Int?, Int?> {
         val openParen = character.indexOf('(')
         val closeParen = character.indexOf(')', openParen)
-        return Pair(openParen.takeIf { it >= -1 }, closeParen.takeIf { it >= -1 })
+        return Pair(openParen.takeIf { it > -1 }, closeParen.takeIf { it > -1 })
     }
 
     /**
@@ -252,7 +303,7 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
      * @param input the input string to split
      * @return a mutable list of substrings
      */
-    private fun splitOnOuterSemicolons(input: String): List<String> {
+    internal fun splitOnOuterSemicolons(input: String): List<String> {
         var depth = 0
         var start = 0
         val characters = mutableListOf<String>()
@@ -260,13 +311,19 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
             when (input[i]) {
                 '(', '[' -> depth++
                 ')', ']' -> depth--
-                ';' -> if (depth == 0) {
-                    characters.add(input.substring(start, i))
+                ';' -> if (depth <= 0) {
+                    val element = input.substring(start, i).trim()
+                    if (element.isNotEmpty()) {
+                        characters.add(element)
+                    }
                     start = i + 1
                 }
             }
         }
-        characters.add(input.substring(start))
+        val element = input.substring(start).trim()
+        if (element.isNotEmpty()) {
+            characters.add(element)
+        }
         return characters
     }
 
@@ -296,7 +353,7 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
             }
 
             statement?.executeBatch()
-            logger.info { "Inserted ${appearances.size} appearances" }
+//            logger.info { "Inserted ${appearances.size} appearances" }
         }
     }
 
@@ -481,14 +538,16 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
 
         /**
          * Saves the current set of appearances in the buffer to the database.
-         * This method is synchronized to prevent multiple threads from saving the
-         * buffer simultaneously.
          */
         @Synchronized
         fun save() {
-            logger.info { "Saving character appearances" }
-            insertCharacterAppearances(appearances, database, conn)
+            // a copy of 'appearances'
+            val appearances = this.appearances.toSet()
             _appearances.clear()
+            CoroutineScope(Dispatchers.IO).launch {
+//            logger.info { "Saving character appearances" }
+                insertCharacterAppearances(appearances, database, conn)
+            }
         }
     }
 

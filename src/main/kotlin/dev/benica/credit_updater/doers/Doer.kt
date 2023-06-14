@@ -24,7 +24,6 @@ abstract class Doer(protected val targetSchema: String) {
      * Extract credits - extracts non-relational creator credits from stories
      * in [sourceSchema].stories_to_migrate
      *
-     * @param sourceConn The connection to the source database.
      * @param storyCount The number of stories in the database.
      * @param sourceSchema The schema with the stories_to_migrate table.
      * @param lastIdCompleted The last id that was completed.
@@ -61,7 +60,6 @@ abstract class Doer(protected val targetSchema: String) {
      * Extract characters and appearances - extracts characters and appearances
      * from the database.
      *
-     * @param conn The connection to the database.
      * @param storyCount The number of stories in the database.
      * @param schema The schema with the stories_to_migrate table.
      * @param lastIdCompleted The last id that was completed.
@@ -71,18 +69,26 @@ abstract class Doer(protected val targetSchema: String) {
         storyCount: Int?,
         schema: String,
         lastIdCompleted: Long,
-        numComplete: Long
+        numComplete: Long,
+        initial: Boolean
     ) {
         println("Starting Characters...")
 
         /**
-         * Script sql - a nippet that extracts characters and creates appearances
+         * Script sql - a snippet that extracts characters and creates appearances
          * for them
          */
-        val scriptSql = """SELECT g.id, g.characters
+        val scriptSql = if (initial) {
+            """SELECT g.id, g.characters
+                FROM $schema.gcd_story g
+                where g.id > $lastIdCompleted
+                ORDER BY g.id """
+        } else {
+            """SELECT g.id, g.characters
                 FROM $schema.stories_to_migrate g
                 WHERE g.id > $lastIdCompleted
                 ORDER BY g.id """
+        }
 
         databaseConnection?.let {
             database.updateItems(

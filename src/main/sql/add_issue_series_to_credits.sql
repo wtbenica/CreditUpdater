@@ -1,3 +1,11 @@
+# Adds issue_id and series_id to the story_credit and character_appearance tables.
+#
+# Updates the following tables:
+# - gcd_story_credit
+# - m_story_credit
+# - m_character_appearance
+
+
 UPDATE gcd_story_credit gsc
 SET issue_id = (
     SELECT sy.issue_id
@@ -45,14 +53,14 @@ WHERE gsc.series_id IS NULL;
 #
 CREATE TEMPORARY TABLE story_with_missing_issue AS
 SELECT sy.id
-FROM gcdb2.gcd_story sy
+FROM <schema>.gcd_story sy
 WHERE sy.issue_id NOT IN (
     SELECT gi.id
-    FROM gcdb2.gcd_issue gi
+    FROM <schema>.gcd_issue gi
 );
 
 DELETE
-FROM gcdb2.m_character_appearance mca
+FROM <schema>.m_character_appearance mca
 WHERE story_id IN (
     SELECT id
     FROM story_with_missing_issue);
