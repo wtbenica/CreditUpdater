@@ -1,4 +1,5 @@
 import dev.benica.cli_parser.CLIParser
+import dev.benica.converter.logger
 import dev.benica.doers.DatabaseMigrator
 import dev.benica.doers.DatabaseInitializer
 import kotlinx.coroutines.runBlocking
@@ -38,10 +39,10 @@ fun main(args: Array<String>) {
             } else {
                 e.message
             }
-            println(msg)
+            logger.error { msg }
             app.usage
         } catch (e: Exception) {
-            println(e)
+            logger.error { e }
         } finally {
             app.parsedCommand
         }
