@@ -1,12 +1,16 @@
 package dev.benica.db
 
 import dev.benica.Credentials.Companion.PRIMARY_DATABASE
-import dev.benica.converter.logger
 import dev.benica.models.Appearance
+import mu.KLogger
+import mu.KotlinLogging
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.SQLException
 import java.sql.Statement
+
+private val logger: KLogger
+    get() = KotlinLogging.logger { }
 
 class Repository(private val database: String, private val conn: Connection) {
     /**

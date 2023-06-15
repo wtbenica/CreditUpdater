@@ -1,12 +1,13 @@
 package dev.benica.db
 
 import dev.benica.converter.Extractor
-import dev.benica.converter.logger
 import dev.benica.TerminalUtil.Companion.clearTerminal
 import dev.benica.TerminalUtil.Companion.millisToPretty
 import dev.benica.TerminalUtil.Companion.upNLines
 import dev.benica.di.DatabaseComponent
 import kotlinx.coroutines.coroutineScope
+import mu.KLogger
+import mu.KotlinLogging
 import toPercent
 import java.io.BufferedReader
 import java.io.File
@@ -15,6 +16,10 @@ import java.io.IOException
 import java.sql.*
 import javax.inject.Inject
 import kotlin.system.measureTimeMillis
+
+private val logger: KLogger
+    get() = KotlinLogging.logger { }
+
 
 abstract class ConnectionSource {
     abstract fun getConnection(database: String): Connection
