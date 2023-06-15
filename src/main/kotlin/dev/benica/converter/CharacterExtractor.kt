@@ -7,8 +7,8 @@ import mu.KLogger
 import mu.KotlinLogging
 import java.sql.*
 
-val Any.logger: KLogger
-    get() = KotlinLogging.logger(this::class.simpleName ?: this::class.java.name)
+private val logger: KLogger
+    get() = KotlinLogging.logger { }
 
 /**
  * Character extractor - extracts character records and character

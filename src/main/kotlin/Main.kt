@@ -1,10 +1,23 @@
+import com.zaxxer.hikari.HikariConfig
 import dev.benica.cli_parser.CLIParser
-import dev.benica.converter.logger
 import dev.benica.doers.DatabaseMigrator
 import dev.benica.doers.DatabaseInitializer
 import kotlinx.coroutines.runBlocking
+import mu.KLogger
+import mu.KotlinLogging
+import java.util.logging.Level
+import java.util.logging.Logger
+
+private val logger: KLogger
+    get() = KotlinLogging.logger { }
 
 fun main(args: Array<String>) {
+    Logger.getLogger("com.zaxxer.hikari.PoolBase").level = Level.OFF
+    Logger.getLogger("com.zaxxer.hikari.pool.HikariPool").level = Level.OFF
+    Logger.getLogger("com.zaxxer.hikari.HikariDataSource").level = Level.OFF
+    Logger.getLogger("com.zaxxer.hikari.HikariConfig").level = Level.OFF
+    Logger.getLogger("com.zaxxer.hikari.util.DriverDataSource").level = Level.OFF
+
     runBlocking {
         val app = CLIParser()
 

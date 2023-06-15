@@ -14,12 +14,13 @@ class TerminalUtil {
         enum class CursorMovement(private val value: String) {
             UP("[1A"), LINE_START("[9D"), CLEAR("[2J");
 
-            override fun toString(): String = value
+            private val escapeCode = "\u001B"
+            override fun toString(): String = "$escapeCode$value"
         }
 
         /** Clear terminal - clears the terminal. */
         fun clearTerminal() {
-            println("$ESC${CursorMovement.CLEAR}")     // clear terminal first
+            println(CursorMovement.CLEAR.toString())
         }
 
         /**
@@ -29,12 +30,10 @@ class TerminalUtil {
          */
         fun upNLines(n: Int) {
             for (i in 1..n) {
-                print("$ESC${CursorMovement.UP}")
+                print(CursorMovement.UP.toString())
             }
-            print("$ESC${CursorMovement.LINE_START}")
+            print(CursorMovement.LINE_START.toString())
         }
-
-        private const val ESC = "\u001B"  // escape code
 
         /**
          * Converts a duration in milliseconds to a human-readable string format.
