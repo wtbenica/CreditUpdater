@@ -1,5 +1,6 @@
 package dev.benica.doers
 
+import dev.benica.Credentials.Companion.ADD_COLUMNS_TO_CREDITS
 import dev.benica.Credentials.Companion.ADD_ISSUE_SERIES_TO_CREDITS_PATH
 import dev.benica.Credentials.Companion.ADD_MODIFY_TABLES_PATH
 import dev.benica.Credentials.Companion.CHARACTER_STORIES_NUM_COMPLETE
@@ -74,7 +75,9 @@ class DatabaseInitializer(targetSchema: String? = null) :
                     numComplete = CREDITS_STORIES_NUM_COMPLETE,
                     initial = true
                 )
+            }
 
+            if (ADD_COLUMNS_TO_CREDITS) {
                 println("Starting FKey updates")
                 addIssueSeriesToCredits()
             }
@@ -82,10 +85,11 @@ class DatabaseInitializer(targetSchema: String? = null) :
     }
 
     /**
-     * Drops the 'is_sourced' and 'sourced_by' columns from the 'gcd_story_credit' table.
+     * Drops the 'is_sourced' and 'sourced_by' columns from the
+     * 'gcd_story_credit' table.
      */
     private fun dropIsSourcedAndSourcedByColumns() {
-        database.executeSql(
+        database.executeSqlStatement(
             """
                     ALTER TABLE $targetSchema.gcd_story_credit
                     DROP COLUMN IF EXISTS is_sourced,
@@ -108,7 +112,7 @@ class DatabaseInitializer(targetSchema: String? = null) :
      * established and that the user has the necessary permissions to execute
      * these statements.
      */
-    private fun addTables() = database.executeSqlScript(sqlScriptPath = ADD_MODIFY_TABLES_PATH)
+    private fun addTables() = database.runSqlScript(sqlScriptPath = ADD_MODIFY_TABLES_PATH)
 
     /**
      * Adds the 'issue' and 'series' columns to the 'gcd_story_credit'
@@ -124,8 +128,8 @@ class DatabaseInitializer(targetSchema: String? = null) :
      * these statements.
      */
     private fun shrinkDatabase() {
-        database.executeSqlScript(sqlScriptPath = SHRINK_DATABASE_PRE_PATH)
-        database.executeSqlScript(sqlScriptPath = SHRINK_DATABASE_PATH)
+        database.runSqlScript(sqlScriptPath = SHRINK_DATABASE_PRE_PATH)
+        database.runSqlScript(sqlScriptPath = SHRINK_DATABASE_PATH)
     }
 
     /**
@@ -150,7 +154,7 @@ class DatabaseInitializer(targetSchema: String? = null) :
      * these statements.
      */
     private fun addIssueSeriesToCredits() =
-        database.executeSqlScript(sqlScriptPath = ADD_ISSUE_SERIES_TO_CREDITS_PATH)
+        database.runSqlScript(sqlScriptPath = ADD_ISSUE_SERIES_TO_CREDITS_PATH, runAsTransaction = true)
 
 }
 

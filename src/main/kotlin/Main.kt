@@ -1,22 +1,26 @@
-import com.zaxxer.hikari.HikariConfig
 import dev.benica.cli_parser.CLIParser
-import dev.benica.doers.DatabaseMigrator
 import dev.benica.doers.DatabaseInitializer
+import dev.benica.doers.DatabaseMigrator
 import kotlinx.coroutines.runBlocking
 import mu.KLogger
 import mu.KotlinLogging
-import java.util.logging.Level
-import java.util.logging.Logger
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 private val logger: KLogger
     get() = KotlinLogging.logger { }
 
 fun main(args: Array<String>) {
-    Logger.getLogger("com.zaxxer.hikari.PoolBase").level = Level.OFF
-    Logger.getLogger("com.zaxxer.hikari.pool.HikariPool").level = Level.OFF
-    Logger.getLogger("com.zaxxer.hikari.HikariDataSource").level = Level.OFF
-    Logger.getLogger("com.zaxxer.hikari.HikariConfig").level = Level.OFF
-    Logger.getLogger("com.zaxxer.hikari.util.DriverDataSource").level = Level.OFF
+    LoggerFactory.getLogger("com.zaxxer.hikari").let { logger ->
+        if (logger is ch.qos.logback.classic.Logger) {
+            logger.level = ch.qos.logback.classic.Level.OFF
+        }
+    }
+    LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME).let { logger ->
+        if (logger is ch.qos.logback.classic.Logger) {
+            logger.level = ch.qos.logback.classic.Level.ALL
+        }
+    }
 
     runBlocking {
         val app = CLIParser()
@@ -31,7 +35,11 @@ fun main(args: Array<String>) {
                 }
 
                 app.quiet -> {
-                    // TODO: Set logger level to ERROR
+                    LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME).let { logger ->
+                        if (logger is ch.qos.logback.classic.Logger) {
+                            logger.level = ch.qos.logback.classic.Level.OFF
+                        }
+                    }
                 }
 
                 app.prepare != null -> {

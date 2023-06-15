@@ -11,15 +11,15 @@ class Credentials {
         const val INCOMING_DATABASE = "gcdb_temp"
 
         // dev.benica.CreditUpdater.PrimaryDatabaseInitializer
-        const val CREDITS_STORY_ID_START: Long = 1761680
-        const val CREDITS_STORIES_NUM_COMPLETE: Long = 1167840
+        const val CREDITS_STORY_ID_START: Long = 0
+        const val CREDITS_STORIES_NUM_COMPLETE: Long = 0
         const val CHARACTER_STORY_ID_START: Long = 0
         const val CHARACTER_STORIES_NUM_COMPLETE: Long = 0
 
-        // These only need to be changed if the process has been stopped or interrupted. Otherwise, leave them alone. Default values are 'true'.
         const val UPDATE_DATABASE = false
         const val UPDATE_CHARACTERS = false
-        const val UPDATE_CREDITS = true
+        const val UPDATE_CREDITS = false
+        const val ADD_COLUMNS_TO_CREDITS = true
 
         // MIGRATE
         const val CREDITS_STORY_START_NEW: Long = 0

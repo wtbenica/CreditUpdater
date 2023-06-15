@@ -59,7 +59,7 @@ class DatabaseMigrator : DatabaseTask(INCOMING_DATABASE) {
      * @param newDbConn The connection to the new database.
      */
     private fun migrateRecords() {
-        database.runSqlScriptUpdate(MIGRATE_PATH_NEW)
+        database.runSqlScript(MIGRATE_PATH_NEW)
     }
 
     /**
@@ -68,7 +68,7 @@ class DatabaseMigrator : DatabaseTask(INCOMING_DATABASE) {
      * @param connection The connection to the new database.
      */
     internal fun addTablesNew() =
-        database.executeSqlScript(ADD_MODIFY_TABLES_PATH_NEW)
+        database.runSqlScript(ADD_MODIFY_TABLES_PATH_NEW)
 
     /**
      * Add issue series to credits new - adds the issue_id and series_id
@@ -77,7 +77,7 @@ class DatabaseMigrator : DatabaseTask(INCOMING_DATABASE) {
      * @param connection The connection to the new database.
      */
     internal fun addIssueSeriesToCreditsNew() =
-        database.runSqlScriptUpdate(ADD_ISSUE_SERIES_TO_CREDITS_PATH_NEW)
+        database.runSqlScript(ADD_ISSUE_SERIES_TO_CREDITS_PATH_NEW)
 
     companion object {
         /**
