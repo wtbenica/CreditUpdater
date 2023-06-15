@@ -11,6 +11,7 @@ import toPercent
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
+import java.io.IOException
 import java.sql.*
 import javax.inject.Inject
 import kotlin.system.measureTimeMillis
@@ -99,8 +100,7 @@ class DatabaseUtil(
             instructions.forEach { instr ->
                 if (instr != "") {
                     if (verbose) {
-                        println(instr.replace("\\s{2,}".toRegex(), "\n"))
-                        println()
+                        logger.info { "${instr.replace("\\s{2,}".toRegex(), "\n")}\n" }
                     }
                     if (!instr.startsWith('#')) {
                         try {
@@ -129,6 +129,21 @@ class DatabaseUtil(
 
 
     /**
+     * A simple function that executes an SQL string
+     *
+     * @param sql the SQL string to execute
+     */
+    internal fun executeSql(sql: String) {
+        val stmt = connectionSource.getConnection(database).createStatement()
+        try {
+            stmt.execute(sql)
+        } catch (sqlEx: SQLException) {
+            logger.error("Error running SQL script $sql", sqlEx)
+            throw sqlEx
+        }
+    }
+
+    /**
      * Parses a SQL script file and returns a list of individual SQL
      * statements.
      *
@@ -141,16 +156,31 @@ class DatabaseUtil(
      *     file
      */
     private fun parseSqlScript(file: File): List<String> {
-        val fr = FileReader(file)
-        val br = BufferedReader(fr)
-        val sb = StringBuffer()
-        var s: String?
-        while (br.readLine().also { s = it } != null) {
-            val patchedStatement = s!!.replace("<schema>", database)
-            sb.append("$patchedStatement ")
+        val instructions = mutableListOf<String>()
+        try {
+            FileReader(file).use { fr ->
+                BufferedReader(fr).use { br ->
+                    val sb = StringBuffer()
+                    var s: String?
+                    while (br.readLine().also { s = it } != null) {
+                        val patchedStatement = s!!.replace("<schema>", database)
+                        if (patchedStatement.trim().endsWith(';')) {
+                            sb.append(patchedStatement.trim().removeSuffix(";"))
+                            instructions.add(sb.toString().trim())
+                            sb.setLength(0)
+                        } else {
+                            sb.append(patchedStatement)
+                        }
+                        sb.append(patchedStatement).append("\n")
+                    }
+                }
+            }
+        } catch (e: IOException) {
+            logger.error("Error parsing SQL script", e)
+            throw e
         }
-        br.close()
-        return sb.toString().split(';').filter { it.isNotBlank() }
+
+        return instructions.filter { it.isNotBlank() }
     }
 
     /**
@@ -238,10 +268,10 @@ class DatabaseUtil(
             upNLines(numLines)
             numLines = 0
 
-            println("Extract ${extractor.extractedItem} ${extractor.fromValue}: $itemId")
-            println("Complete: $currentComplete${totalItems?.let { "/$it" } ?: ""} $pctComplete")
-            println("Avg: ${averageTime}ms")
-            println("Elapsed: $elapsed ETR: $remaining")
+            logger.info { "Extract ${extractor.extractedItem} ${extractor.fromValue}: $itemId" }
+            logger.info { "Complete: $currentComplete${totalItems?.let { "/$it" } ?: ""} $pctComplete" }
+            logger.info { "Avg: ${averageTime}ms" }
+            logger.info { "Elapsed: $elapsed ETR: $remaining" }
             numLines += 4
         }
 
@@ -256,7 +286,7 @@ class DatabaseUtil(
                     while (resultSet.next()) {
                         coroutineScope {
                             totalTimeMillis += measureTimeMillis {
-                                val itemId: Int = extractor.extract(resultSet, destDatabase)
+                                val itemId: Int = extractor.extractAndInsert(resultSet, destDatabase)
 
                                 currentComplete++
                                 printProgressInfo(
@@ -273,6 +303,6 @@ class DatabaseUtil(
             logger.error("Error updating items", ex)
         }
 
-        println("END\n\n\n")
+        logger.info { "END\n\n\n" }
     }
 }

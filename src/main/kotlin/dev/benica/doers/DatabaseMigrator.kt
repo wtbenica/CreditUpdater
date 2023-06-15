@@ -6,7 +6,6 @@ import dev.benica.Credentials.Companion.CREDITS_STORIES_COMPLETE_NEW
 import dev.benica.Credentials.Companion.CREDITS_STORY_START_NEW
 import dev.benica.Credentials.Companion.INCOMING_DATABASE
 import dev.benica.Credentials.Companion.PRIMARY_DATABASE
-import dev.benica.converter.logger
 import kotlinx.coroutines.coroutineScope
 
 /**
@@ -15,43 +14,42 @@ import kotlinx.coroutines.coroutineScope
  *
  * @constructor Create empty dev.benica.CreditUpdater.Migrator
  */
-class Migrator : Doer(INCOMING_DATABASE) {
+class DatabaseMigrator : DatabaseTask(INCOMING_DATABASE) {
     /** Migrate - migrates the data from the old database to the new database. */
     suspend fun migrate() {
         coroutineScope {
-            databaseConnection?.use { conn ->
-                println("Migrating to $PRIMARY_DATABASE from $targetSchema")
+            println("Migrating to $PRIMARY_DATABASE from $targetSchema")
 
-                println("starting tables...")
-                addTablesNew()
+            println("starting tables...")
+            addTablesNew()
 
-                val storyCount = database.getItemCount(
-                    tableName = "$targetSchema.stories_to_migrate",
-                )
+            val storyCount = database.getItemCount(
+                tableName = "$targetSchema.stories_to_migrate",
+            )
 
-                extractCharactersAndAppearances(
-                    storyCount,
-                    targetSchema,
-                    CHARACTER_STORY_START_NEW,
-                    CHARACTER_STORIES_COMPLETE_NEW,
-                    false
-                )
+            extractCharactersAndAppearances(
+                storyCount = storyCount,
+                schema = targetSchema,
+                lastIdCompleted = CHARACTER_STORY_START_NEW,
+                numComplete = CHARACTER_STORIES_COMPLETE_NEW,
+                initial = false
+            )
 
-                println("Done extracting characters.")
+            println("Done extracting characters.")
 
-                extractCredits(
-                    storyCount,
-                    targetSchema,
-                    CREDITS_STORY_START_NEW,
-                    CREDITS_STORIES_COMPLETE_NEW
-                )
+            extractCredits(
+                storyCount,
+                targetSchema,
+                CREDITS_STORY_START_NEW,
+                CREDITS_STORIES_COMPLETE_NEW,
+                false
+            )
 
-                addIssueSeriesToCreditsNew()
-                println("Done updating credits")
+            addIssueSeriesToCreditsNew()
+            println("Done updating credits")
 
-                println("Starting migration")
-                migrateRecords()
-            } ?: logger.info { "No connection to $targetSchema" }
+            println("Starting migration")
+            migrateRecords()
         }
     }
 

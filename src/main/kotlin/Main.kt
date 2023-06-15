@@ -1,6 +1,6 @@
 import dev.benica.cli_parser.CLIParser
-import dev.benica.doers.Migrator
-import dev.benica.doers.PrimaryDatabaseInitializer
+import dev.benica.doers.DatabaseMigrator
+import dev.benica.doers.DatabaseInitializer
 import kotlinx.coroutines.runBlocking
 
 fun main(args: Array<String>) {
@@ -21,15 +21,15 @@ fun main(args: Array<String>) {
                 }
 
                 app.prepare != null -> {
-                    PrimaryDatabaseInitializer(app.prepare).prepareDatabase()
+                    DatabaseInitializer(app.prepare).prepareDatabase()
                 }
 
                 app.migrate != null -> {
-                    Migrator().migrate()
+                    DatabaseMigrator().migrate()
                 }
 
                 else -> {
-                    PrimaryDatabaseInitializer().prepareDatabase()
+                    DatabaseInitializer().prepareDatabase()
                 }
             }
         } catch (e: com.beust.jcommander.ParameterException) {

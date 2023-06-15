@@ -7,12 +7,12 @@ import dev.benica.di.DaggerDatabaseComponent
 import java.sql.Connection
 
 /**
- * dev.benica.CreditUpdater.Doer - does the work of the dev.benica.CreditUpdater.Migrator and Updater.
+ *
  *
  * @constructor Create empty dev.benica.CreditUpdater.Doer
  * @property targetSchema The schema to use.
  */
-abstract class Doer(protected val targetSchema: String) {
+abstract class DatabaseTask(protected val targetSchema: String) {
     private val databaseComponent = DaggerDatabaseComponent.create()
     protected val database = DatabaseUtil(targetSchema, databaseComponent)
 
@@ -33,18 +33,25 @@ abstract class Doer(protected val targetSchema: String) {
         storyCount: Int?,
         sourceSchema: String,
         lastIdCompleted: Long,
-        numComplete: Long
+        numComplete: Long,
+        initial: Boolean
     ) {
         println("starting credits...")
         /**
          * Script sql - an sql snippet to get the writer, penciller, inker,
          * colorist, letterer, and editor from the database.
          */
-        val scriptSql =
+        val scriptSql = if (initial) {
             """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
-                            FROM ${sourceSchema}.stories_to_migrate g
-                            WHERE g.id > $lastIdCompleted
-                            ORDER BY g.id """
+                FROM ${sourceSchema}.gcd_story g
+                where g.id > $lastIdCompleted
+                ORDER BY g.id """
+        } else {
+            """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
+                FROM ${sourceSchema}.stories_to_migrate g
+                WHERE g.id > $lastIdCompleted
+                ORDER BY g.id """
+        }
 
         databaseConnection?.let {
             database.updateItems(

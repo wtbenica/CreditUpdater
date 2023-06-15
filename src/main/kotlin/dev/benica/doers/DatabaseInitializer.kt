@@ -26,8 +26,8 @@ import kotlinx.coroutines.coroutineScope
  * - It extracts character and appearance data from the gcd_story table
  * - It extracts credit data from the gcd_story table
  */
-class PrimaryDatabaseInitializer(targetSchema: String? = null) :
-    Doer(targetSchema = targetSchema ?: PRIMARY_DATABASE) {
+class DatabaseInitializer(targetSchema: String? = null) :
+    DatabaseTask(targetSchema = targetSchema ?: PRIMARY_DATABASE) {
     /**
      * Updates the database with new data from the GCD. This function adds
      * new tables to the database schema and shrinks the database size, if
@@ -43,6 +43,9 @@ class PrimaryDatabaseInitializer(targetSchema: String? = null) :
     suspend fun prepareDatabase() {
         coroutineScope {
             println("Updating $targetSchema")
+            // Delete the 'is_sourced' and 'sourced_by' columns from the gcd_story_credit table
+            dropIsSourcedAndSourcedByColumns()
+
             if (UPDATE_DATABASE) {
                 println("Starting Database Updates...")
                 addTables()
@@ -68,13 +71,27 @@ class PrimaryDatabaseInitializer(targetSchema: String? = null) :
                     storyCount = storyCount,
                     sourceSchema = targetSchema,
                     lastIdCompleted = CREDITS_STORY_ID_START,
-                    numComplete = CREDITS_STORIES_NUM_COMPLETE
+                    numComplete = CREDITS_STORIES_NUM_COMPLETE,
+                    initial = true
                 )
 
                 println("Starting FKey updates")
                 addIssueSeriesToCredits()
             }
         }
+    }
+
+    /**
+     * Drops the 'is_sourced' and 'sourced_by' columns from the 'gcd_story_credit' table.
+     */
+    private fun dropIsSourcedAndSourcedByColumns() {
+        database.executeSql(
+            """
+                    ALTER TABLE $targetSchema.gcd_story_credit
+                    DROP COLUMN IF EXISTS is_sourced,
+                    DROP COLUMN IF EXISTS sourced_by;
+                """.trimIndent()
+        )
     }
 
     /**

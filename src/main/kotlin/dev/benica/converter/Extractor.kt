@@ -43,13 +43,14 @@ abstract class Extractor(
     abstract val fromValue: String
 
     /**
-     * Extract - extracts data from the database.
+     * Extract and insert - extracts the items from the [resultSet] and
+     * inserts them into the database.
      *
      * @param resultSet The result set to extract from.
      * @param destDatabase The destination database.
      * @return the id of the story from which items were extracted.
      */
-    abstract suspend fun extract(
+    abstract suspend fun extractAndInsert(
         resultSet: ResultSet,
         destDatabase: String? = null
     ): Int
