@@ -1,18 +1,14 @@
 package dev.benica.db
 
-import dev.benica.converter.Extractor
-import dev.benica.TerminalUtil.Companion.clearTerminal
 import dev.benica.TerminalUtil.Companion.millisToPretty
 import dev.benica.TerminalUtil.Companion.upNLines
+import dev.benica.converter.Extractor
 import dev.benica.di.DatabaseComponent
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.*
 import mu.KLogger
 import mu.KotlinLogging
 import toPercent
-import java.io.BufferedReader
 import java.io.File
-import java.io.FileReader
-import java.io.IOException
 import java.sql.*
 import javax.inject.Inject
 import kotlin.system.measureTimeMillis
@@ -20,14 +16,13 @@ import kotlin.system.measureTimeMillis
 private val logger: KLogger
     get() = KotlinLogging.logger { }
 
+// TODO: Split out SqlScriptHandler, SqlQueryExecutor, and ProgressTracker and inject
 
-abstract class ConnectionSource {
-    abstract fun getConnection(database: String): Connection
-}
 
 /**
  * Database util - utility functions for the database.
  *
+ * @param database the database to connect to
  * @constructor Create empty Database util
  */
 class DatabaseUtil(
@@ -40,9 +35,6 @@ class DatabaseUtil(
     init {
         databaseComponent.inject(this)
     }
-
-    @Volatile
-    var numLines = 0
 
     /**
      * Get connection - gets a connection to the database.
@@ -60,91 +52,103 @@ class DatabaseUtil(
             null
         }
 
-
     /**
-     * Run sql script - runs a sql script with CREATE TABLE statements.
-     *
-     * @param sqlScriptPath the sql script path
-     * @param verbose whether to print the sql script
+     * A helper function that takes in a string and a list of strings and
+     * returns whether the string starts with any of the strings in the list.
+     * It is case-insensitive.
      */
-    internal fun executeSqlScript(sqlScriptPath: String, verbose: Boolean = true) =
-        runSqlScript(sqlScriptPath, verbose) { stmt, instr -> stmt.execute(instr) }
-
-    /**
-     * Run sql script query - runs a sql script with SELECT statements.
-     *
-     * @param sqlScriptPath the sql script path
-     */
-    internal fun runSqlScriptQuery(sqlScriptPath: String, verbose: Boolean = true) =
-        runSqlScript(sqlScriptPath, verbose) { stmt, instr -> stmt.executeQuery(instr) }
+    private fun String.startsWithAny(list: List<String>): Boolean =
+        list.any { this.uppercase().startsWith(it.uppercase()) }
 
 
     /**
-     * Run sql script update - runs a sql script INSERT, UPDATE, DELETE and CREATE TABLE statements.
+     * Run SQL script - runs an SQL script. Statements can be separated
+     * by a semicolon. This function will use the correct [Statement]
+     * function depending on the type: DDL statements ([Statement.execute]),
+     * DML statements ([Statement.executeUpdate]), or DQL statements
+     * ([Statement.executeQuery]).
+     *
+     * If [runAsTransaction] is true, the script will be run as a transaction,
+     * unless there is a DDL statement, in which case the transaction will be
+     * committed before the DDL statement and restarted after. The transaction
+     * will be rolled back if there is an error.
      *
      * @param sqlScriptPath the sql script path
-     */
-    internal fun runSqlScriptUpdate(sqlScriptPath: String, verbose: Boolean = true) =
-        runSqlScript(sqlScriptPath, verbose) { stmt, instr -> stmt.executeUpdate(instr) }
-
-    /**
-     * Run sql script - runs a sql script using [executor].
-     *
-     * @param sqlScriptPath the sql script path
-     * @param executor the executor
+     * @param runAsTransaction whether to run the script as a transaction
      * @receiver the receiver
      */
-    private fun runSqlScript(
+    @Throws(SQLException::class)
+    internal fun runSqlScript(
         sqlScriptPath: String,
-        verbose: Boolean = true,
-        executor: (Statement, String) -> Unit
+        runAsTransaction: Boolean = false
     ) {
-        val stmt = connectionSource.getConnection(database).createStatement()
-        try {
-            val instructions = parseSqlScript(File(sqlScriptPath))
-            instructions.forEach { instr ->
-                if (instr != "") {
-                    if (verbose) {
-                        logger.info { "${instr.replace("\\s{2,}".toRegex(), "\n")}\n" }
+        connectionSource.getConnection(database).use { conn ->
+            conn.createStatement().use { stmt ->
+                try {
+                    val statements: List<String> = parseSqlScript(File(sqlScriptPath))
+                    if (runAsTransaction) {
+                        conn.autoCommit = false
                     }
-                    if (!instr.startsWith('#')) {
-                        try {
-                            stmt?.let { executor(it, instr) }
-                        } catch (sqlEx: SQLException) {
-                            logger.error("Error running SQL script $instr", sqlEx)
-                            throw sqlEx
+                    statements.forEach { sqlStmt ->
+                        if (sqlStmt != "") {
+                            logger.info { "${sqlStmt.replace("\\s{2,}".toRegex(), "\n")}\n" }
+                            executeSqlStatement(sqlStmt, stmt)
                         }
+                    }
+                    if (runAsTransaction) {
+                        conn.commit()
+                    }
+                } catch (sqlEx: SQLException) {
+                    if (runAsTransaction) {
+                        conn.rollback()
+                    }
+                    logger.error("Error running SQL script", sqlEx)
+                    throw sqlEx
+                } finally {
+                    if (runAsTransaction) {
+                        conn.autoCommit = true
                     }
                 }
             }
-        } catch (sqlEx: SQLException) {
-            logger.error("Error running SQL script", sqlEx)
         }
     }
-    // TODO: This obviously looks better, but it doesn't work because the statements are
-    //  not on single lines, but instead semicolon-separated. If the sql files
-    //  were formatted differently, this would work.
-    //            file.useLines { lines ->
-    //                lines.forEach { line ->
-    //                    if (line.isNotBlank()) {
-    //                        executor(stmt, line)
-    //                    }
-    //                }
-    //            }
-
 
     /**
-     * A simple function that executes an SQL string
+     * Uses the correct [Statement] function depending on
+     * the type: DDL statements ([Statement.execute]), DML
+     * statements ([Statement.executeUpdate]), or DQL statements
+     * ([Statement.executeQuery]). If the statement is a DQL statement, the
+     * connection is set to auto-commit before the statement is executed and
+     * then set back to auto-commit false after the statement is executed.
      *
-     * @param sql the SQL string to execute
+     * @param sqlStmt the SQL statement to execute
+     * @param stmt the [Statement] to use, defaults to a new [Statement] from
+     *     the connection
      */
-    internal fun executeSql(sql: String) {
-        val stmt = connectionSource.getConnection(database).createStatement()
+    @Throws(SQLException::class)
+    internal fun executeSqlStatement(
+        sqlStmt: String,
+        stmt: Statement = connectionSource.getConnection(database).createStatement()
+    ) {
         try {
-            stmt.execute(sql)
+            when {
+                sqlStmt.startsWithAny(listOf("CREATE", "ALTER", "DROP", "TRUNCATE")) -> {
+                    val autoCommit = stmt.connection.autoCommit
+                    stmt.connection.autoCommit = true
+                    stmt.execute(sqlStmt)
+                    stmt.connection.autoCommit = autoCommit
+                }
+
+                sqlStmt.startsWithAny(listOf("INSERT", "UPDATE", "DELETE")) -> stmt.executeUpdate(sqlStmt)
+                sqlStmt.startsWithAny(listOf("SELECT")) -> stmt.executeQuery(sqlStmt)
+                else -> Unit
+            }
         } catch (sqlEx: SQLException) {
-            logger.error("Error running SQL script $sql", sqlEx)
+            logger.error("Error running SQL script $sqlStmt", sqlEx)
             throw sqlEx
+        } catch (ex: Exception) {
+            logger.error("Error running SQL script $sqlStmt", ex)
+            throw ex
         }
     }
 
@@ -156,37 +160,19 @@ class DatabaseUtil(
      * splits it into individual SQL statements based on the semicolon (;)
      * delimiter. Any empty or whitespace-only statements are filtered out.
      *
-     * @param file the SQL script file to parse
+     * @param file the SQL script file to parse, semicolon-delimited
      * @return a list of individual SQL statements extracted from the script
      *     file
      */
-    private fun parseSqlScript(file: File): List<String> {
-        val instructions = mutableListOf<String>()
-        try {
-            FileReader(file).use { fr ->
-                BufferedReader(fr).use { br ->
-                    val sb = StringBuffer()
-                    var s: String?
-                    while (br.readLine().also { s = it } != null) {
-                        val patchedStatement = s!!.replace("<schema>", database)
-                        if (patchedStatement.trim().endsWith(';')) {
-                            sb.append(patchedStatement.trim().removeSuffix(";"))
-                            instructions.add(sb.toString().trim())
-                            sb.setLength(0)
-                        } else {
-                            sb.append(patchedStatement)
-                        }
-                        sb.append(patchedStatement).append("\n")
-                    }
-                }
-            }
-        } catch (e: IOException) {
-            logger.error("Error parsing SQL script", e)
-            throw e
-        }
+    private fun parseSqlScript(file: File): List<String> =
+        file.useLines { lines ->
+            lines.filter { it.isNotBlank() }
+                .map { it.replace("<schema>", database).trim() }
+                .joinToString(separator = " ")
+                .split(";")
+                .map { it.trim() }
 
-        return instructions.filter { it.isNotBlank() }
-    }
+        }
 
     /**
      * Get item count - gets the number of items in a table.
@@ -195,36 +181,49 @@ class DatabaseUtil(
      * @param condition the condition
      * @return the item count
      */
+    @Throws(SQLException::class)
     internal fun getItemCount(
         tableName: String,
         condition: String? = null
     ): Int? {
-        return try {
-            val scriptSql = StringBuilder()
-            scriptSql.append(
-                """SELECT COUNT(*) AS count
-                    FROM $tableName g
-                    """
-            )
+        val sql = "SELECT COUNT(*) AS count FROM $tableName g" + if (condition != null) " WHERE $condition" else ""
+        val stmt = connectionSource.getConnection(database).createStatement()
+        val rs = stmt.executeQuery(sql)
+        rs.next()
+        return rs.getInt(1)
+    }
 
-            if (condition != null)
-                scriptSql.append(condition)
-            val sql = scriptSql.toString()
+    /**
+     * Prints progress information for the current item being updated.
+     *
+     * @param itemId the ID of the current item being updated
+     * @param currentComplete the current number of completed items
+     * @param currentDurationMillis the current duration of the update process
+     *     in milliseconds
+     */
+    private fun printProgressInfo(
+        itemId: Int,
+        currentComplete: Long,
+        currentDurationMillis: Long,
+        startingComplete: Long,
+        totalItems: Int?,
+        extractor: Extractor
+    ) {
+        val numComplete = currentComplete - startingComplete
+        val pctComplete: String =
+            totalItems?.let { (currentComplete.toFloat() / it).toPercent() }
+                ?: "???"
 
-            connectionSource.getConnection(database).prepareStatement(sql)
-                ?.use { getCountStmt: PreparedStatement ->
-                    getCountStmt.executeQuery().use { getCountResultSet: ResultSet ->
-                        if (getCountResultSet.next()) {
-                            getCountResultSet.getInt("count")
-                        } else {
-                            null
-                        }
-                    }
-                }
-        } catch (ex: SQLException) {
-            ex.printStackTrace()
-            null
-        }
+        val averageTime: Long = currentDurationMillis / numComplete
+        val remainingTime: Long? = totalItems?.let { averageTime * (it - numComplete) }
+        val remaining = millisToPretty(remainingTime)
+        val elapsed = millisToPretty(currentDurationMillis)
+
+        upNLines(4)
+        logger.info { "Extract ${extractor.extractedItem} ${extractor.fromValue}: $itemId" }
+        logger.info { "Complete: $currentComplete${totalItems?.let { "/$it" } ?: ""} $pctComplete" }
+        logger.info { "Avg: ${averageTime}ms" }
+        logger.info { "Elapsed: $elapsed ETR: $remaining" }
     }
 
     /**
@@ -246,61 +245,45 @@ class DatabaseUtil(
         totalItems: Int?,
         extractor: Extractor,
         destDatabase: String? = null,
+        batchSize: Int = totalItems?.let { it / 20 } ?: 100000
     ) {
-        /**
-         * Prints progress information for the current item being updated.
-         *
-         * @param itemId the ID of the current item being updated
-         * @param currentComplete the current number of completed items
-         * @param currentDurationMillis the current duration of the update process
-         *     in milliseconds
-         */
-        fun printProgressInfo(
-            itemId: Int,
-            currentComplete: Long,
-            currentDurationMillis: Long
-        ) {
-            val numComplete = currentComplete - startingComplete
-            val pctComplete: String =
-                totalItems?.let { (currentComplete.toFloat() / it).toPercent() }
-                    ?: "???"
-
-            val averageTime: Long = currentDurationMillis / numComplete
-            val remainingTime: Long? = totalItems?.let { averageTime * (it - numComplete) }
-            val remaining = millisToPretty(remainingTime)
-            val elapsed = millisToPretty(currentDurationMillis)
-
-            upNLines(numLines)
-            numLines = 0
-
-            logger.info { "Extract ${extractor.extractedItem} ${extractor.fromValue}: $itemId" }
-            logger.info { "Complete: $currentComplete${totalItems?.let { "/$it" } ?: ""} $pctComplete" }
-            logger.info { "Avg: ${averageTime}ms" }
-            logger.info { "Elapsed: $elapsed ETR: $remaining" }
-            numLines += 4
-        }
-
-        clearTerminal()
-
         var currentComplete: Long = startingComplete
         var totalTimeMillis: Long = 0
+        var offset = 0
 
         try {
             getConnection()?.createStatement()?.use { statement ->
-                statement.executeQuery(getItems).use { resultSet ->
-                    while (resultSet.next()) {
-                        coroutineScope {
-                            totalTimeMillis += measureTimeMillis {
-                                val itemId: Int = extractor.extractAndInsert(resultSet, destDatabase)
+                coroutineScope {
+                    while (true) {
+                        val queryWithLimitOffset = "$getItems LIMIT $batchSize OFFSET ${offset * batchSize}"
 
-                                currentComplete++
-                                printProgressInfo(
-                                    itemId = itemId,
-                                    currentComplete = currentComplete,
-                                    currentDurationMillis = totalTimeMillis
-                                )
-                            }
+                        val executeQuery = statement.executeQuery(queryWithLimitOffset)
+
+                        if (!executeQuery.next()) {
+                            logger.info { "No more items to update" }
+                            break
                         }
+
+                        executeQuery.use { resultSet ->
+                            do {
+                                totalTimeMillis += measureTimeMillis {
+                                    currentComplete++
+
+                                    val itemId: Int = extractor.extractAndInsert(resultSet, destDatabase)
+
+                                    printProgressInfo(
+                                        itemId = itemId,
+                                        currentComplete = currentComplete,
+                                        currentDurationMillis = totalTimeMillis,
+                                        startingComplete = startingComplete,
+                                        totalItems = totalItems,
+                                        extractor = extractor
+                                    )
+                                }
+                            } while (resultSet.next())
+                        }
+
+                        offset++
                     }
                 }
             } ?: logger.info { "Unable to get connection" }
