@@ -36,22 +36,6 @@ class DatabaseModule() {
             }
         }
     }
-
-    @Provides
-    @Singleton
-    fun provideConnectionSourceOld(): ConnectionSource {
-        val connectionProps = Properties()
-        connectionProps["user"] = USERNAME
-        connectionProps["password"] = PASSWORD
-        return object : ConnectionSource() {
-            override fun getConnection(database: String): Connection {
-                return DriverManager.getConnection(
-                    "jdbc:mysql://127.0.0.1:3306/$database",
-                    connectionProps
-                )
-            }
-        }
-    }
 }
 
 @Component(modules = [DatabaseModule::class])
