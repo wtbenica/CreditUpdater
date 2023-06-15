@@ -112,9 +112,6 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
                 getCondStmt?.executeQuery()?.use { gcndResultSet ->
                     if (gcndResultSet.next()) {
                         gcndId = gcndResultSet.getInt("id")
-                    } else {
-                        // TODO: save extracted_name storyId, Role to file
-                        logger.error("expected a gcnd id")
                     }
                 }
             }
