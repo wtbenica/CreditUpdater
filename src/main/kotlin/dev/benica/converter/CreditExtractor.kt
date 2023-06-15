@@ -24,7 +24,7 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
      * @param destDatabase not used
      * @return the story id
      */
-    override suspend fun extract(
+    override suspend fun extractAndInsert(
         resultSet: ResultSet,
         destDatabase: String?
     ): Int {
@@ -37,12 +37,12 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
         val lettersNames = resultSet.getString("letters").split(';')
         val editingNames = resultSet.getString("editing").split(';')
 
-        makeCredits(scriptNames, storyId, 1)
-        makeCredits(pencilsNames, storyId, 2)
-        makeCredits(inksNames, storyId, 3)
-        makeCredits(colorsNames, storyId, 4)
-        makeCredits(lettersNames, storyId, 5)
-        makeCredits(editingNames, storyId, 6)
+        createCreditsForNames(scriptNames, storyId, 1)
+        createCreditsForNames(pencilsNames, storyId, 2)
+        createCreditsForNames(inksNames, storyId, 3)
+        createCreditsForNames(colorsNames, storyId, 4)
+        createCreditsForNames(lettersNames, storyId, 5)
+        createCreditsForNames(editingNames, storyId, 6)
         return storyId
     }
 
@@ -51,36 +51,36 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
     }
 
     /**
-     * Make credits - calls [makeCredit] for each name in [scriptNames]
+     * Make credits - calls [createOrUpdateStoryCredit] for each name in [scriptNames]
      *
      * @param scriptNames the names to create credits for
      * @param storyId the story id
      * @param roleId the credit_type id
      */
-    private fun makeCredits(
+    private fun createCreditsForNames(
         scriptNames: List<String>,
         storyId: Int,
         roleId: Int
     ) {
         for (name in scriptNames) {
             if (name != "") {
-                makeCredit(name.prepareName(), storyId, roleId)
+                createOrUpdateStoryCredit(name.prepareName(), storyId, roleId)
             }
         }
     }
 
     /**
-     * Make credit - checks for an existing story credit for [extractedName],
+     * Create or Update Story Credit - checks for an existing story credit for [extractedName],
      * [storyId], and [roleId]. If one does not exist, it creates one with
-     * [makeStoryCredit].
+     * [insertStoryCredit].
      *
      * @param extractedName the name to check
      * @param storyId the story id
      * @param roleId the credit_type id
      */
-    private fun makeCredit(extractedName: String, storyId: Int, roleId: Int) {
-        getGcnd(extractedName, conn)?.let { gcndId ->
-            getStoryCredit(gcndId, storyId, roleId) ?: makeStoryCredit(
+    internal fun createOrUpdateStoryCredit(extractedName: String, storyId: Int, roleId: Int) {
+        lookupGcndId(extractedName, conn)?.let { gcndId ->
+            lookupStoryCreditId(gcndId, storyId, roleId) ?: insertStoryCredit(
                 gcndId,
                 roleId,
                 storyId
@@ -89,14 +89,14 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
     }
 
     /**
-     * Get gcnd - looks for a gcd_creator_name_detail with the given
+     * Lookup Gcnd Id - looks for a gcd_creator_name_detail with the given
      * [extractedName]
      *
      * @param extractedName the name to check
      * @param conn the connection to the database
      * @return the gcd_creator_name_detail id if found, null otherwise
      */
-    private fun getGcnd(extractedName: String, conn: Connection?): Int? {
+    internal fun lookupGcndId(extractedName: String, conn: Connection?): Int? {
         var gcndId: Int? = null
 
         try {
@@ -114,7 +114,7 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
                         gcndId = gcndResultSet.getInt("id")
                     } else {
                         // TODO: save extracted_name storyId, Role to file
-                        logger.error("")
+                        logger.error("expected a gcnd id")
                     }
                 }
             }
@@ -128,7 +128,7 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
     }
 
     /**
-     * Get story credit - looks for a story credit with the given [gcndId],
+     * Lookup Story Credit Id - looks for a story credit with the given [gcndId],
      * [storyId], and [roleId] in the gcd_story_credit and m_story_credit
      * tables
      *
@@ -137,7 +137,7 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
      * @param roleId the credit_type id
      * @return the story credit id if found, null otherwise
      */
-    private fun getStoryCredit(gcndId: Int, storyId: Int, roleId: Int): Int? {
+    internal fun lookupStoryCreditId(gcndId: Int, storyId: Int, roleId: Int): Int? {
         var storyCreditId: Int? = null
 
         try {
@@ -199,14 +199,15 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
     }
 
     /**
-     * Make story credit - prepares a statement with [gcndId], [roleId], and
+     * Insert story credit - prepares a statement with [gcndId], [roleId], and
      * [storyId] to insert a story credit into m_story_credit in [database]
+     * and executes it.
      *
      * @param gcndId gcd_creator_name_detail.id
      * @param roleId credit_type.id
      * @param storyId gcd_story.id
      */
-    private fun makeStoryCredit(gcndId: Int, roleId: Int, storyId: Int) {
+    private fun insertStoryCredit(gcndId: Int, roleId: Int, storyId: Int) {
         val insertStoryCreditStmt: PreparedStatement?
 
         /** Insert story credit sql */

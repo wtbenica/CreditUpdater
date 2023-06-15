@@ -30,7 +30,7 @@ class CharacterExtractorTest {
         `when`(resultSet.getInt("publisherId")).thenReturn(5)
 
         runBlocking {
-            val result = characterExtractor.extract(resultSet, destDatabase)
+            val result = characterExtractor.extractAndInsert(resultSet, destDatabase)
 
             assertEquals(expectedStoryId, result)
         }
@@ -49,7 +49,7 @@ class CharacterExtractorTest {
         `when`(resultSet.getInt("publisherId")).thenReturn(5)
 
         runBlocking {
-            val actualStoryId: Int = characterExtractor.extract(resultSet, destDatabase)
+            val actualStoryId: Int = characterExtractor.extractAndInsert(resultSet, destDatabase)
 
             assertEquals(expectedStoryId, actualStoryId)
         }

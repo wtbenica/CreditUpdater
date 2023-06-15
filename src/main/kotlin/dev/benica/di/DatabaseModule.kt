@@ -1,5 +1,7 @@
 package dev.benica.di
 
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import dagger.Component
 import dagger.Module
 import dagger.Provides
@@ -17,6 +19,27 @@ class DatabaseModule() {
     @Provides
     @Singleton
     fun provideConnectionSource(): ConnectionSource {
+        return object : ConnectionSource() {
+            override fun getConnection(database: String): Connection {
+                return HikariDataSource(
+                    HikariConfig().apply {
+                        jdbcUrl = "jdbc:mysql://localhost:3306/$database"
+                        username = USERNAME
+                        password = PASSWORD
+                        driverClassName = "com.mysql.cj.jdbc.Driver"
+                        maximumPoolSize = 10
+                        minimumIdle = 2
+                        idleTimeout = 3000
+                        connectionTimeout = 5000
+                    }
+                ).connection
+            }
+        }
+    }
+
+    @Provides
+    @Singleton
+    fun provideConnectionSourceOld(): ConnectionSource {
         val connectionProps = Properties()
         connectionProps["user"] = USERNAME
         connectionProps["password"] = PASSWORD
@@ -36,3 +59,4 @@ class DatabaseModule() {
 fun interface DatabaseComponent {
     fun inject(databaseUtil: DatabaseUtil)
 }
+

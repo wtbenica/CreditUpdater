@@ -22,7 +22,7 @@ val Any.logger: KLogger
  */
 class CharacterExtractor(database: String, conn: Connection) : Extractor(database, conn) {
     override val extractedItem: String = "Character"
-    override val fromValue: String = "Story"
+    override val fromValue: String = "StoryId"
 
     private val repository = Repository(database, conn)
 
@@ -45,7 +45,7 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
      * @param destDatabase The destination database.
      * @return the story id of the story from which characters were extracted.
      */
-    override suspend fun extract(
+    override suspend fun extractAndInsert(
         resultSet: ResultSet,
         destDatabase: String?
     ): Int {
