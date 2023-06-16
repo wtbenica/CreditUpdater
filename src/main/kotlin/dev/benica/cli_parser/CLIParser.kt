@@ -23,6 +23,15 @@ class CLIParser {
     )
     var prepare: String? = null
 
+    @Parameter(
+        names = ["-s", "--step"],
+        description = "Start at the indicated step, skipping completed steps.",
+        validateWith = [StepValidator::class],
+    )
+    private var _mStep: Int? = null
+    val step: Int
+        get() = _mStep ?: 1
+
     @Parameter(names = ["-m", "--migrate"], description = "Migrate primary database", arity = 2)
     var migrate: List<String>? = null
 
@@ -35,5 +44,13 @@ class CLIParser {
     @Throws(ParameterException::class)
     fun parse(args: Array<String>) {
         commander.parse(*args)
+    }
+}
+
+class StepValidator : com.beust.jcommander.IParameterValidator {
+    override fun validate(name: String?, value: String?) {
+        if (value != null && value.toIntOrNull() !in 2..4) {
+            throw ParameterException("Parameter $name should be between 2 and 4 (inclusive)")
+        }
     }
 }

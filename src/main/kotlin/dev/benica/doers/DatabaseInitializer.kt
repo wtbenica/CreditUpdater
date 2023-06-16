@@ -1,92 +1,95 @@
 package dev.benica.doers
 
-import dev.benica.Credentials.Companion.ADD_COLUMNS_TO_CREDITS
-import dev.benica.Credentials.Companion.ADD_ISSUE_SERIES_TO_CREDITS_PATH
-import dev.benica.Credentials.Companion.ADD_MODIFY_TABLES_PATH
-import dev.benica.Credentials.Companion.CHARACTER_STORIES_NUM_COMPLETE
-import dev.benica.Credentials.Companion.CHARACTER_STORY_ID_START
-import dev.benica.Credentials.Companion.CREDITS_STORIES_NUM_COMPLETE
-import dev.benica.Credentials.Companion.CREDITS_STORY_ID_START
+import dev.benica.Credentials.Companion.ISSUE_SERIES_PATH
+import dev.benica.Credentials.Companion.TABLES_PATH
+import dev.benica.Credentials.Companion.NUM_CHARACTER_STORIES_COMPLETE
+import dev.benica.Credentials.Companion.CHARACTER_STORY_START_ID
+import dev.benica.Credentials.Companion.NUM_CREDITS_STORIES_COMPLETE
+import dev.benica.Credentials.Companion.CREDITS_STORY_START_ID
 import dev.benica.Credentials.Companion.PRIMARY_DATABASE
-import dev.benica.Credentials.Companion.SHRINK_DATABASE_PATH
-import dev.benica.Credentials.Companion.SHRINK_DATABASE_PRE_PATH
-import dev.benica.Credentials.Companion.UPDATE_CHARACTERS
-import dev.benica.Credentials.Companion.UPDATE_CREDITS
-import dev.benica.Credentials.Companion.UPDATE_DATABASE
-import kotlinx.coroutines.coroutineScope
+import dev.benica.Credentials.Companion.REMOVE_RECORDS_PATH
+import dev.benica.Credentials.Companion.PREP_REMOVE_RECORDS_PATH
+import mu.KotlinLogging
+import java.sql.SQLException
 
 /**
- * The dev.benica.CreditUpdater.PrimaryDatabaseInitializer class is
- * responsible for preparing an initial database installation from a gcd
- * dump.
- * - It adds issue and series columns and fks to gcd_story_credit if they
- *   have not already been added
- * - It creates m_character, m_character_appearance, and m_story_credit
- *   tables if they don't already exist
- * - It removes unused records from the database
- * - It extracts character and appearance data from the gcd_story table
- * - It extracts credit data from the gcd_story table
+ * Prepares an initial database installation from a gcd dump.
+ *
+ * Steps:
+ * 1. Add new tables to the database schema and shrink the database.
+ * 2. Extract character and appearance data from the 'gcd_story' table and
+ *    update the 'm_character' and 'm_character_appearance' tables.
+ * 3. Extract credit data from the 'gcd_story' table and update the
+ *    'gcd_story_credit' and 'm_story_credit' tables.
+ * 4. Add foreign key constraints to the 'gcd_story_credit',
+ *    'm_character_appearance', and 'm_story_credit' tables.
+ *
+ * @param targetSchema The schema to update.
+ * @param startAtStep The step to start at (1-4).
  */
-class DatabaseInitializer(targetSchema: String? = null) :
+class DatabaseInitializer(targetSchema: String? = null, private val startAtStep: Int) :
     DatabaseTask(targetSchema = targetSchema ?: PRIMARY_DATABASE) {
+        private val logger = KotlinLogging.logger {}
+
     /**
-     * Updates the database with new data from the GCD. This function adds
-     * new tables to the database schema and shrinks the database size, if
-     * 'UPDATE_DATABASE' is true. It also extracts character and appearance
-     * data from the 'gcd_story' table and updates the 'm_character' and
-     * 'm_character_appearance' tables, if 'UPDATE_CHARACTERS' is true.
-     * Credit data is extracted from the 'gcd_story' table and updates the
-     * 'gcd_story_credit' and 'm_story_credit' tables, if 'UPDATE_CREDITS'
-     * is true. Finally, foreign key constraints are added to the
-     * 'gcd_story_credit', 'm_character_appearance', and 'm_story_credit'
-     * tables, as needed.
+     * Prepare database - this is the main entry point for the
+     * PrimaryDatabaseInitializer class. It is responsible
+     * for preparing the database for the first time.
+     *
+     * @throws SQLException
+     * @see DatabaseTask
      */
     suspend fun prepareDatabase() {
-        coroutineScope {
-            println("Updating $targetSchema")
+        runCatching {
+            logger.info { "Updating $targetSchema" }
             // Delete the 'is_sourced' and 'sourced_by' columns from the gcd_story_credit table
             dropIsSourcedAndSourcedByColumns()
 
-            if (UPDATE_DATABASE) {
-                println("Starting Database Updates...")
-                addTables()
-                shrinkDatabase()
+            if (startAtStep == 1) {
+                logger.info { "Starting Database Updates..." }
+                addAndModifyTables()
+                removeUnnecessaryRecords()
             }
 
             val storyCount = database.getItemCount(
                 tableName = "$targetSchema.gcd_story"
             )
 
-            if (UPDATE_CHARACTERS) {
+            if (startAtStep <= 2) {
                 extractCharactersAndAppearances(
                     storyCount = storyCount,
                     schema = targetSchema,
-                    lastIdCompleted = CHARACTER_STORY_ID_START,
-                    numComplete = CHARACTER_STORIES_NUM_COMPLETE,
+                    lastIdCompleted = CHARACTER_STORY_START_ID,
+                    numComplete = NUM_CHARACTER_STORIES_COMPLETE,
                     initial = true
                 )
             }
 
-            if (UPDATE_CREDITS) {
+            if (startAtStep <= 3) {
                 extractCredits(
                     storyCount = storyCount,
                     sourceSchema = targetSchema,
-                    lastIdCompleted = CREDITS_STORY_ID_START,
-                    numComplete = CREDITS_STORIES_NUM_COMPLETE,
+                    lastIdCompleted = CREDITS_STORY_START_ID,
+                    numComplete = NUM_CREDITS_STORIES_COMPLETE,
                     initial = true
                 )
             }
 
-            if (ADD_COLUMNS_TO_CREDITS) {
-                println("Starting FKey updates")
-                addIssueSeriesToCredits()
+            if (startAtStep <= 4) {
+                logger.info { "Starting FKey updates" }
+                assIssueSeriesColumnsAndConstraints()
             }
+        }.onFailure {
+            logger.error { "Failed to update $targetSchema" }
+            throw it
+        }.onSuccess {
+            logger.info { "Successfully updated $targetSchema" }
         }
     }
 
     /**
-     * Drops the 'is_sourced' and 'sourced_by' columns from the
-     * 'gcd_story_credit' table.
+     * Drop is sourced and sourced by columns - this function drops the
+     * 'is_sourced' and 'sourced_by' columns from the 'gcd_story_credit' table.
      */
     private fun dropIsSourcedAndSourcedByColumns() {
         database.executeSqlStatement(
@@ -99,62 +102,36 @@ class DatabaseInitializer(targetSchema: String? = null) :
     }
 
     /**
-     * Adds the 'issue' and 'series' columns to the 'gcd_story_credit'
-     * and 'm_character_appearance' tables, respectively, if they don't
-     * already exist. Then creates the 'm_story_credit' table if it doesn't
-     * exist. Also adds foreign key constraints to the 'gcd_story_credit',
-     * 'm_character_appearance', and 'm_story_credit' tables, as needed.
-     * Finally, creates the 'm_character' and 'm_character_appearance' tables
-     * if they don't exist.
+     * Add tables - this function adds the 'm_character',
+     * 'm_character_appearance', 'm_story_credit', and 'm_story_credit_type'
+     * tables to the database schema. It also adds the 'issue' and 'series'
+     * columns to the 'gcd_story_credit' and 'm_character_appearance' tables.
      *
-     * Note: This code block uses SQL statements to modify the database schema
-     * and create tables. It assumes that the database connection is already
-     * established and that the user has the necessary permissions to execute
-     * these statements.
+     * @throws SQLException
      */
-    private fun addTables() = database.runSqlScript(sqlScriptPath = ADD_MODIFY_TABLES_PATH)
+    private fun addAndModifyTables() = database.runSqlScript(sqlScriptPath = TABLES_PATH)
 
     /**
-     * Adds the 'issue' and 'series' columns to the 'gcd_story_credit'
-     * and 'm_character_appearance' tables, respectively, if they don't
-     * already exist. Also creates the 'm_story_credit' table if it doesn't
-     * exist. Adds foreign key constraints to the 'gcd_story_credit',
-     * 'm_character_appearance', and 'm_story_credit' tables, as needed.
-     * Finally, creates the 'm_character' and 'm_character_appearance' tables
-     * if they don't exist.
+     * Shrink database - this function shrinks the database by removing a bunch
+     * of records: Non-US/Canadian publishers, non-English languages, and
+     * pre-1900 stories.
      *
-     * Note: This function assumes that the database connection is already
-     * established and that the user has the necessary permissions to execute
-     * these statements.
+     * @throws SQLException
      */
-    private fun shrinkDatabase() {
-        database.runSqlScript(sqlScriptPath = SHRINK_DATABASE_PRE_PATH)
-        database.runSqlScript(sqlScriptPath = SHRINK_DATABASE_PATH)
+    private fun removeUnnecessaryRecords() {
+        database.runSqlScript(sqlScriptPath = PREP_REMOVE_RECORDS_PATH)
+        database.runSqlScript(sqlScriptPath = REMOVE_RECORDS_PATH)
     }
 
     /**
-     * Updates the 'issue_id' and 'series_id' columns in the 'gcd_story_credit'
-     * and 'm_story_credit' tables, respectively, by setting them to the
-     * corresponding values in the 'gcd_issue' and 'gcd_series' tables. The
-     * 'issue_id' and 'series_id' columns are set to NULL if they don't already
-     * have a value.
-     *
-     * Then, creates a temporary table 'story_with_missing_issue' that contains
-     * the IDs of stories that have a NULL 'issue_id' value. Deletes records
-     * from 'm_character_appearance' table where the 'story_id' matches the IDs
-     * in 'story_with_missing_issue'.
-     *
-     * Finally, updates the 'issue_id' and 'series_id' columns in the
-     * 'm_character_appearance' table by setting them to the corresponding
-     * values in the 'gcd_issue' and 'gcd_series' tables. The 'issue_id' and
-     * 'series_id' columns are set to NULL if they don't already have a value.
-     *
-     * Note: This function assumes that the database connection is already
-     * established and that the user has the necessary permissions to execute
-     * these statements.
+     * Add issue series to credits - this function adds the 'issue' and
+     * 'series' columns to the 'gcd_story_credit', 'm_story_credit', and
+     * 'm_character_appearance' tables. It also adds the appropriate foreign
+     * key constraints to the 'gcd_story_credit', 'm_character_appearance', and
+     * 'm_story_credit' tables.
      */
-    private fun addIssueSeriesToCredits() =
-        database.runSqlScript(sqlScriptPath = ADD_ISSUE_SERIES_TO_CREDITS_PATH, runAsTransaction = true)
+    private fun assIssueSeriesColumnsAndConstraints() =
+        database.runSqlScript(sqlScriptPath = ISSUE_SERIES_PATH, runAsTransaction = true)
 
 }
 

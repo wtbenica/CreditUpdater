@@ -16,6 +16,7 @@ repositories {
 }
 
 dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-coroutines-core:1.5.2")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.10")
     implementation("com.google.dagger", "dagger", "2.46.1")
     implementation("com.beust", "jcommander", "1.82")
