@@ -13,15 +13,10 @@ class Credentials {
         const val INCOMING_DATABASE = "gcdb_temp"
 
         // dev.benica.CreditUpdater.PrimaryDatabaseInitializer
-        const val CHARACTER_STORY_ID_START: Long = 128659
-        const val CHARACTER_STORIES_NUM_COMPLETE: Long = 108709
-        const val CREDITS_STORY_ID_START: Long = 0
-        const val CREDITS_STORIES_NUM_COMPLETE: Long = 0
-
-        const val UPDATE_DATABASE = false
-        const val UPDATE_CHARACTERS = true
-        const val UPDATE_CREDITS = true
-        const val ADD_COLUMNS_TO_CREDITS = true
+        const val CHARACTER_STORY_START_ID: Long = 128659
+        const val NUM_CHARACTER_STORIES_COMPLETE: Long = 108709
+        const val CREDITS_STORY_START_ID: Long = 0
+        const val NUM_CREDITS_STORIES_COMPLETE: Long = 0
 
         // MIGRATE
         const val CREDITS_STORY_START_NEW: Long = 0
@@ -34,14 +29,14 @@ class Credentials {
          * table. It creates the m_character and m_character_appearance tables if
          * they don't already exist.
          */
-        const val ADD_MODIFY_TABLES_PATH = "src/main/sql/add_tables.sql"
+        const val TABLES_PATH = "src/main/sql/add_tables.sql"
 
         /**
          * This script creates several views that filter out records from the
          * database based on certain criteria. These views are then used to delete
          * records from various tables in the database.
          */
-        const val SHRINK_DATABASE_PRE_PATH = "src/main/sql/shrink_database_pre.sql"
+        const val PREP_REMOVE_RECORDS_PATH = "src/main/sql/shrink_database_pre.sql"
 
         /**
          * This script creates several views that filter out records from the
@@ -54,7 +49,7 @@ class Credentials {
          * gcd_publisher tables based on certain criteria. Overall, this script is
          * used to limit the records in the database based on certain criteria.
          */
-        const val SHRINK_DATABASE_PATH = "src/main/sql/shrink_database.sql"
+        const val REMOVE_RECORDS_PATH = "src/main/sql/shrink_database.sql"
 
         /**
          * This SQL query updates the gcd_story_credit and m_story_credit
@@ -69,6 +64,6 @@ class Credentials {
          * tables. The comments in the code provide a summary of each section of
          * the query.
          */
-        const val ADD_ISSUE_SERIES_TO_CREDITS_PATH = "src/main/sql/add_issue_series_to_credits.sql"
+        const val ISSUE_SERIES_PATH = "src/main/sql/add_issue_series_to_credits.sql"
     }
 }
