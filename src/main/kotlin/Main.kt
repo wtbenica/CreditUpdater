@@ -1,7 +1,7 @@
 import ch.qos.logback.classic.Level
 import dev.benica.cli_parser.CLIParser
-import dev.benica.doers.DatabaseInitializer
-import dev.benica.doers.DatabaseMigrator
+import dev.benica.doers.DBInitializer
+import dev.benica.doers.DBMigrator
 import kotlinx.coroutines.runBlocking
 import mu.KLogger
 import mu.KotlinLogging
@@ -12,38 +12,34 @@ private val logger: KLogger
     get() = KotlinLogging.logger { }
 
 fun main(args: Array<String>) {
-    initLoggers()
 
     runBlocking {
         val parsedArgs = CLIParser()
 
         try {
             parsedArgs.parse(args)
+            initLoggers(parsedArgs.quiet)
 
             when {
                 parsedArgs.help -> {
                     parsedArgs.usage
-                    return@runBlocking
                 }
 
-                parsedArgs.quiet -> {
-                    LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME).let { logger ->
-                        if (logger is ch.qos.logback.classic.Logger) {
-                            logger.level = Level.OFF
-                        }
-                    }
+                parsedArgs.prepare != null && parsedArgs.migrate != null -> {
+                    DBInitializer(parsedArgs.prepare, parsedArgs.step).prepareDb()
+                    DBMigrator().migrate()
                 }
 
                 parsedArgs.prepare != null -> {
-                    DatabaseInitializer(parsedArgs.prepare, parsedArgs.step).prepareDatabase()
+                    DBInitializer(parsedArgs.prepare, parsedArgs.step).prepareDb()
                 }
 
                 parsedArgs.migrate != null -> {
-                    DatabaseMigrator().migrate()
+                    DBMigrator().migrate()
                 }
 
                 else -> {
-                    DatabaseInitializer(startAtStep = parsedArgs.step).prepareDatabase()
+                    DBInitializer(startAtStep = parsedArgs.step).prepareDb()
                 }
             }
         } catch (e: com.beust.jcommander.ParameterException) {
@@ -62,7 +58,7 @@ fun main(args: Array<String>) {
     }
 }
 
-private fun initLoggers() {
+private fun initLoggers(quiet: Boolean) {
     LoggerFactory.getLogger("com.zaxxer.hikari").let { logger ->
         if (logger is ch.qos.logback.classic.Logger) {
             logger.level = Level.OFF
@@ -70,7 +66,7 @@ private fun initLoggers() {
     }
     LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME).let { logger ->
         if (logger is ch.qos.logback.classic.Logger) {
-            logger.level = Level.ALL
+            logger.level = if (quiet) Level.WARN else Level.ALL
         }
     }
 }

@@ -13,8 +13,9 @@ class CLIParser {
     @Parameter(names = ["-h", "--help"], description = "print this message")
     var help: Boolean = false
 
-    @Parameter(names = ["-q", "--quiet"], description = "Suppress non-error messages")
-    var quiet: Boolean = false
+    @Parameter(
+        names = ["-q", "--quiet"], description = "Only warnings and errors will be logged.",)
+        var quiet: Boolean = false
 
     @Parameter(
         names = ["-p", "--prepare"],
@@ -35,11 +36,18 @@ class CLIParser {
     @Parameter(names = ["-m", "--migrate"], description = "Migrate primary database", arity = 2)
     var migrate: List<String>? = null
 
-    val usage
+    /**
+     * Prints the usage information for the command.
+     */
+    val usage: Unit
         get() = commander.usage()
 
+    /**
+     * The name of the command after parsing.
+     */
     val parsedCommand: String?
         get() = commander.parsedCommand
+
 
     @Throws(ParameterException::class)
     fun parse(args: Array<String>) {
