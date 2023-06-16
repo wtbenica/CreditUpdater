@@ -14,7 +14,7 @@ import kotlinx.coroutines.coroutineScope
  *
  * @constructor Create empty dev.benica.CreditUpdater.Migrator
  */
-class DatabaseMigrator : DatabaseTask(INCOMING_DATABASE) {
+class DBMigrator : DatabaseTask(INCOMING_DATABASE) {
     /** Migrate - migrates the data from the old database to the new database. */
     suspend fun migrate() {
         coroutineScope {

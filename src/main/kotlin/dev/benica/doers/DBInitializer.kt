@@ -27,7 +27,7 @@ import java.sql.SQLException
  * @param targetSchema The schema to update.
  * @param startAtStep The step to start at (1-4).
  */
-class DatabaseInitializer(targetSchema: String? = null, private val startAtStep: Int) :
+class DBInitializer(targetSchema: String? = null, private val startAtStep: Int) :
     DatabaseTask(targetSchema = targetSchema ?: PRIMARY_DATABASE) {
         private val logger = KotlinLogging.logger {}
 
@@ -39,7 +39,7 @@ class DatabaseInitializer(targetSchema: String? = null, private val startAtStep:
      * @throws SQLException
      * @see DatabaseTask
      */
-    suspend fun prepareDatabase() {
+    suspend fun prepareDb() {
         runCatching {
             logger.info { "Updating $targetSchema" }
             // Delete the 'is_sourced' and 'sourced_by' columns from the gcd_story_credit table
