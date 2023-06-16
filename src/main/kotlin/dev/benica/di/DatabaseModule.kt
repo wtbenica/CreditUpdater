@@ -5,13 +5,11 @@ import com.zaxxer.hikari.HikariDataSource
 import dagger.Component
 import dagger.Module
 import dagger.Provides
-import dev.benica.Credentials.Companion.PASSWORD
-import dev.benica.Credentials.Companion.USERNAME
+import dev.benica.Credentials.Companion.PASSWORD_INITIALIZER
+import dev.benica.Credentials.Companion.USERNAME_INITIALIZER
 import dev.benica.db.ConnectionSource
 import dev.benica.db.DatabaseUtil
 import java.sql.Connection
-import java.sql.DriverManager
-import java.util.*
 import javax.inject.Singleton
 
 @Module
@@ -24,8 +22,8 @@ class DatabaseModule() {
                 return HikariDataSource(
                     HikariConfig().apply {
                         jdbcUrl = "jdbc:mysql://localhost:3306/$database"
-                        username = USERNAME
-                        password = PASSWORD
+                        username = USERNAME_INITIALIZER
+                        password = PASSWORD_INITIALIZER
                         driverClassName = "com.mysql.cj.jdbc.Driver"
                         maximumPoolSize = 10
                         minimumIdle = 2

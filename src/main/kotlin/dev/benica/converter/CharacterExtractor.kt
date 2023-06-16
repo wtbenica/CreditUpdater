@@ -1,6 +1,6 @@
 package dev.benica.converter
 
-import dev.benica.db.Repository
+import dev.benica.db.CharacterRepository
 import dev.benica.models.Appearance
 import kotlinx.coroutines.*
 import mu.KLogger
@@ -24,21 +24,11 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
     override val extractedItem: String = "Character"
     override val fromValue: String = "StoryId"
 
-    private val repository = Repository(database, conn)
-
-    @Volatile
-    private var _appearanceBuffer: AppearanceBuffer? = null
-
-    private val appearanceBuffer: AppearanceBuffer
-        get() = _appearanceBuffer ?: synchronized(this) {
-            AppearanceBuffer(database, conn)
-        }.also {
-            _appearanceBuffer = it
-        }
+    private val repository = CharacterRepository(database, conn)
 
     /**
-     * Extracts characters from a result set and adds them to the
-     * [appearanceBuffer] for database insertion.
+     * Extract and insert - extracts characters from the 'characters' field
+     * in the [resultSet] and inserts them into the database.
      *
      * @param resultSet The result set of stories from which to extract
      *     characters.
@@ -83,18 +73,9 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
                 }
             }
 
-            appearance?.let {
-                appearanceBuffer.addToBuffer(it)
-            }
+            appearance?.let { repository.insertCharacterAppearance(it) }
         }
 
         return storyId
-    }
-
-    override fun finish() {
-        CoroutineScope(Dispatchers.IO).launch {
-            appearanceBuffer.save()
-        }
-        logger.info { "FINISHING" }
     }
 }
