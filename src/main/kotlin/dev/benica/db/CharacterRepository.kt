@@ -12,7 +12,8 @@ import java.sql.Statement
 private val logger: KLogger
     get() = KotlinLogging.logger { }
 
-class Repository(private val database: String, private val conn: Connection) {
+class CharacterRepository(private val database: String, private val conn: Connection) {
+
     /**
      * Gets the ID of a character with the given name, alter ego, and publisher
      * ID. If the character does not exist in the database, it is inserted and
@@ -53,11 +54,9 @@ class Repository(private val database: String, private val conn: Connection) {
      * Insert character appearances - inserts [appearances] into [database]
      * using [conn]
      */
-    internal fun insertCharacterAppearances(
-        appearances: Set<Appearance>
-    ) {
+    internal fun insertCharacterAppearances(appearances: Set<Appearance>) {
         val sql = """
-               INSERT IGNORE INTO ${database}.m_character_appearance(id, details, character_id, story_id, notes, membership)
+               INSERT IGNORE INTO $database.m_character_appearance(id, details, character_id, story_id, notes, membership)
                VALUES (?, ?, ?, ?, ?, ?)
             """.trimIndent()
 
@@ -76,6 +75,13 @@ class Repository(private val database: String, private val conn: Connection) {
 //            logger.info { "Inserted ${appearances.size} appearances" }
         }
     }
+
+    /**
+     * Insert character appearance - inserts [appearance] into [database] using
+     * [conn]
+     */
+    fun insertCharacterAppearance(appearance: Appearance) =
+        insertCharacterAppearances(setOf(appearance))
 
     /**
      * Insert character - inserts [name], [alterEgo], and [publisherId] into
@@ -124,9 +130,9 @@ class Repository(private val database: String, private val conn: Connection) {
      * @param name character name
      * @param alterEgo character alter ego
      * @param publisherId publisher id
+     * @param checkPrimary whether or not to check [PRIMARY_DATABASE] first
      * @param database database to check
      * @param conn connection to use
-     * @param checkPrimary whether or not to check [PRIMARY_DATABASE] first
      * @return character id if found, null otherwise
      */
     private fun lookupCharacter(

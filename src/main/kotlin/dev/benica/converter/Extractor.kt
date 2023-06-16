@@ -37,7 +37,7 @@ fun String.cleanup(): String = this
  */
 abstract class Extractor(
     protected val database: String,
-    protected val conn: Connection,
+    private val conn: Connection,
 ) {
     abstract val extractedItem: String
     abstract val fromValue: String
@@ -54,7 +54,4 @@ abstract class Extractor(
         resultSet: ResultSet,
         destDatabase: String? = null
     ): Int
-
-    /** Finish */
-    abstract fun finish()
 }
