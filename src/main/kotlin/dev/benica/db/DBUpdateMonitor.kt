@@ -2,25 +2,34 @@ package dev.benica.db
 
 import dev.benica.TerminalUtil
 import dev.benica.converter.Extractor
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import mu.KLogger
 import mu.KotlinLogging
 import toPercent
 import java.sql.SQLException
 import kotlin.system.measureTimeMillis
 
-class DBUpdateMonitor(private val connectionSource: ConnectionSource, private val database: String) {
+class DBUpdateMonitor(
+    private val connectionSource: ConnectionSource,
+    private val database: String,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+) {
     private val logger: KLogger
         get() = KotlinLogging.logger { }
 
     /**
-     * Selects items using [selectItemsQuery], extracts data using [extractor],
-     * that inserts new objects into [database].
+     * Uses [extractor] to extract objects from text fields in the items from
+     * [selectItemsQuery] and inserts them into the database.
      *
      * @param startingComplete the starting number of completed items
      * @param totalItems the total number of items to update, or null if
      *     unknown
+     * @param batchSize the batch size to use
+     * @throws SQLException if an error occurs
      */
+    @Throws(SQLException::class)
     suspend fun extractAndInsertItems(
         selectItemsQuery: String,
         startingComplete: Long,
@@ -33,44 +42,41 @@ class DBUpdateMonitor(private val connectionSource: ConnectionSource, private va
         var offset = 0
 
         try {
-            coroutineScope {
-                while (true) {
+            while (true) {
+                val resultSet = withContext(ioDispatcher) {
                     val conn = connectionSource.getConnection(database)
                     val statement = conn.createStatement()
+                    val queryWithLimitAndOffset = "$selectItemsQuery LIMIT $batchSize OFFSET ${offset * batchSize}"
+                    statement.executeQuery(queryWithLimitAndOffset)
+                }
 
-                    val queryWithLimitOffset = "$selectItemsQuery LIMIT $batchSize OFFSET ${offset * batchSize}"
+                if (!resultSet.next()) {
+                    logger.info { "No more items to update" }
+                    break
+                }
 
-                    val executeQuery = statement.executeQuery(queryWithLimitOffset)
+                while (resultSet.next()) {
+                    totalTimeMillis += measureTimeMillis {
+                        currentComplete++
 
-                    if (!executeQuery.next()) {
-                        logger.info { "No more items to update" }
-                        break
+                        val itemId = extractor.extractAndInsert(resultSet)
+
+                        printProgressInfo(
+                            itemId = itemId,
+                            currentComplete = currentComplete,
+                            currentDurationMillis = totalTimeMillis,
+                            startingComplete = startingComplete,
+                            totalItems = totalItems,
+                            extractor = extractor
+                        )
                     }
-
-                    executeQuery.use { resultSet ->
-                        do {
-                            totalTimeMillis += measureTimeMillis {
-                                currentComplete++
-
-                                val itemId: Int = extractor.extractAndInsert(resultSet)
-
-                                printProgressInfo(
-                                    itemId = itemId,
-                                    currentComplete = currentComplete,
-                                    currentDurationMillis = totalTimeMillis,
-                                    startingComplete = startingComplete,
-                                    totalItems = totalItems,
-                                    extractor = extractor
-                                )
-                            }
-                        } while (resultSet.next())
-                    }
-
-                    offset++
                 }
             }
+
+            offset++
         } catch (ex: SQLException) {
             logger.error("Error updating items", ex)
+            throw ex
         }
 
         logger.info { "END\n\n\n" }
