@@ -14,8 +14,8 @@ class DBUpdateMonitor(private val connectionSource: ConnectionSource, private va
         get() = KotlinLogging.logger { }
 
     /**
-     * Selects items using [selectItemsQuery], extracts data using [extractor], that
-     * inserts new objects into [database].
+     * Selects items using [selectItemsQuery], extracts data using [extractor],
+     * that inserts new objects into [database].
      *
      * @param startingComplete the starting number of completed items
      * @param totalItems the total number of items to update, or null if
@@ -33,41 +33,42 @@ class DBUpdateMonitor(private val connectionSource: ConnectionSource, private va
         var offset = 0
 
         try {
-            connectionSource.getConnection(database).createStatement()?.use { statement ->
-                coroutineScope {
-                    while (true) {
-                        val queryWithLimitOffset = "$selectItemsQuery LIMIT $batchSize OFFSET ${offset * batchSize}"
+            coroutineScope {
+                while (true) {
+                    val conn = connectionSource.getConnection(database)
+                    val statement = conn.createStatement()
 
-                        val executeQuery = statement.executeQuery(queryWithLimitOffset)
+                    val queryWithLimitOffset = "$selectItemsQuery LIMIT $batchSize OFFSET ${offset * batchSize}"
 
-                        if (!executeQuery.next()) {
-                            logger.info { "No more items to update" }
-                            break
-                        }
+                    val executeQuery = statement.executeQuery(queryWithLimitOffset)
 
-                        executeQuery.use { resultSet ->
-                            do {
-                                totalTimeMillis += measureTimeMillis {
-                                    currentComplete++
-
-                                    val itemId: Int = extractor.extractAndInsert(resultSet)
-
-                                    printProgressInfo(
-                                        itemId = itemId,
-                                        currentComplete = currentComplete,
-                                        currentDurationMillis = totalTimeMillis,
-                                        startingComplete = startingComplete,
-                                        totalItems = totalItems,
-                                        extractor = extractor
-                                    )
-                                }
-                            } while (resultSet.next())
-                        }
-
-                        offset++
+                    if (!executeQuery.next()) {
+                        logger.info { "No more items to update" }
+                        break
                     }
+
+                    executeQuery.use { resultSet ->
+                        do {
+                            totalTimeMillis += measureTimeMillis {
+                                currentComplete++
+
+                                val itemId: Int = extractor.extractAndInsert(resultSet)
+
+                                printProgressInfo(
+                                    itemId = itemId,
+                                    currentComplete = currentComplete,
+                                    currentDurationMillis = totalTimeMillis,
+                                    startingComplete = startingComplete,
+                                    totalItems = totalItems,
+                                    extractor = extractor
+                                )
+                            }
+                        } while (resultSet.next())
+                    }
+
+                    offset++
                 }
-            } ?: logger.info { "Unable to get connection" }
+            }
         } catch (ex: SQLException) {
             logger.error("Error updating items", ex)
         }
