@@ -5,6 +5,7 @@ import com.zaxxer.hikari.HikariDataSource
 import dagger.Component
 import dagger.Module
 import dagger.Provides
+import dev.benica.Credentials.Companion.MAX_CONNECTION_POOL_SIZE
 import dev.benica.Credentials.Companion.PASSWORD_INITIALIZER
 import dev.benica.Credentials.Companion.USERNAME_INITIALIZER
 import dev.benica.db.ConnectionSource
@@ -25,7 +26,7 @@ class DatabaseModule {
                         username = USERNAME_INITIALIZER
                         password = PASSWORD_INITIALIZER
                         driverClassName = "com.mysql.cj.jdbc.Driver"
-                        maximumPoolSize = 10
+                        maximumPoolSize = MAX_CONNECTION_POOL_SIZE
                         minimumIdle = 2
                         idleTimeout = 3000
                         connectionTimeout = 5000

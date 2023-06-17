@@ -1,5 +1,6 @@
 package dev.benica.db
 
+import dev.benica.Credentials.Companion.DEFAULT_BATCH_SIZE
 import dev.benica.TerminalUtil
 import dev.benica.converter.Extractor
 import kotlinx.coroutines.CoroutineDispatcher
@@ -35,7 +36,7 @@ class DBUpdateMonitor(
         startingComplete: Long,
         totalItems: Int?,
         extractor: Extractor,
-        batchSize: Int = totalItems?.let { it / 20 } ?: 100000
+        batchSize: Int = DEFAULT_BATCH_SIZE
     ) {
         var currentComplete: Long = startingComplete
         var totalTimeMillis: Long = 0
@@ -104,7 +105,7 @@ class DBUpdateMonitor(
                 ?: "???"
 
         val averageTime: Long = currentDurationMillis / numComplete
-        val remainingTime: Long? = totalItems?.let { averageTime * (it - numComplete) }
+        val remainingTime: Long? = getRemainingTime(totalItems, averageTime, numComplete)
         val remaining = TerminalUtil.millisToPretty(remainingTime)
         val elapsed = TerminalUtil.millisToPretty(currentDurationMillis)
 
@@ -114,5 +115,8 @@ class DBUpdateMonitor(
         logger.info { "Avg: ${averageTime}ms" }
         logger.info { "Elapsed: $elapsed ETR: $remaining" }
     }
+
+    fun getRemainingTime(totalItems: Int?, averageTime: Long, numComplete: Long) =
+        totalItems?.let { averageTime * (it - numComplete) }
 
 }

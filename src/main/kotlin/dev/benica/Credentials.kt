@@ -15,14 +15,19 @@ class Credentials {
         // dev.benica.CreditUpdater.PrimaryDatabaseInitializer
         const val CHARACTER_STORY_START_ID: Long = 0
         const val NUM_CHARACTER_STORIES_COMPLETE: Long = 0
-        const val CREDITS_STORY_START_ID: Long = 1785595
-        const val NUM_CREDITS_STORIES_COMPLETE: Long = 1706569
+        const val CREDITS_STORY_START_ID: Long = 2126807
+        // TODO: Instead of storing  the number of credits stories complete, store the last story id
+        // only, then use queries to calculate the number of credits stories complete
+        const val NUM_CREDITS_STORIES_COMPLETE: Long = 200000
 
         // MIGRATE
         const val CREDITS_STORY_START_NEW: Long = 0
         const val CREDITS_STORIES_COMPLETE_NEW: Long = 0
         const val CHARACTER_STORY_START_NEW: Long = 0
         const val CHARACTER_STORIES_COMPLETE_NEW: Long = 0
+
+        const val DEFAULT_BATCH_SIZE = 50000
+        const val MAX_CONNECTION_POOL_SIZE = 200
 
         /**
          * This SQL query adds issue and series columns to the gcd_story_credit
