@@ -1,5 +1,6 @@
 package dev.benica.db
 
+import dev.benica.Credentials.Companion.DEFAULT_BATCH_SIZE
 import dev.benica.converter.Extractor
 import dev.benica.di.DatabaseComponent
 import kotlinx.coroutines.*
@@ -112,7 +113,7 @@ class DatabaseUtil(
         startingComplete: Long,
         totalItems: Int?,
         extractor: Extractor,
-        batchSize: Int = 500,
+        batchSize: Int = DEFAULT_BATCH_SIZE,
         ioDispatcher: CoroutineDispatcher = Dispatchers.IO
     ) {
         withContext(ioDispatcher) {
