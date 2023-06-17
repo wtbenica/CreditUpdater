@@ -1,9 +1,9 @@
 plugins {
     kotlin("jvm") version "1.8.10"
-    application
     kotlin("kapt") version "1.5.31"
     id("org.jetbrains.dokka") version "1.5.31"
     id("com.github.johnrengelman.shadow") version "7.1.0"
+    application
 }
 
 group = "dev.benica"
@@ -17,15 +17,14 @@ repositories {
 
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.10")
-    implementation("com.google.dagger", "dagger", "2.46.1")
-    implementation("com.beust", "jcommander", "1.82")
-    implementation("com.zaxxer", "HikariCP", "4.0.3")
-    implementation("io.github.microutils", "kotlin-logging", "3.0.5")
+    implementation("com.google.dagger:dagger:2.46.1")
+    implementation("com.beust:jcommander:1.82")
+    implementation("com.zaxxer:HikariCP:5.0.1")
+    implementation("io.github.microutils:kotlin-logging:3.0.5")
     implementation("ch.qos.logback:logback-classic:1.4.7")
-    implementation("mysql", "mysql-connector-java", "8.0.33")
-    implementation(
-        "org.jetbrains.kotlinx", "kotlinx-coroutines-core", "1.7.1"
-    )
+    implementation("mysql:mysql-connector-java:8.0.33")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1")
+
     // mockito
     implementation("org.mockito:mockito-core:5.2.0")
     implementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
@@ -38,8 +37,9 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter", "junit-jupiter-engine", "5.9.2")
 }
 
-tasks.test {
-    useJUnitPlatform()
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 kotlin {
@@ -47,14 +47,25 @@ kotlin {
 }
 
 application {
-    mainClass.set("MainKt")
+    mainClass.set("dev/benica/creditupdater/MainKt")
+}
+
+sourceSets {
+    main {
+        java.srcDirs("src/main/kotlin")
+    }
+    test {
+        java.srcDirs("src/test/kotlin")
+    }
 }
 
 tasks.jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
     manifest {
-        attributes["Main-Class"] = "MainKt"
+        attributes["Main-Class"] = "dev/benica/creditupdater/MainKt"
     }
-    from("src/main/sql") {
+    from("src/main/resources/sql") {
         include("**/*.sql")
     }
 }
@@ -64,7 +75,12 @@ tasks.shadowJar {
     archiveClassifier.set("")
     archiveVersion.set("")
     manifest {
-        attributes["Main-Class"] = "MainKt"
+        attributes["Main-Class"] = "dev/benica/creditupdater/MainKt"
     }
     mergeServiceFiles()
 }
+
+tasks.test {
+    useJUnitPlatform()
+}
+
