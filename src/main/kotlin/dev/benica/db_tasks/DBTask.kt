@@ -4,13 +4,17 @@ import dev.benica.converter.CharacterExtractor
 import dev.benica.converter.CreditExtractor
 import dev.benica.db.DatabaseUtil
 import dev.benica.di.DaggerDatabaseComponent
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.sql.Connection
+import java.sql.SQLException
 
 /**
  * @constructor Create empty dev.benica.CreditUpdater.Doer
  * @property targetSchema The schema to use.
  */
-abstract class DBTask(protected val targetSchema: String) {
+abstract class DBTask(protected val targetSchema: String, private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO) {
     private val databaseComponent = DaggerDatabaseComponent.create()
     protected val database = DatabaseUtil(targetSchema, databaseComponent)
 
@@ -26,7 +30,10 @@ abstract class DBTask(protected val targetSchema: String) {
      * @param sourceSchema The schema with the stories_to_migrate table.
      * @param lastIdCompleted The last id that was completed.
      * @param numComplete The number of items that have been completed.
+     * @param initial Whether this is the initial run.
+     * @throws SQLException if an error occurs
      */
+    @Throws(SQLException::class)
     suspend fun extractCredits(
         storyCount: Int?,
         sourceSchema: String,
@@ -51,13 +58,15 @@ abstract class DBTask(protected val targetSchema: String) {
                 ORDER BY g.id """
         }
 
-        databaseConnection?.let {
-            database.extractAndInsertItems(
-                selectItemsQuery = selectStoriesQuery,
-                startingComplete = numComplete,
-                totalItems = storyCount,
-                extractor = CreditExtractor(sourceSchema, it),
-            )
+        withContext(ioDispatcher) {
+            databaseConnection?.let {
+                database.extractAndInsertItems(
+                    selectItemsQuery = selectStoriesQuery,
+                    startingComplete = numComplete,
+                    totalItems = storyCount,
+                    extractor = CreditExtractor(sourceSchema, it),
+                )
+            }
         }
     }
 
@@ -69,7 +78,10 @@ abstract class DBTask(protected val targetSchema: String) {
      * @param schema The schema with the stories_to_migrate table.
      * @param lastIdCompleted The last id that was completed.
      * @param numComplete The number of items that have been completed.
+     * @param initial Whether this is the initial run.
+     * @throws SQLException if an error occurs
      */
+    @Throws(SQLException::class)
     suspend fun extractCharactersAndAppearances(
         storyCount: Int,
         schema: String,
@@ -96,13 +108,15 @@ abstract class DBTask(protected val targetSchema: String) {
                 where g.id > $lastIdCompleted
                 ORDER BY g.id """
 
-        databaseConnection?.let {
-            database.extractAndInsertItems(
-                selectItemsQuery = selectStoriesQuery,
-                startingComplete = numComplete,
-                totalItems = storyCount,
-                extractor = CharacterExtractor(schema, it),
-            )
+        withContext(ioDispatcher) {
+            databaseConnection?.let {
+                database.extractAndInsertItems(
+                    selectItemsQuery = selectStoriesQuery,
+                    startingComplete = numComplete,
+                    totalItems = storyCount,
+                    extractor = CharacterExtractor(schema, it),
+                )
+            }
         }
     }
 }

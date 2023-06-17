@@ -45,6 +45,7 @@ class DBInitializer(
      * @throws SQLException
      * @see DBTask
      */
+    @Throws(SQLException::class)
     suspend fun prepareDb() {
         withContext(ioDispatcher) {
             try {
@@ -53,7 +54,7 @@ class DBInitializer(
                 dropIsSourcedAndSourcedByColumns()
 
                 if (startAtStep == 1) {
-                    logger.info { "Starting Database Updates..." }
+                    logger.info { "Starting Table Updates..." }
                     addAndModifyTables()
                     removeUnnecessaryRecords()
                 }
@@ -84,7 +85,7 @@ class DBInitializer(
 
                 if (startAtStep <= 4) {
                     logger.info { "Starting FKey updates" }
-                    assIssueSeriesColumnsAndConstraints()
+                    addIssueSeriesColumnsAndConstraints()
                 }
 
                 logger.info { "Successfully updated $targetSchema" }
@@ -98,7 +99,10 @@ class DBInitializer(
     /**
      * Drop is sourced and sourced by columns - this function drops the
      * 'is_sourced' and 'sourced_by' columns from the 'gcd_story_credit' table.
+     *
+     * @throws SQLException
      */
+    @Throws(SQLException::class)
     private fun dropIsSourcedAndSourcedByColumns() {
         database.executeSqlStatement(
             """
@@ -117,6 +121,7 @@ class DBInitializer(
      *
      * @throws SQLException
      */
+    @Throws(SQLException::class)
     private fun addAndModifyTables() = database.runSqlScript(sqlScriptPath = TABLES_PATH)
 
     /**
@@ -126,6 +131,7 @@ class DBInitializer(
      *
      * @throws SQLException
      */
+    @Throws(SQLException::class)
     private fun removeUnnecessaryRecords() {
         database.runSqlScript(sqlScriptPath = PREP_REMOVE_RECORDS_PATH)
         database.runSqlScript(sqlScriptPath = REMOVE_RECORDS_PATH)
@@ -137,8 +143,11 @@ class DBInitializer(
      * 'm_character_appearance' tables. It also adds the appropriate foreign
      * key constraints to the 'gcd_story_credit', 'm_character_appearance', and
      * 'm_story_credit' tables.
+     *
+     * @throws SQLException
      */
-    private fun assIssueSeriesColumnsAndConstraints() =
+    @Throws(SQLException::class)
+    private fun addIssueSeriesColumnsAndConstraints() =
         database.runSqlScript(sqlScriptPath = ISSUE_SERIES_PATH, runAsTransaction = true)
 
 }

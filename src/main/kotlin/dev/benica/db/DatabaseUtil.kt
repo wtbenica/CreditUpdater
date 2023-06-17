@@ -106,20 +106,24 @@ class DatabaseUtil(
      * @param batchSize the batch size to use
      * @throws SQLException if an error occurs
      */
+    @Throws(SQLException::class)
     suspend fun extractAndInsertItems(
         selectItemsQuery: String,
         startingComplete: Long,
         totalItems: Int?,
         extractor: Extractor,
-        batchSize: Int = totalItems?.let { it / 20 } ?: 100000
+        batchSize: Int = 500,
+        ioDispatcher: CoroutineDispatcher = Dispatchers.IO
     ) {
-        DBUpdateMonitor(connectionSource, database).extractAndInsertItems(
-            selectItemsQuery = selectItemsQuery,
-            startingComplete = startingComplete,
-            totalItems = totalItems,
-            extractor = extractor,
-            batchSize = batchSize
-        )
+        withContext(ioDispatcher) {
+            DBUpdateMonitor(connectionSource, database).extractAndInsertItems(
+                selectItemsQuery = selectItemsQuery,
+                startingComplete = startingComplete,
+                totalItems = totalItems,
+                extractor = extractor,
+                batchSize = batchSize
+            )
+        }
     }
 }
 
