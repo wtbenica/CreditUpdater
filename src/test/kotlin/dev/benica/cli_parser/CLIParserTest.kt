@@ -114,23 +114,23 @@ class CLIParserTest {
     fun shouldPrintUsageWhenHelpOptionIsProvided() {
         this.parser.parse(arrayOf("-h"))
 
-
-        val expectedOutput = Regex(
+        @Suppress("RegExpRepeatedSpace", "RegExpDuplicateCharacterInClass")
+        val expectedOutput =
             """Usage: CreditUpdater [options]
- Options:
- -h, --help
- print this message
- Default: false
- -m, --migrate
- Migrate primary database
- -p, --prepare
- Prepare new primary database
- -q, --quiet
- Only warnings and errors will be logged.
- Default: false
- -s, --step
- Start at the indicated step, skipping completed steps.""".trimIndent()
-        )
+  Options:
+    -h, --help
+      print this message
+      Default: false
+    -m, --migrate
+      Migrate primary database
+    -p, --prepare
+      Prepare new primary database
+    -q, --quiet
+      Only warnings and errors will be logged
+      Default: false
+    -s, --step
+      Start at the indicated step, skipping completed steps."""
+
         val outputStream = ByteArrayOutputStream()
         val printStream = PrintStream(outputStream)
         val originalOut = System.out
@@ -138,7 +138,7 @@ class CLIParserTest {
         this.parser.usage
         System.setOut(originalOut)
         val actualOutput = outputStream.toString().trim()
-        assertTrue(expectedOutput.matches(actualOutput))
+        assertEquals(expectedOutput, actualOutput)
     }
 
     @Test
@@ -192,15 +192,5 @@ class CLIParserTest {
         assertEquals("arg1", parser.migrate?.get(0))
         assertEquals("arg2", parser.migrate?.get(1))
         assertNull(parser.prepare)
-    }
-
-    @Test
-    fun parseShouldPrintUsageWhenHelpOptionIsProvided() {
-        val args = arrayOf("-h")
-        val outputStream = ByteArrayOutputStream()
-        System.setOut(PrintStream(outputStream))
-        val expectedOutput = "Hello, world!"
-        parser.parse(args)
-        assertEquals(expectedOutput, outputStream.toString().trim())
     }
 }

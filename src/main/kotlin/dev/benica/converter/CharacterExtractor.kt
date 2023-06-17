@@ -2,10 +2,11 @@ package dev.benica.converter
 
 import dev.benica.db.CharacterRepository
 import dev.benica.models.Appearance
-import kotlinx.coroutines.*
 import mu.KLogger
 import mu.KotlinLogging
-import java.sql.*
+import java.sql.Connection
+import java.sql.ResultSet
+import java.sql.SQLException
 
 private val logger: KLogger
     get() = KotlinLogging.logger { }
@@ -26,56 +27,60 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
 
     private val repository = CharacterRepository(database, conn)
 
+
     /**
-     * Extract and insert - extracts characters from the 'characters' field
-     * in the [resultSet] and inserts them into the database.
+     * Extracts character records and character appearance records from
+     * the 'character' text field in a gcd_story and creates linked entries
+     * for them in the 'm_character' and 'm_character_appearance' tables.
      *
-     * @param resultSet The result set of stories from which to extract
-     *     characters.
-     * @param destDatabase The destination database.
-     * @return the story id of the story from which characters were extracted.
+     * @param resultSet expecting a result set containing a story
+     * @return the story id
+     * @throws SQLException
      */
+    @Throws(SQLException::class)
     override suspend fun extractAndInsert(
         resultSet: ResultSet,
-        destDatabase: String?
     ): Int {
-        val storyId = resultSet.getInt("id")
-        val characters = resultSet.getString("characters")
-        val publisherId: Int? = repository.getPublisherId(storyId)
+        try {
+            val storyId = resultSet.getInt("id")
+            val characters = resultSet.getString("characters")
+            val publisherId = resultSet.getInt("publisher_id")
 
-        val characterList: List<CharacterAppearance> = CharacterParser.parseCharacters(characters)
+            val characterList: List<CharacterAppearance> = CharacterParser.parseCharacters(characters)
 
-        for (character in characterList) {
-            val characterId = publisherId?.let {
-                when (character) {
-                    is Individual -> repository.upsertCharacter(character.name, character.alterEgo, it)
-                    is Team -> repository.upsertCharacter(character.name, null, it)
+            for (character in characterList) {
+                val characterId = when (character) {
+                    is Individual -> repository.upsertCharacter(character.name, character.alterEgo, publisherId)
+                    is Team -> repository.upsertCharacter(character.name, null, publisherId)
                 }
+
+                val appearance: Appearance? = characterId?.let {
+                    when (character) {
+                        is Individual -> Appearance(
+                            storyId = storyId,
+                            characterId = it,
+                            appearanceInfo = character.appearanceInfo,
+                            notes = null,
+                            membership = null
+                        )
+
+                        is Team -> Appearance(
+                            storyId = storyId,
+                            characterId = it,
+                            appearanceInfo = character.appearanceInfo,
+                            notes = null,
+                            membership = character.members
+                        )
+                    }
+                }
+
+                appearance?.let { repository.insertCharacterAppearance(it) }
             }
 
-            val appearance: Appearance? = characterId?.let {
-                when (character) {
-                    is Individual -> Appearance(
-                        storyId = storyId,
-                        characterId = it,
-                        appearanceInfo = character.appearanceInfo,
-                        notes = null,
-                        membership = null
-                    )
-
-                    is Team -> Appearance(
-                        storyId = storyId,
-                        characterId = it,
-                        appearanceInfo = character.appearanceInfo,
-                        notes = null,
-                        membership = character.members
-                    )
-                }
-            }
-
-            appearance?.let { repository.insertCharacterAppearance(it) }
+            return storyId
+        } catch (sqlEx: SQLException) {
+            logger.error("Error in extract and insert characters", sqlEx)
+            throw sqlEx
         }
-
-        return storyId
     }
 }

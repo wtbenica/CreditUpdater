@@ -1,8 +1,15 @@
 package dev.benica.converter
 
 import dev.benica.db.CreditRepository
+import mu.KLogger
+import mu.KotlinLogging
 import java.sql.Connection
 import java.sql.ResultSet
+import java.sql.SQLException
+import kotlin.jvm.Throws
+
+private val logger: KLogger
+    get() = KotlinLogging.logger { }
 
 /**
  * Credit extractor - creates linked credits from named credits
@@ -17,33 +24,39 @@ class CreditExtractor(database: String, conn: Connection) : Extractor(database, 
     private val repository = CreditRepository(database, conn)
 
     /**
-     * Extract - extracts named credits from [resultSet] and inserts story
-     * credits into the database.
+     * Extracts credits from the 'script', 'pencils', 'inks', 'colors',
+     * 'letters', and 'editing' text fields in a gcd_story and creates
+     * linked entries for them in the 'm_story_credit' table.
      *
-     * @param resultSet expecting a story result set
-     * @param destDatabase not used
+     * @param resultSet expecting a result set containing a story
      * @return the story id
+     * @throws SQLException
      */
+    @Throws(SQLException::class)
     override suspend fun extractAndInsert(
         resultSet: ResultSet,
-        destDatabase: String?
     ): Int {
-        val storyId = resultSet.getInt("id")
+        try {
+            val storyId = resultSet.getInt("id")
 
-        val scriptNames = resultSet.getString("script").split(';').filter { it.isNotBlank() }
-        val pencilsNames = resultSet.getString("pencils").split(';').filter { it.isNotBlank() }
-        val inksNames = resultSet.getString("inks").split(';').filter { it.isNotBlank() }
-        val colorsNames = resultSet.getString("colors").split(';').filter { it.isNotBlank() }
-        val lettersNames = resultSet.getString("letters").split(';').filter { it.isNotBlank() }
-        val editingNames = resultSet.getString("editing").split(';').filter { it.isNotBlank() }
+            val scriptNames = resultSet.getString("script").split(';').filter { it.isNotBlank() }
+            val pencilsNames = resultSet.getString("pencils").split(';').filter { it.isNotBlank() }
+            val inksNames = resultSet.getString("inks").split(';').filter { it.isNotBlank() }
+            val colorsNames = resultSet.getString("colors").split(';').filter { it.isNotBlank() }
+            val lettersNames = resultSet.getString("letters").split(';').filter { it.isNotBlank() }
+            val editingNames = resultSet.getString("editing").split(';').filter { it.isNotBlank() }
 
-        createCreditsForNames(scriptNames, storyId, 1)
-        createCreditsForNames(pencilsNames, storyId, 2)
-        createCreditsForNames(inksNames, storyId, 3)
-        createCreditsForNames(colorsNames, storyId, 4)
-        createCreditsForNames(lettersNames, storyId, 5)
-        createCreditsForNames(editingNames, storyId, 6)
-        return storyId
+            createCreditsForNames(scriptNames, storyId, 1)
+            createCreditsForNames(pencilsNames, storyId, 2)
+            createCreditsForNames(inksNames, storyId, 3)
+            createCreditsForNames(colorsNames, storyId, 4)
+            createCreditsForNames(lettersNames, storyId, 5)
+            createCreditsForNames(editingNames, storyId, 6)
+            return storyId
+        } catch (sqlEx: SQLException) {
+            logger.error("Error extracting credits from story: ${sqlEx.message}")
+            throw sqlEx
+        }
     }
 
     /**

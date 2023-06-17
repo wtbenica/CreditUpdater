@@ -1,10 +1,7 @@
-import com.beust.jcommander.ParameterException
 import dev.benica.cli_parser.CLIParser
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.io.ByteArrayOutputStream
-import java.io.PrintStream
 
 internal class MainKtTest {
     private lateinit var parser: CLIParser

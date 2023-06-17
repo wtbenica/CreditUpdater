@@ -1,4 +1,4 @@
-package dev.benica.doers
+package dev.benica.db_tasks
 
 import dev.benica.Credentials.Companion.ISSUE_SERIES_PATH
 import dev.benica.Credentials.Companion.TABLES_PATH
@@ -9,6 +9,8 @@ import dev.benica.Credentials.Companion.CREDITS_STORY_START_ID
 import dev.benica.Credentials.Companion.PRIMARY_DATABASE
 import dev.benica.Credentials.Companion.REMOVE_RECORDS_PATH
 import dev.benica.Credentials.Companion.PREP_REMOVE_RECORDS_PATH
+import kotlinx.coroutines.*
+import mu.KLogger
 import mu.KotlinLogging
 import java.sql.SQLException
 
@@ -27,9 +29,13 @@ import java.sql.SQLException
  * @param targetSchema The schema to update.
  * @param startAtStep The step to start at (1-4).
  */
-class DBInitializer(targetSchema: String? = null, private val startAtStep: Int) :
-    DatabaseTask(targetSchema = targetSchema ?: PRIMARY_DATABASE) {
-        private val logger = KotlinLogging.logger {}
+class DBInitializer(
+    targetSchema: String? = null,
+    private val startAtStep: Int,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+) :
+    DBTask(targetSchema = targetSchema ?: PRIMARY_DATABASE) {
+    private val logger: KLogger = KotlinLogging.logger {}
 
     /**
      * Prepare database - this is the main entry point for the
@@ -37,53 +43,55 @@ class DBInitializer(targetSchema: String? = null, private val startAtStep: Int) 
      * for preparing the database for the first time.
      *
      * @throws SQLException
-     * @see DatabaseTask
+     * @see DBTask
      */
     suspend fun prepareDb() {
-        runCatching {
-            logger.info { "Updating $targetSchema" }
-            // Delete the 'is_sourced' and 'sourced_by' columns from the gcd_story_credit table
-            dropIsSourcedAndSourcedByColumns()
+        withContext(ioDispatcher) {
+            try {
+                logger.info { "Updating $targetSchema" }
+                // Delete the 'is_sourced' and 'sourced_by' columns from the gcd_story_credit table
+                dropIsSourcedAndSourcedByColumns()
 
-            if (startAtStep == 1) {
-                logger.info { "Starting Database Updates..." }
-                addAndModifyTables()
-                removeUnnecessaryRecords()
-            }
+                if (startAtStep == 1) {
+                    logger.info { "Starting Database Updates..." }
+                    addAndModifyTables()
+                    removeUnnecessaryRecords()
+                }
 
-            val storyCount = database.getItemCount(
-                tableName = "$targetSchema.gcd_story"
-            )
-
-            if (startAtStep <= 2) {
-                extractCharactersAndAppearances(
-                    storyCount = storyCount,
-                    schema = targetSchema,
-                    lastIdCompleted = CHARACTER_STORY_START_ID,
-                    numComplete = NUM_CHARACTER_STORIES_COMPLETE,
-                    initial = true
+                val storyCount: Int = database.getItemCount(
+                    tableName = "$targetSchema.gcd_story"
                 )
-            }
 
-            if (startAtStep <= 3) {
-                extractCredits(
-                    storyCount = storyCount,
-                    sourceSchema = targetSchema,
-                    lastIdCompleted = CREDITS_STORY_START_ID,
-                    numComplete = NUM_CREDITS_STORIES_COMPLETE,
-                    initial = true
-                )
-            }
+                if (startAtStep <= 2) {
+                    extractCharactersAndAppearances(
+                        storyCount = storyCount,
+                        schema = targetSchema,
+                        lastIdCompleted = CHARACTER_STORY_START_ID,
+                        numComplete = NUM_CHARACTER_STORIES_COMPLETE,
+                        initial = true
+                    )
+                }
 
-            if (startAtStep <= 4) {
-                logger.info { "Starting FKey updates" }
-                assIssueSeriesColumnsAndConstraints()
+                if (startAtStep <= 3) {
+                    extractCredits(
+                        storyCount = storyCount,
+                        sourceSchema = targetSchema,
+                        lastIdCompleted = CREDITS_STORY_START_ID,
+                        numComplete = NUM_CREDITS_STORIES_COMPLETE,
+                        initial = true
+                    )
+                }
+
+                if (startAtStep <= 4) {
+                    logger.info { "Starting FKey updates" }
+                    assIssueSeriesColumnsAndConstraints()
+                }
+
+                logger.info { "Successfully updated $targetSchema" }
+            } catch (e: SQLException) {
+                logger.error { "Failed to update $targetSchema" }
+                throw e
             }
-        }.onFailure {
-            logger.error { "Failed to update $targetSchema" }
-            throw it
-        }.onSuccess {
-            logger.info { "Successfully updated $targetSchema" }
         }
     }
 

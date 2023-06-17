@@ -1,4 +1,4 @@
-package dev.benica.doers
+package dev.benica.db_tasks
 
 import dev.benica.converter.CharacterExtractor
 import dev.benica.converter.CreditExtractor
@@ -12,12 +12,12 @@ import java.sql.Connection
  * @constructor Create empty dev.benica.CreditUpdater.Doer
  * @property targetSchema The schema to use.
  */
-abstract class DatabaseTask(protected val targetSchema: String) {
+abstract class DBTask(protected val targetSchema: String) {
     private val databaseComponent = DaggerDatabaseComponent.create()
     protected val database = DatabaseUtil(targetSchema, databaseComponent)
 
     /** The connection to [targetSchema]. */
-    protected val databaseConnection: Connection?
+    private val databaseConnection: Connection?
         get() = database.getConnection()
 
     /**
@@ -41,7 +41,7 @@ abstract class DatabaseTask(protected val targetSchema: String) {
          * Script sql - an sql snippet to get the writer, penciller, inker,
          * colorist, letterer, and editor from the database.
          */
-        val scriptSql = if (initial) {
+        val selectStoriesQuery = if (initial) {
             """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
                 FROM ${sourceSchema}.gcd_story g
                 where g.id > $lastIdCompleted
@@ -54,8 +54,8 @@ abstract class DatabaseTask(protected val targetSchema: String) {
         }
 
         databaseConnection?.let {
-            database.updateItems(
-                getItems = scriptSql,
+            database.extractAndInsertItems(
+                selectItemsQuery = selectStoriesQuery,
                 startingComplete = numComplete,
                 totalItems = storyCount,
                 extractor = CreditExtractor(sourceSchema, it),
@@ -73,7 +73,7 @@ abstract class DatabaseTask(protected val targetSchema: String) {
      * @param numComplete The number of items that have been completed.
      */
     suspend fun extractCharactersAndAppearances(
-        storyCount: Int?,
+        storyCount: Int,
         schema: String,
         lastIdCompleted: Long,
         numComplete: Long,
@@ -85,9 +85,11 @@ abstract class DatabaseTask(protected val targetSchema: String) {
          * Script sql - a snippet that extracts characters and creates appearances
          * for them
          */
-        val scriptSql = if (initial) {
-            """SELECT g.id, g.characters
+        val selectStoriesQuery = if (initial) {
+            """SELECT g.id, g.characters, gs.publisher_id
                 FROM $schema.gcd_story g
+                JOIN $schema.gcd_issue gi on gi.id = g.issue_id
+                JOIN $schema.gcd_series gs on gs.id = gi.series_id
                 where g.id > $lastIdCompleted
                 ORDER BY g.id """
         } else {
@@ -98,8 +100,8 @@ abstract class DatabaseTask(protected val targetSchema: String) {
         }
 
         databaseConnection?.let {
-            database.updateItems(
-                getItems = scriptSql,
+            database.extractAndInsertItems(
+                selectItemsQuery = selectStoriesQuery,
                 startingComplete = numComplete,
                 totalItems = storyCount,
                 extractor = CharacterExtractor(schema, it),
