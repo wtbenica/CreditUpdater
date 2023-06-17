@@ -13,10 +13,10 @@ class Credentials {
         const val INCOMING_DATABASE = "gcdb_temp"
 
         // dev.benica.CreditUpdater.PrimaryDatabaseInitializer
-        const val CHARACTER_STORY_START_ID: Long = 128659
-        const val NUM_CHARACTER_STORIES_COMPLETE: Long = 108709
-        const val CREDITS_STORY_START_ID: Long = 0
-        const val NUM_CREDITS_STORIES_COMPLETE: Long = 0
+        const val CHARACTER_STORY_START_ID: Long = 710182
+        const val NUM_CHARACTER_STORIES_COMPLETE: Long = 527261
+        const val CREDITS_STORY_START_ID: Long = 1029091
+        const val NUM_CREDITS_STORIES_COMPLETE: Long = 764498
 
         // MIGRATE
         const val CREDITS_STORY_START_NEW: Long = 0

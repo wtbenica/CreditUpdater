@@ -47,11 +47,9 @@ abstract class Extractor(
      * inserts them into the database.
      *
      * @param resultSet The result set to extract from.
-     * @param destDatabase The destination database.
      * @return the id of the story from which items were extracted.
      */
     abstract suspend fun extractAndInsert(
         resultSet: ResultSet,
-        destDatabase: String? = null
     ): Int
 }

@@ -18,11 +18,6 @@ class TerminalUtil {
             override fun toString(): String = "$escapeCode$value"
         }
 
-        /** Clear terminal - clears the terminal. */
-        fun clearTerminal() {
-            println(CursorMovement.CLEAR.toString())
-        }
-
         /**
          * Up n lines - move the cursor up n lines and to the start of the line.
          *

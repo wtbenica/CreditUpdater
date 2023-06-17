@@ -1,4 +1,4 @@
-package dev.benica.doers
+package dev.benica.db_tasks
 
 import dev.benica.Credentials.Companion.CHARACTER_STORIES_COMPLETE_NEW
 import dev.benica.Credentials.Companion.CHARACTER_STORY_START_NEW
@@ -6,7 +6,10 @@ import dev.benica.Credentials.Companion.CREDITS_STORIES_COMPLETE_NEW
 import dev.benica.Credentials.Companion.CREDITS_STORY_START_NEW
 import dev.benica.Credentials.Companion.INCOMING_DATABASE
 import dev.benica.Credentials.Companion.PRIMARY_DATABASE
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.sql.SQLException
 
 /**
  * dev.benica.CreditUpdater.Migrator - migrates the data from the old
@@ -14,49 +17,52 @@ import kotlinx.coroutines.coroutineScope
  *
  * @constructor Create empty dev.benica.CreditUpdater.Migrator
  */
-class DBMigrator : DatabaseTask(INCOMING_DATABASE) {
+class DBMigrator(private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO) : DBTask(INCOMING_DATABASE) {
     /** Migrate - migrates the data from the old database to the new database. */
     suspend fun migrate() {
-        coroutineScope {
-            println("Migrating to $PRIMARY_DATABASE from $targetSchema")
+        withContext(ioDispatcher) {
+            try {
+                println("Migrating to $PRIMARY_DATABASE from $targetSchema")
 
-            println("starting tables...")
-            addTablesNew()
+                println("starting tables...")
+                addTablesNew()
 
-            val storyCount = database.getItemCount(
-                tableName = "$targetSchema.stories_to_migrate",
-            )
+                val storyCount = database.getItemCount(
+                    tableName = "$targetSchema.stories_to_migrate",
+                )
 
-            extractCharactersAndAppearances(
-                storyCount = storyCount,
-                schema = targetSchema,
-                lastIdCompleted = CHARACTER_STORY_START_NEW,
-                numComplete = CHARACTER_STORIES_COMPLETE_NEW,
-                initial = false
-            )
+                extractCharactersAndAppearances(
+                    storyCount = storyCount,
+                    schema = targetSchema,
+                    lastIdCompleted = CHARACTER_STORY_START_NEW,
+                    numComplete = CHARACTER_STORIES_COMPLETE_NEW,
+                    initial = false
+                )
 
-            println("Done extracting characters.")
+                println("Done extracting characters.")
 
-            extractCredits(
-                storyCount,
-                targetSchema,
-                CREDITS_STORY_START_NEW,
-                CREDITS_STORIES_COMPLETE_NEW,
-                false
-            )
+                extractCredits(
+                    storyCount,
+                    targetSchema,
+                    CREDITS_STORY_START_NEW,
+                    CREDITS_STORIES_COMPLETE_NEW,
+                    false
+                )
 
-            addIssueSeriesToCreditsNew()
-            println("Done updating credits")
+                addIssueSeriesToCreditsNew()
+                println("Done updating credits")
 
-            println("Starting migration")
-            migrateRecords()
+                println("Starting migration")
+                migrateRecords()
+            } catch (sqlEx: SQLException) {
+                println("Error migrating records: ${sqlEx.message}")
+                sqlEx.printStackTrace()
+            }
         }
     }
 
     /**
      * Migrate records - migrates the records from the old database to the new
-     *
-     * @param newDbConn The connection to the new database.
      */
     private fun migrateRecords() {
         database.runSqlScript(MIGRATE_PATH_NEW)
@@ -64,8 +70,6 @@ class DBMigrator : DatabaseTask(INCOMING_DATABASE) {
 
     /**
      * Add tables new - adds tables to the new database.
-     *
-     * @param connection The connection to the new database.
      */
     internal fun addTablesNew() =
         database.runSqlScript(ADD_MODIFY_TABLES_PATH_NEW)
@@ -73,8 +77,6 @@ class DBMigrator : DatabaseTask(INCOMING_DATABASE) {
     /**
      * Add issue series to credits new - adds the issue_id and series_id
      * columns
-     *
-     * @param connection The connection to the new database.
      */
     internal fun addIssueSeriesToCreditsNew() =
         database.runSqlScript(ADD_ISSUE_SERIES_TO_CREDITS_PATH_NEW)

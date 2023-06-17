@@ -13,7 +13,7 @@ import java.sql.Connection
 import javax.inject.Singleton
 
 @Module
-class DatabaseModule() {
+class DatabaseModule {
     @Provides
     @Singleton
     fun provideConnectionSource(): ConnectionSource {

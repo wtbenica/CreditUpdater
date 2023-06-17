@@ -14,7 +14,7 @@ class CLIParser {
     var help: Boolean = false
 
     @Parameter(
-        names = ["-q", "--quiet"], description = "Only warnings and errors will be logged.",)
+        names = ["-q", "--quiet"], description = "Only warnings and errors will be logged",)
         var quiet: Boolean = false
 
     @Parameter(

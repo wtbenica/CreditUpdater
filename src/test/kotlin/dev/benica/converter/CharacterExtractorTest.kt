@@ -3,7 +3,6 @@ package dev.benica.converter
 import dev.benica.converter.*
 import dev.benica.converter.CharacterExtractor.*
 import kotlinx.coroutines.runBlocking
-import mu.KLogger
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -14,14 +13,12 @@ import java.sql.ResultSet
 class CharacterExtractorTest {
     private val database: String = "gcdb"
     private val conn: Connection = mock(Connection::class.java)
-    private val logger: KLogger = mock(KLogger::class.java)
     private val characterExtractor: CharacterExtractor = CharacterExtractor(database, conn)
 
     @Test
     @DisplayName("Should handle empty character list in the ResultSet")
     fun handleEmptyCharacterListInResultSet() {
         val resultSet: ResultSet = mock(ResultSet::class.java)
-        val destDatabase: String? = null
         val expectedStoryId = 1234
 
         `when`(resultSet.next()).thenReturn(false)
@@ -30,7 +27,7 @@ class CharacterExtractorTest {
         `when`(resultSet.getInt("publisherId")).thenReturn(5)
 
         runBlocking {
-            val result = characterExtractor.extractAndInsert(resultSet, destDatabase)
+            val result = characterExtractor.extractAndInsert(resultSet)
 
             assertEquals(expectedStoryId, result)
         }
@@ -40,7 +37,6 @@ class CharacterExtractorTest {
     @DisplayName("Should return the storyId after extracting characters from the ResultSet")
     fun returnStoryIdAfterExtractingCharacters() {
         val resultSet: ResultSet = mock(ResultSet::class.java)
-        val destDatabase: String? = null
         val expectedStoryId = 1234
 
         `when`(resultSet.next()).thenReturn(true, false)
@@ -49,7 +45,7 @@ class CharacterExtractorTest {
         `when`(resultSet.getInt("publisherId")).thenReturn(5)
 
         runBlocking {
-            val actualStoryId: Int = characterExtractor.extractAndInsert(resultSet, destDatabase)
+            val actualStoryId: Int = characterExtractor.extractAndInsert(resultSet)
 
             assertEquals(expectedStoryId, actualStoryId)
         }

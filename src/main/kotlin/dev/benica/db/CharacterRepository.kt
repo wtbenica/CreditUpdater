@@ -130,9 +130,7 @@ class CharacterRepository(private val database: String, private val conn: Connec
      * @param name character name
      * @param alterEgo character alter ego
      * @param publisherId publisher id
-     * @param checkPrimary whether or not to check [PRIMARY_DATABASE] first
-     * @param database database to check
-     * @param conn connection to use
+     * @param checkPrimary whether to check [PRIMARY_DATABASE] first
      * @return character id if found, null otherwise
      */
     private fun lookupCharacter(
@@ -184,41 +182,6 @@ class CharacterRepository(private val database: String, private val conn: Connec
             logger.error("Error looking up character", sqlEx)
         }
         return characterId
-    }
-
-    /**
-     * Get publisher id - gets publisher id for [storyId] from [conn]
-     *
-     * @return publisher id if found, null otherwise
-     */
-    internal fun getPublisherId(storyId: Int): Int? {
-        var publisherId: Int? = null
-
-        try {
-            val getPublisherSql = """
-               SELECT gs.publisher_id
-               FROM gcd_series gs
-               JOIN gcd_issue gi ON gs.id = gi.series_id
-               JOIN gcd_story g ON gi.id = g.issue_id
-               WHERE g.id = ?
-            """
-
-            conn.prepareStatement(getPublisherSql).use { statement ->
-                statement?.setInt(1, storyId)
-
-                statement?.executeQuery().use { resultSet ->
-                    if (resultSet?.next() == true) {
-                        publisherId = resultSet.getInt("publisher_id")
-                    }
-                }
-            }
-        } catch (sqlEx: SQLException) {
-            sqlEx.printStackTrace()
-        } catch (e: java.lang.Exception) {
-            e.printStackTrace()
-        }
-
-        return publisherId
     }
 
 }

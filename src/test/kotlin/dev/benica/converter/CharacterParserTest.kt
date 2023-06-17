@@ -3,12 +3,8 @@ package dev.benica.converter
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito.mock
-import java.sql.Connection
 
 class CharacterParserTest {
-    private val database: String = "gcdb"
-    private val conn: Connection = mock(Connection::class.java)
 
     @Test
     @DisplayName("splitString should split the given string into a list of strings")
@@ -39,7 +35,6 @@ class CharacterParserTest {
     @Test
     @DisplayName("splitString should handle the case when the character is a team with a membership list")
     fun splitStringShouldHandleATeamWithMembershipList() {
-        val characterExtractor = CharacterExtractor(database, conn)
         val character = "Justice League [Batman [Bruce Wayne]; Superman [Clark Kent], Martian Manhunter [J'onn J'onzz]]"
         val expectedList = listOf(
             "Justice League",
@@ -72,7 +67,6 @@ class CharacterParserTest {
     @Test
     @DisplayName("parseCharacters should handle the case when one of the characters is a Team")
     fun parseCharactersShouldHandleTheCaseWhenOneOfTheCharactersIsATeam() {
-        val characterExtractor = CharacterExtractor(database, conn)
         val characters =
             "Batman [Bruce Wayne] (cameo); Justice League of America [Superman [Clark Kent]; Batman [Bruce Wayne]; " +
                     "Princess Diana [Wonder Woman];] (cameo)"
@@ -94,7 +88,6 @@ class CharacterParserTest {
     @Test
     @DisplayName("parseCharacters should handle the case when one of the characters is a Team")
     fun parseCharactersShouldHandleTheCaseWhenOneOfTheCharactersIsATeamMalformed() {
-        val characterExtractor = CharacterExtractor(database, conn)
         val characters =
             "Batman [Bruce Wayne] (cameo); Justice Society of America [Superman [Clark Kent; Kal-L (cameo)]; Wonder " +
                     "Woman [Diana Prince Trevor]; Red Tornado [John Smith]; Wildcat [Ted Grant]; Hourman [Rex " +
@@ -122,7 +115,6 @@ class CharacterParserTest {
     @Test
     @DisplayName("parseCharacters should handle the case where there are parentheses inside the square brackets")
     fun parseCharactersShouldHandleTheCaseWhereThereAreParenthesesInsideTheSquareBrackets() {
-        val characterExtractor = CharacterExtractor(database, conn)
         val characters = "Buster Brown [Major Ray (Major William Ray)] (cameo)"
         val expectedList = listOf(
             Individual(name = "Buster Brown", alterEgo = "Major Ray (Major William Ray)", appearanceInfo = "cameo")
@@ -136,7 +128,6 @@ class CharacterParserTest {
     @Test
     @DisplayName("splitOnOuterSemicolons handles string with unmatched brackets")
     fun splitOnOuter() {
-        val characterExtractor = CharacterExtractor(database, conn)
         val string =
             "Captain America [Steve Rogers]]; Wasp [Janet Van Dyne]; Cyclops; Spider-Woman [Julia Carpenter]; Wolverine [Logan]; Rogue; Absorbing Man; Titania; Volcana; Dr. Octopus; She-Hulk [Jennifer Walters]"
         val expectedResult: List<String> = listOf(
@@ -161,7 +152,6 @@ class CharacterParserTest {
     @Test
     @DisplayName("splitOnOuterSemicolons handles semicolons inside brackets")
     fun splitOnOuterSemicolonsHandlesSemicolonsInsideBrackets() {
-        val characterExtractor = CharacterExtractor(database, conn)
         val string =
             "Justice League [Batman; Superman; Martian Manhunter [J'onn J'onnz]]; Despero (villain); Starro (villain);"
         val expectedResult: List<String> = listOf(
@@ -178,7 +168,6 @@ class CharacterParserTest {
     @Test
     @DisplayName("parseCharacters handles characters with semicolons inside brackets")
     fun `parseCharacters$CreditUpdater`() {
-        val characterExtractor = CharacterExtractor(database, conn)
         val characters =
             "Justice League [Batman; Superman; Martian Manhunter [J'onn J'onnz]]; Despero (villain); Starro (villain);"
         val expectedList = listOf(
@@ -192,7 +181,7 @@ class CharacterParserTest {
         )
 
         val actualList: List<CharacterAppearance> = CharacterParser.parseCharacters(characters)
-        println("${actualList.get(0).let { it::class.simpleName }} | $expectedList")
+        println("${actualList[0].let { it::class.simpleName }} | $expectedList")
         Assertions.assertEquals(expectedList[0], actualList[0])
         Assertions.assertEquals(expectedList[1], actualList[1])
         Assertions.assertEquals(expectedList[2], actualList[2])
@@ -201,7 +190,6 @@ class CharacterParserTest {
     @Test
     @DisplayName("fixMissingBrackets should handle malformed characterString")
     fun fixMissingBracketsShouldHandleMalformedCharacterString() {
-        val characterExtractor = CharacterExtractor(database, conn)
         val characterString =
             """Batman [Bruce Wayne] (cameo); Justice Society of America [Superman [Clark Kent; Kal-L (cameo); Wonder 
                 |Woman [Diana Prince Trevor]; Red Tornado [John Smith]; Wildcat [Ted Grant]; Hourman [Rex Tyler]; 
@@ -226,7 +214,6 @@ class CharacterParserTest {
     @Test
     @DisplayName("parseBracketedText handles the a team")
     fun `parseBracketedText$CreditUpdater`() {
-        val characterExtractor = CharacterExtractor(database, conn)
         val string = "Batman; Superman; Martian Manhunter [J'onn J'onnz]"
         val expectedResult: Pair<String?, String?> = Pair(null, "Batman; Superman; Martian Manhunter [J'onn J'onnz]")
 
@@ -238,7 +225,6 @@ class CharacterParserTest {
     @Test
     @DisplayName("splitOnOuterSemicolons handles string with a team")
     fun `splitOnOuterSemicolons$CreditUpdater`() {
-        val characterExtractor = CharacterExtractor(database, conn)
         val string =
             "Justice League [Batman; Superman; Martian Manhunter [J'onn J'onnz]]; Despero (villain); Starro (villain);"
         val expectedResult: List<String> = listOf(

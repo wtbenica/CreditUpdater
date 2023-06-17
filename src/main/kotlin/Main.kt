@@ -1,7 +1,7 @@
 import ch.qos.logback.classic.Level
 import dev.benica.cli_parser.CLIParser
-import dev.benica.doers.DBInitializer
-import dev.benica.doers.DBMigrator
+import dev.benica.db_tasks.DBInitializer
+import dev.benica.db_tasks.DBMigrator
 import kotlinx.coroutines.runBlocking
 import mu.KLogger
 import mu.KotlinLogging
