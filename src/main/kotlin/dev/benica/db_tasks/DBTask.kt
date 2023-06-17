@@ -7,8 +7,6 @@ import dev.benica.di.DaggerDatabaseComponent
 import java.sql.Connection
 
 /**
- *
- *
  * @constructor Create empty dev.benica.CreditUpdater.Doer
  * @property targetSchema The schema to use.
  */
@@ -82,22 +80,21 @@ abstract class DBTask(protected val targetSchema: String) {
         println("Starting Characters...")
 
         /**
+         * The table to use.
+         */
+        val table = if (initial) "gcd_story" else "stories_to_migrate"
+
+        /**
          * Script sql - a snippet that extracts characters and creates appearances
          * for them
          */
-        val selectStoriesQuery = if (initial) {
+        val selectStoriesQuery =
             """SELECT g.id, g.characters, gs.publisher_id
-                FROM $schema.gcd_story g
+                FROM $schema.$table g
                 JOIN $schema.gcd_issue gi on gi.id = g.issue_id
                 JOIN $schema.gcd_series gs on gs.id = gi.series_id
                 where g.id > $lastIdCompleted
                 ORDER BY g.id """
-        } else {
-            """SELECT g.id, g.characters
-                FROM $schema.stories_to_migrate g
-                WHERE g.id > $lastIdCompleted
-                ORDER BY g.id """
-        }
 
         databaseConnection?.let {
             database.extractAndInsertItems(
