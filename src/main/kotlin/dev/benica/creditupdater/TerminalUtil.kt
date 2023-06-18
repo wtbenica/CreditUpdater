@@ -9,7 +9,11 @@ package dev.benica.creditupdater
 class TerminalUtil {
     companion object {
         enum class CursorMovement(private val value: String) {
-            UP("[1A"), LINE_START("[9D"), CLEAR("[2J");
+            UP("[1A"), LINE_START("[9D"), CLEAR("[2J"), CLEAR_LINE("[2K");
+
+            fun moveCursor() {
+                print(toString())
+            }
 
             private val escapeCode = "\u001B"
             override fun toString(): String = "$escapeCode$value"
@@ -21,10 +25,11 @@ class TerminalUtil {
          * @param n the number of lines to move up
          */
         fun upNLines(n: Int) {
+            CursorMovement.CLEAR_LINE.moveCursor()
             for (i in 1..n) {
-                print(CursorMovement.UP.toString())
+                CursorMovement.UP.moveCursor()
             }
-            print(CursorMovement.LINE_START.toString())
+            CursorMovement.LINE_START.moveCursor()
         }
 
         /**

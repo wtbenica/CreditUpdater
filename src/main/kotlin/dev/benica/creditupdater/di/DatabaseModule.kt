@@ -10,14 +10,21 @@ import dev.benica.creditupdater.Credentials.Companion.PASSWORD_INITIALIZER
 import dev.benica.creditupdater.Credentials.Companion.USERNAME_INITIALIZER
 import dev.benica.creditupdater.db.ConnectionSource
 import dev.benica.creditupdater.db.DatabaseUtil
+import dev.benica.creditupdater.db.SqlQueryExecutor
+import mu.KLogger
+import mu.KotlinLogging
 import java.sql.Connection
 import javax.inject.Singleton
 
 @Module
 class DatabaseModule {
+    private val logger: KLogger
+        get() = KotlinLogging.logger(this::class.java.simpleName)
+
     @Provides
     @Singleton
     fun provideConnectionSource(): ConnectionSource {
+        logger.info { "Creating connection source." }
         return object : ConnectionSource() {
             override fun getConnection(database: String): Connection {
                 return HikariDataSource(
@@ -39,7 +46,8 @@ class DatabaseModule {
 
 @Component(modules = [DatabaseModule::class])
 @Singleton
-fun interface DatabaseComponent {
-    fun inject(databaseUtil: DatabaseUtil)
+interface DatabaseComponent {
+    fun inject(dbUtil: DatabaseUtil)
+    fun inject(dbUtil: SqlQueryExecutor)
 }
 

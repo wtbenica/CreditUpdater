@@ -6,6 +6,7 @@ import dev.benica.creditupdater.db_tasks.DBInitializer
 import dev.benica.creditupdater.db_tasks.DBMigrator
 import dev.benica.creditupdater.di.DaggerDispatchersComponent
 import dev.benica.creditupdater.di.DispatchersComponent
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import mu.KLogger
@@ -15,7 +16,7 @@ import org.slf4j.LoggerFactory
 
 fun main(args: Array<String>) {
     val dispatchersComponent: DispatchersComponent = DaggerDispatchersComponent.create()
-    val dispatcher = dispatchersComponent.provideIODispatcher()
+    val dispatcher: CoroutineDispatcher = dispatchersComponent.provideIODispatcher()
 
     val logger: KLogger = KotlinLogging.logger("Main")
 
@@ -33,14 +34,14 @@ fun main(args: Array<String>) {
 
                 parsedArgs.prepare != null && parsedArgs.migrate != null -> {
                     withContext(dispatcher) {
-                        DBInitializer(parsedArgs.prepare, parsedArgs.step).prepareDb()
+                        DBInitializer(parsedArgs.prepare!!, parsedArgs.step).prepareDb()
                         DBMigrator().migrate()
                     }
                 }
 
                 parsedArgs.prepare != null -> {
                     withContext(dispatcher) {
-                        DBInitializer(parsedArgs.prepare, parsedArgs.step).prepareDb()
+                        DBInitializer(parsedArgs.prepare!!, parsedArgs.step).prepareDb()
                     }
                 }
 

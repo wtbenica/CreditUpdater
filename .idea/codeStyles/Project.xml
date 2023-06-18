@@ -10,6 +10,7 @@
     </SqlCodeStyleSettings>
     <codeStyleSettings language="kotlin">
       <option name="CODE_STYLE_DEFAULTS" value="KOTLIN_OFFICIAL" />
+      <option name="LINE_COMMENT_AT_FIRST_COLUMN" value="false" />
     </codeStyleSettings>
   </code_scheme>
 </component>

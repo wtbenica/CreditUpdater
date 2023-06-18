@@ -1,7 +1,6 @@
 package dev.benica.creditupdater.db
 
-import dev.benica.creditupdater.Credentials.Companion.DEFAULT_BATCH_SIZE
-import dev.benica.creditupdater.converter.Extractor
+import dev.benica.creditupdater.di.DaggerDatabaseComponent
 import dev.benica.creditupdater.di.DatabaseComponent
 import kotlinx.coroutines.*
 import mu.KLogger
@@ -12,23 +11,25 @@ import javax.inject.Inject
 /**
  * Database util - utility functions for the database.
  *
- * @param database the database to connect to
+ * @param targetSchema the database to connect to
  * @constructor Create empty Database util
  */
 class DatabaseUtil(
-    private val database: String,
-    databaseComponent: DatabaseComponent,
+    private val targetSchema: String,
+    databaseComponent: DatabaseComponent = DaggerDatabaseComponent.create(),
 ) {
-    private val logger: KLogger
-        get() = KotlinLogging.logger (this::class.java.simpleName)
-
-    @Inject
-    internal lateinit var connectionSource: ConnectionSource
-
     init {
         databaseComponent.inject(this)
     }
 
+    @Inject
+    internal lateinit var connectionSource: ConnectionSource
+    // Properties
+
+    private val logger: KLogger
+        get() = KotlinLogging.logger(this::class.java.simpleName)
+
+    // Public Methods
     /**
      * Get connection - gets a connection to the database.
      *
@@ -36,7 +37,7 @@ class DatabaseUtil(
      */
     fun getConnection(): Connection? =
         try {
-            connectionSource.getConnection(database)
+            connectionSource.getConnection(targetSchema)
         } catch (sqlEx: SQLException) {
             logger.error("Error getting connection", sqlEx)
             null
@@ -62,7 +63,7 @@ class DatabaseUtil(
         sqlScriptPath: String,
         runAsTransaction: Boolean = false
     ) {
-        SqlQueryExecutor(connectionSource, database).executeSqlScript(sqlScriptPath, runAsTransaction)
+        SqlQueryExecutor(targetSchema).executeSqlScript(sqlScriptPath, runAsTransaction)
     }
 
     /**
@@ -75,56 +76,8 @@ class DatabaseUtil(
     @Throws(SQLException::class)
     fun executeSqlStatement(
         sqlStmt: String,
-        stmt: Statement = connectionSource.getConnection(database).createStatement()
+        stmt: Statement = connectionSource.getConnection(targetSchema).createStatement()
     ) {
-        SqlQueryExecutor(connectionSource, database).executeSqlStatement(sqlStmt, stmt)
-    }
-
-    /**
-     * Get item count - gets the number of items in a table.
-     *
-     * @param tableName the table name
-     * @param condition the condition
-     * @return the item count
-     * @throws SQLException if an error occurs
-     */
-    @Throws(SQLException::class)
-    fun getItemCount(
-        tableName: String,
-        condition: String? = null
-    ): Int = SqlQueryExecutor(connectionSource, database).getItemCount(tableName, condition)
-
-    /**
-     * Updates items in the database using the given SQL query to retrieve the
-     * items.
-     *
-     * @param selectItemsQuery the SQL query to retrieve the items
-     * @param startingComplete the starting number of completed items
-     * @param totalItems the total number of items to update, or null if
-     *     unknown
-     * @param extractor the extractor to use to extract the items from the
-     *     result set
-     * @param batchSize the batch size to use
-     * @throws SQLException if an error occurs
-     */
-    @Throws(SQLException::class)
-    suspend fun extractAndInsertItems(
-        selectItemsQuery: String,
-        startingComplete: Long,
-        totalItems: Int?,
-        extractor: Extractor,
-        batchSize: Int = DEFAULT_BATCH_SIZE,
-        ioDispatcher: CoroutineDispatcher = Dispatchers.IO
-    ) {
-        withContext(ioDispatcher) {
-            DBUpdateMonitor(connectionSource, database).extractAndInsertItems(
-                selectItemsQuery = selectItemsQuery,
-                startingComplete = startingComplete,
-                totalItems = totalItems,
-                extractor = extractor,
-                batchSize = batchSize
-            )
-        }
+        SqlQueryExecutor(targetSchema).executeSqlStatement(sqlStmt, stmt)
     }
 }
-
