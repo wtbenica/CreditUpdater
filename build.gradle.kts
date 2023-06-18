@@ -17,8 +17,9 @@ repositories {
 
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.10")
-    implementation("com.google.dagger:dagger:2.46.1")
     implementation("com.beust:jcommander:1.82")
+    implementation("com.google.dagger:dagger:2.46.1")
+    implementation("com.google.code.gson:gson:2.8.9")
     implementation("com.zaxxer:HikariCP:5.0.1")
     implementation("io.github.microutils:kotlin-logging:3.0.5")
     implementation("ch.qos.logback:logback-classic:1.4.7")

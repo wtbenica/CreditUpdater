@@ -2,17 +2,18 @@ package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.Credentials.Companion.ISSUE_SERIES_PATH
 import dev.benica.creditupdater.Credentials.Companion.TABLES_PATH
-import dev.benica.creditupdater.Credentials.Companion.NUM_CHARACTER_STORIES_COMPLETE
-import dev.benica.creditupdater.Credentials.Companion.CHARACTER_STORY_START_ID
-import dev.benica.creditupdater.Credentials.Companion.NUM_CREDITS_STORIES_COMPLETE
-import dev.benica.creditupdater.Credentials.Companion.CREDITS_STORY_START_ID
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
 import dev.benica.creditupdater.Credentials.Companion.REMOVE_RECORDS_PATH
 import dev.benica.creditupdater.Credentials.Companion.PREP_REMOVE_RECORDS_PATH
+import dev.benica.creditupdater.db.ConnectionSource
+import dev.benica.creditupdater.di.DaggerDatabaseWorkerComponent
+import dev.benica.creditupdater.di.DatabaseWorkerComponent
 import kotlinx.coroutines.*
 import mu.KLogger
 import mu.KotlinLogging
 import java.sql.SQLException
+import javax.inject.Inject
+import javax.inject.Named
 
 /**
  * Prepares an initial database installation from a gcd dump.
@@ -30,13 +31,25 @@ import java.sql.SQLException
  * @param startAtStep The step to start at (1-4).
  */
 class DBInitializer(
-    targetSchema: String? = null,
+    private val targetSchema: String = PRIMARY_DATABASE,
     private val startAtStep: Int,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
-) :
-    DBTask(targetSchema = targetSchema ?: PRIMARY_DATABASE) {
+    databaseWorkerComponent: DatabaseWorkerComponent = DaggerDatabaseWorkerComponent.create(),
+) {
+    init {
+        databaseWorkerComponent.inject(this)
+    }
+
     private val logger: KLogger
         get() = KotlinLogging.logger(this::class.java.simpleName)
+
+    private val dbTask: DBTask = DBTask(targetSchema)
+
+    @Inject
+    @Named("IO")
+    internal lateinit var ioDispatcher: CoroutineDispatcher
+
+    @Inject
+    internal lateinit var connectionSource: ConnectionSource
 
     /**
      * Prepare database - this is the main entry point for the
@@ -51,7 +64,6 @@ class DBInitializer(
         withContext(ioDispatcher) {
             try {
                 logger.info { "Updating $targetSchema" }
-                // Delete the 'is_sourced' and 'sourced_by' columns from the gcd_story_credit table
                 dropIsSourcedAndSourcedByColumns()
 
                 if (startAtStep == 1) {
@@ -60,26 +72,16 @@ class DBInitializer(
                     removeUnnecessaryRecords()
                 }
 
-                val storyCount: Int = database.getItemCount(
-                    tableName = "$targetSchema.gcd_story"
-                )
-
                 if (startAtStep <= 2) {
-                    extractCharactersAndAppearances(
-                        storyCount = storyCount,
+                    dbTask.extractCharactersAndAppearances(
                         schema = targetSchema,
-                        lastIdCompleted = CHARACTER_STORY_START_ID,
-                        numComplete = NUM_CHARACTER_STORIES_COMPLETE,
                         initial = true
                     )
                 }
 
                 if (startAtStep <= 3) {
-                    extractCredits(
-                        storyCount = storyCount,
+                    dbTask.extractCredits(
                         sourceSchema = targetSchema,
-                        lastIdCompleted = CREDITS_STORY_START_ID,
-                        numComplete = NUM_CREDITS_STORIES_COMPLETE,
                         initial = true
                     )
                 }
@@ -105,7 +107,7 @@ class DBInitializer(
      */
     @Throws(SQLException::class)
     private fun dropIsSourcedAndSourcedByColumns() {
-        database.executeSqlStatement(
+        dbTask.executeSqlStatement(
             """
                     ALTER TABLE $targetSchema.gcd_story_credit
                     DROP COLUMN IF EXISTS is_sourced,
@@ -123,7 +125,7 @@ class DBInitializer(
      * @throws SQLException
      */
     @Throws(SQLException::class)
-    private fun addAndModifyTables() = database.runSqlScript(sqlScriptPath = TABLES_PATH)
+    private fun addAndModifyTables() = dbTask.runSqlScript(sqlScriptPath = TABLES_PATH)
 
     /**
      * Shrink database - this function shrinks the database by removing a bunch
@@ -134,8 +136,8 @@ class DBInitializer(
      */
     @Throws(SQLException::class)
     private fun removeUnnecessaryRecords() {
-        database.runSqlScript(sqlScriptPath = PREP_REMOVE_RECORDS_PATH)
-        database.runSqlScript(sqlScriptPath = REMOVE_RECORDS_PATH)
+        dbTask.runSqlScript(sqlScriptPath = PREP_REMOVE_RECORDS_PATH)
+        dbTask.runSqlScript(sqlScriptPath = REMOVE_RECORDS_PATH)
     }
 
     /**
@@ -149,7 +151,7 @@ class DBInitializer(
      */
     @Throws(SQLException::class)
     private fun addIssueSeriesColumnsAndConstraints() =
-        database.runSqlScript(sqlScriptPath = ISSUE_SERIES_PATH, runAsTransaction = true)
+        dbTask.runSqlScript(sqlScriptPath = ISSUE_SERIES_PATH, runAsTransaction = true)
 
 }
 

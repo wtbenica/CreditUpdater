@@ -1,15 +1,24 @@
 package dev.benica.creditupdater.db
 
+import dev.benica.creditupdater.di.DaggerDatabaseComponent
+import dev.benica.creditupdater.di.DatabaseComponent
 import mu.KLogger
 import mu.KotlinLogging
 import java.io.File
 import java.sql.SQLException
 import java.sql.Statement
+import javax.inject.Inject
 
 class SqlQueryExecutor(
-    private val connectionSource: ConnectionSource,
     private val database: String,
+    databseComponent: DatabaseComponent = DaggerDatabaseComponent.create()
 ) {
+    init {
+        databseComponent.inject(this)
+    }
+
+    @Inject
+    internal lateinit var connectionSource: ConnectionSource
 
     /**
      * Executes an SQL statement.
@@ -50,7 +59,7 @@ class SqlQueryExecutor(
     }
 
     private val logger: KLogger
-        get() = KotlinLogging.logger (this::class.java.simpleName)
+        get() = KotlinLogging.logger(this::class.java.simpleName)
 
     /**
      * Runs an SQL script.

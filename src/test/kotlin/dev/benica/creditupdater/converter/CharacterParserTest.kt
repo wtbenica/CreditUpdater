@@ -1,10 +1,14 @@
 package dev.benica.creditupdater.converter
 
+import mu.KLogger
+import mu.KotlinLogging
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 class CharacterParserTest {
+    private val logger: KLogger
+        get() = KotlinLogging.logger(this::class.java.simpleName)
 
     @Test
     @DisplayName("splitString should split the given string into a list of strings")
@@ -181,7 +185,7 @@ class CharacterParserTest {
         )
 
         val actualList: List<CharacterAppearance> = CharacterParser.parseCharacters(characters)
-        println("${actualList[0].let { it::class.simpleName }} | $expectedList")
+        logger.debug { "${actualList[0].let { it::class.simpleName }} | $expectedList" }
         Assertions.assertEquals(expectedList[0], actualList[0])
         Assertions.assertEquals(expectedList[1], actualList[1])
         Assertions.assertEquals(expectedList[2], actualList[2])
