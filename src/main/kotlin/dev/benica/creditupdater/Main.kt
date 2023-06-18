@@ -34,14 +34,22 @@ fun main(args: Array<String>) {
 
                 parsedArgs.prepare != null && parsedArgs.migrate != null -> {
                     withContext(dispatcher) {
-                        DBInitializer(parsedArgs.prepare!!, parsedArgs.step).prepareDb()
+                        DBInitializer(
+                            targetSchema = parsedArgs.prepare!!,
+                            startAtStep = parsedArgs.step,
+                            startingId = parsedArgs.startingId
+                        ).prepareDb()
                         DBMigrator().migrate()
                     }
                 }
 
                 parsedArgs.prepare != null -> {
                     withContext(dispatcher) {
-                        DBInitializer(parsedArgs.prepare!!, parsedArgs.step).prepareDb()
+                        DBInitializer(
+                            targetSchema = parsedArgs.prepare!!,
+                            startAtStep = parsedArgs.step,
+                            startingId = parsedArgs.startingId
+                        ).prepareDb()
                     }
                 }
 
@@ -53,7 +61,11 @@ fun main(args: Array<String>) {
 
                 else -> {
                     withContext(dispatcher) {
-                        DBInitializer(startAtStep = parsedArgs.step).prepareDb()
+                        DBInitializer(
+                            startAtStep = parsedArgs.step,
+                            startingId = parsedArgs.startingId
+                        ).prepareDb()
+                        DBMigrator().migrate()
                     }
                 }
             }

@@ -16,6 +16,7 @@ import kotlin.jvm.Throws
  * @constructor Create empty Credit extractor
  */
 class CreditExtractor(database: String, conn: Connection) : Extractor(database, conn) {
+    override val extractTable: String = "gcd_story"
     override val extractedItem = "Credit"
     override val fromValue = "StoryId"
     private val repository = CreditRepository(database, conn)

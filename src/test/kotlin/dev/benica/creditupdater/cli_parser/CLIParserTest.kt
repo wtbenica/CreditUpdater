@@ -121,6 +121,8 @@ class CLIParserTest {
     -h, --help
       print this message
       Default: false
+    -i, --init
+      Starting story id
     -m, --migrate
       Migrate primary database
     -p, --prepare
