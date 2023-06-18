@@ -33,6 +33,7 @@ import javax.inject.Named
 class DBInitializer(
     private val targetSchema: String = PRIMARY_DATABASE,
     private val startAtStep: Int,
+    private val startingId: Int? = null,
     databaseWorkerComponent: DatabaseWorkerComponent = DaggerDatabaseWorkerComponent.create(),
 ) {
     init {
@@ -75,14 +76,17 @@ class DBInitializer(
                 if (startAtStep <= 2) {
                     dbTask.extractCharactersAndAppearances(
                         schema = targetSchema,
-                        initial = true
+                        initial = true,
+                        startingId = startingId,
+                        batchSize = 20000
                     )
                 }
 
                 if (startAtStep <= 3) {
                     dbTask.extractCredits(
                         sourceSchema = targetSchema,
-                        initial = true
+                        initial = true,
+                        startingId = startingId.takeIf { startAtStep == 3 },
                     )
                 }
 

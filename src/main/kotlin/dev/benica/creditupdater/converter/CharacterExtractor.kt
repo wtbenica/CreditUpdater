@@ -19,6 +19,7 @@ import java.sql.SQLException
  * @param conn
  */
 class CharacterExtractor(database: String, conn: Connection) : Extractor(database, conn) {
+    override val extractTable: String = "gcd_story"
     override val extractedItem: String = "Character"
     override val fromValue: String = "StoryId"
 

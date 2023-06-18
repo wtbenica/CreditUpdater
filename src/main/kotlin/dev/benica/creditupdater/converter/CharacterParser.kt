@@ -126,7 +126,6 @@ class CharacterParser {
          */
         internal fun splitString(input: String): Triple<String, String, String> {
             // a regex to split "name [team name [or membership]] (appearance notes)" to "name", "team name [or membership]", and "appearance notes"
-//        val regex = Regex("""^(.*?)(?:\[(.*?)])?\s+?(?:\((.*?)\))?${"$"}""")
 
             val regex = Regex("^([^\\[(]*)(?:\\[(.*)(?=]))?(?:[^(]+)?(?:\\((.*)(?=\\)))?")
 

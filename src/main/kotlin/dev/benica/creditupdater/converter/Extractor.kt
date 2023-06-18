@@ -39,6 +39,8 @@ abstract class Extractor(
     protected val database: String,
     private val conn: Connection,
 ) {
+    // The table from which data will be extracted
+    abstract val extractTable: String
     // The type of item being extracted
     abstract val extractedItem: String
     // The column name of the id of the item being extracted

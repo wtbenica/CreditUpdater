@@ -68,13 +68,16 @@ class DBTask(
     @Throws(SQLException::class)
     suspend fun extractCredits(
         sourceSchema: String,
-        initial: Boolean
+        initial: Boolean,
+        startingId: Int? = null,
+        batchSize: Int = DEFAULT_BATCH_SIZE,
     ) {
         logger.info { "starting credits..." }
         withContext(ioDispatcher) {
             databaseConnection?.let {
                 val extractor = CreditExtractor(sourceSchema, it)
-                val lastUpdatedItemId = ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
+                val lastUpdatedItemId = startingId
+                    ?: ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
                     ?: Credentials.CREDITS_STORY_START_ID
 
                 val table = if (initial) "gcd_story" else "stories_to_migrate"
@@ -92,6 +95,7 @@ class DBTask(
                 extractAndInsertItems(
                     selectItemsQuery = selectStoriesQuery,
                     extractor = extractor,
+                    batchSize = batchSize
                 )
             }
         }
@@ -108,17 +112,21 @@ class DBTask(
     @Throws(SQLException::class)
     suspend fun extractCharactersAndAppearances(
         schema: String,
-        initial: Boolean
+        initial: Boolean,
+        startingId: Int? = null,
+        batchSize: Int = DEFAULT_BATCH_SIZE,
     ) {
         logger.info { "Starting Characters..." }
         withContext(ioDispatcher) {
             databaseConnection?.let {
                 val extractor = CharacterExtractor(schema, it)
-                val lastIdCompleted = ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
+                val lastIdCompleted = startingId
+                    ?: ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
                     ?: Credentials.CHARACTER_STORY_START_ID
 
                 val table = if (initial) "gcd_story" else "stories_to_migrate"
 
+                logger.info { "Schema: $schema | Table: $table" }
                 /**
                  * Script sql - a snippet that extracts characters and creates appearances
                  * for them
@@ -131,9 +139,12 @@ class DBTask(
                 where g.id > $lastIdCompleted
                 ORDER BY g.id """.trimIndent()
 
+                logger.debug { "SelectStoriesQuery: $selectStoriesQuery" }
+
                 extractAndInsertItems(
                     selectItemsQuery = selectStoriesQuery,
                     extractor = extractor,
+                    batchSize = batchSize
                 )
             }
         }
@@ -155,11 +166,13 @@ class DBTask(
         extractor: Extractor,
         batchSize: Int = DEFAULT_BATCH_SIZE
     ) {
+        logger.debug { "Extracting and inserting items..."}
         val progressTracker = ExtractionProgressTracker(
             extractedType = extractor.extractedItem,
             database = targetSchema,
-            totalItems = withContext(ioDispatcher) { getItemCount(extractor.extractedItem) },
+            totalItems = withContext(ioDispatcher) { getItemCount(extractor.extractTable) },
         )
+        logger.debug { "Progress tracker: $progressTracker" }
 
         val initialProgress = progressTracker.progressInfo
         var totalTimeMillis: Long = initialProgress.totalTimeMillis
@@ -174,6 +187,9 @@ class DBTask(
 
                         val queryWithLimitAndOffset =
                             "$selectItemsQuery LIMIT $batchSize OFFSET ${offset * batchSize}"
+
+                        logger.debug { "Query: $queryWithLimitAndOffset" }
+
                         val resultSet = statement.executeQuery(queryWithLimitAndOffset)
 
                         if (!resultSet.next()) {

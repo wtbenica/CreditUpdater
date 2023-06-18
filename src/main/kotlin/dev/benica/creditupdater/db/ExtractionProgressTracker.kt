@@ -68,6 +68,7 @@ class ExtractionProgressTracker(
         get() = KotlinLogging.logger(this::class.java.simpleName)
 
     init {
+        logger.debug { "Initializing progress tracker for $extractedType" }
         if (progressFile.exists()) {
             val gson = Gson()
             FileReader(progressFile).use { reader ->
@@ -75,14 +76,15 @@ class ExtractionProgressTracker(
                     gson.fromJson(reader, object : TypeToken<MutableMap<String, ProgressInfo>>() {}.type)
             }
         }
-
+        logger.debug { "Progress tracker initialized for $extractedType" }
         progressInfo = progressInfoMap.getOrDefault(
             key = extractedType,
             defaultValue = ProgressInfo()
         )
-
+        logger.debug { "Progress info initialized for $extractedType" }
         CoroutineScope(ioDispatcher).launch {
             getItemsCompleted().let { progressInfo.numCompleted = it }
+            logger.debug { "Progress info updated for $extractedType: $progressInfo" }
         }
     }
 
