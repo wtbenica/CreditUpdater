@@ -3,6 +3,7 @@ package dev.benica.creditupdater.db
 import dev.benica.creditupdater.di.DaggerQueryExecutorComponent
 import dev.benica.creditupdater.di.QueryExecutorComponent
 import dev.benica.creditupdater.di.QueryExecutorSource
+import dev.benica.creditupdater.di.Repository
 import java.sql.SQLException
 import javax.inject.Inject
 

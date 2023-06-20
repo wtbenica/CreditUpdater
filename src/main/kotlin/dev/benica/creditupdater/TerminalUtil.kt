@@ -56,5 +56,11 @@ class TerminalUtil {
                 "${if (days > 0) "${days}d " else ""}${if (hours > 0) "${hours}h " else ""}${if (minutes > 0) "${minutes}m " else ""}"
             }
         } ?: "0s"
+
+
+        private const val MILLIS_PER_SECOND = 1000
+        private const val MILLIS_PER_MINUTE = 60 * MILLIS_PER_SECOND
+        private const val MILLIS_PER_HOUR = 60 * MILLIS_PER_MINUTE
+        private const val MILLIS_PER_DAY = 24 * MILLIS_PER_HOUR
     }
 }
