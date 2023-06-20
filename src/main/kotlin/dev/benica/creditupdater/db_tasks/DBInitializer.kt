@@ -68,28 +68,28 @@ class DBInitializer(
                     removeUnnecessaryRecords()
                 }
 
-                //if (startAtStep <= 2) {
-                //    logger.info { "Starting Character Updates..." }
-                //    dbTask.extractCharactersAndAppearances(
-                //        schema = targetSchema,
-                //        initial = true,
-                //        startingId = startingId,
-                //    )
-                //}
-                //
-                //if (startAtStep <= 3) {
-                //    logger.info { "Starting Credit Updates..." }
-                //    dbTask.extractCredits(
-                //        schema = targetSchema,
-                //        initial = true,
-                //        startingId = startingId.takeIf { startAtStep == 3 },
-                //    )
-                //}
-                //
-                //if (startAtStep <= 4) {
-                //    logger.info { "Starting foreign key updates" }
-                //    addIssueSeriesColumnsAndConstraints()
-                //}
+                if (startAtStep <= 2) {
+                    logger.info { "Starting Character Updates..." }
+                    dbTask.extractCharactersAndAppearances(
+                        schema = targetSchema,
+                        initial = true,
+                        startingId = startingId,
+                    )
+                }
+
+                if (startAtStep <= 3) {
+                    logger.info { "Starting Credit Updates..." }
+                    dbTask.extractCredits(
+                        schema = targetSchema,
+                        initial = true,
+                        startingId = startingId.takeIf { startAtStep == 3 },
+                    )
+                }
+
+                if (startAtStep <= 4) {
+                    logger.info { "Starting foreign key updates" }
+                    addIssueSeriesColumnsAndConstraints()
+                }
 
                 logger.info { "Successfully updated $targetSchema" }
             } catch (sqlEx: SQLException) {
