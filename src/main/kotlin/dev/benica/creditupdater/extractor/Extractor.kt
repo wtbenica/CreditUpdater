@@ -15,14 +15,16 @@ abstract class Extractor(
 ) {
     // The table from which data will be extracted
     abstract val extractTable: String
+
     // The type of item being extracted
     abstract val extractedItem: String
+
     // The column name of the id of the item being extracted
     abstract val fromValue: String
 
     /**
-     * Extract and insert - extracts the items from the [resultSet] and
-     * inserts them into the database.
+     * Extract and insert - extracts the items from the [resultSet] and inserts
+     * them into the database.
      *
      * @param resultSet The result set to extract from.
      * @return the id of the story from which items were extracted.
@@ -30,13 +32,13 @@ abstract class Extractor(
     abstract fun extractAndInsert(
         resultSet: ResultSet,
     ): Int
-
-    /**
-     * Cleanup - removes leading and trailing whitespace and reduces any
-     * interior multiple-spaces to single spaces.
-     */
-    fun String.cleanup(): String = this
-        .replace(regex = Regex(pattern = "^\\s*"), replacement = "")
-        .replace(regex = Regex(pattern = "\\s*$"), replacement = "")
-        .replace(regex = Regex(pattern = "\\s+"), replacement = " ")
 }
+
+/**
+ * Cleanup - removes leading and trailing whitespace and reduces any
+ * interior multiple-spaces to single spaces.
+ */
+fun String.cleanup(): String = this
+    .replace(regex = Regex(pattern = "^\\s*"), replacement = "")
+    .replace(regex = Regex(pattern = "\\s*$"), replacement = "")
+    .replace(regex = Regex(pattern = "\\s+"), replacement = " ")
