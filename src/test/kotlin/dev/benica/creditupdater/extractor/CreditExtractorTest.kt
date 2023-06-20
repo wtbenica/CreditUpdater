@@ -1,16 +1,4 @@
-package dev.benica.creditupdater.converter
-
-import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Test
-import org.mockito.ArgumentMatchers.anyInt
-import org.mockito.ArgumentMatchers.anyString
-import org.mockito.Mockito.`when`
-import org.mockito.Mockito.mock
-import org.mockito.kotlin.*
-import java.sql.Connection
-import java.sql.PreparedStatement
-import java.sql.SQLException
+package dev.benica.creditupdater.extractor
 
 class CreditExtractorTest {
 //    private val conn = mock(Connection::class.java)

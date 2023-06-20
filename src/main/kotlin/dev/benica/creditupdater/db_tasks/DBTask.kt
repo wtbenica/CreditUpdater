@@ -1,24 +1,18 @@
 package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.Credentials
-import dev.benica.creditupdater.converter.CharacterExtractor
-import dev.benica.creditupdater.converter.CreditExtractor
-import dev.benica.creditupdater.converter.Extractor
-import dev.benica.creditupdater.db.ConnectionSource
-import dev.benica.creditupdater.db.DatabaseUtil
 import dev.benica.creditupdater.db.ExtractionProgressTracker
-import dev.benica.creditupdater.db.SqlQueryExecutor
-import dev.benica.creditupdater.di.DaggerDatabaseWorkerComponent
-import dev.benica.creditupdater.di.DatabaseWorkerComponent
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
+import dev.benica.creditupdater.db.QueryExecutor
+import dev.benica.creditupdater.di.DaggerQueryExecutorComponent
+import dev.benica.creditupdater.di.QueryExecutorComponent
+import dev.benica.creditupdater.di.QueryExecutorSource
+import dev.benica.creditupdater.extractor.CharacterExtractor
+import dev.benica.creditupdater.extractor.CreditExtractor
+import dev.benica.creditupdater.extractor.Extractor
 import mu.KLogger
 import mu.KotlinLogging
-import java.sql.Connection
 import java.sql.SQLException
-import java.sql.Statement
 import javax.inject.Inject
-import javax.inject.Named
 import kotlin.system.measureTimeMillis
 
 /**
@@ -27,34 +21,27 @@ import kotlin.system.measureTimeMillis
  */
 class DBTask(
     private val targetSchema: String,
-    databaseComponent: DatabaseWorkerComponent = DaggerDatabaseWorkerComponent.create(),
+    queryExecutorProvider: QueryExecutorComponent = DaggerQueryExecutorComponent.create()
 ) {
-    init {
-        databaseComponent.inject(this)
-    }
-
-    @Inject
-    internal lateinit var connectionSource: ConnectionSource
-
-    @Inject
-    @Named("IO")
-    internal lateinit var ioDispatcher: CoroutineDispatcher
-
-
     // Constants
     companion object {
         private const val DEFAULT_BATCH_SIZE = 75000
     }
 
-    // Properties
-    protected val database = DatabaseUtil(targetSchema)
+    // Dependencies
+    @Inject
+    internal lateinit var queryExecutorSource: QueryExecutorSource
 
+    private val queryExecutor: QueryExecutor
+
+    init {
+        queryExecutorProvider.inject(this)
+        queryExecutor = queryExecutorSource.getQueryExecutor(targetSchema)
+    }
+
+    // Private Properties
     private val logger: KLogger
         get() = KotlinLogging.logger(this::class.java.simpleName)
-
-    /** The connection to [targetSchema]. */
-    private val databaseConnection: Connection?
-        get() = database.getConnection()
 
     // Public Methods
     /**
@@ -66,39 +53,37 @@ class DBTask(
      * @throws SQLException if an error occurs
      */
     @Throws(SQLException::class)
-    suspend fun extractCredits(
+    fun extractCredits(
         sourceSchema: String,
         initial: Boolean,
         startingId: Int? = null,
         batchSize: Int = DEFAULT_BATCH_SIZE,
     ) {
         logger.info { "starting credits..." }
-        withContext(ioDispatcher) {
-            databaseConnection?.let {
-                val extractor = CreditExtractor(sourceSchema, it)
-                val lastUpdatedItemId = startingId
-                    ?: ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
-                    ?: Credentials.CREDITS_STORY_START_ID
 
-                val table = if (initial) "gcd_story" else "stories_to_migrate"
+        val extractor = CreditExtractor(sourceSchema)
+        val lastUpdatedItemId = startingId
+            ?: ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
+            ?: Credentials.CREDITS_STORY_START_ID
 
-                /**
-                 * Script sql - an sql snippet to get the writer, penciller, inker,
-                 * colorist, letterer, and editor from the database.
-                 */
-                val selectStoriesQuery =
-                    """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
+        val table = if (initial) "gcd_story" else "stories_to_migrate"
+
+        /**
+         * Script sql - an sql snippet to get the writer, penciller, inker,
+         * colorist, letterer, and editor from the database.
+         */
+        val selectStoriesQuery =
+            """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
                         FROM $sourceSchema.$table g
                         WHERE g.id > $lastUpdatedItemId
                         ORDER BY g.id """.trimIndent()
 
-                extractAndInsertItems(
-                    selectItemsQuery = selectStoriesQuery,
-                    extractor = extractor,
-                    batchSize = batchSize
-                )
-            }
-        }
+        @Suppress("kotlin:S6307")
+        extractAndInsertItems(
+            selectItemsQuery = selectStoriesQuery,
+            extractor = extractor,
+            batchSize = batchSize
+        )
     }
 
     /**
@@ -110,44 +95,39 @@ class DBTask(
      * @throws SQLException if an error occurs
      */
     @Throws(SQLException::class)
-    suspend fun extractCharactersAndAppearances(
+    fun extractCharactersAndAppearances(
         schema: String,
         initial: Boolean,
         startingId: Int? = null,
         batchSize: Int = DEFAULT_BATCH_SIZE,
     ) {
-        logger.info { "Starting Characters..." }
-        withContext(ioDispatcher) {
-            databaseConnection?.let {
-                val extractor = CharacterExtractor(schema, it)
-                val lastIdCompleted = startingId
-                    ?: ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
-                    ?: Credentials.CHARACTER_STORY_START_ID
+        logger.debug { "Starting Characters..." }
 
-                val table = if (initial) "gcd_story" else "stories_to_migrate"
+        val extractor = CharacterExtractor(schema)
+        val lastIdCompleted = startingId
+            ?: ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
+            ?: Credentials.CHARACTER_STORY_START_ID
 
-                logger.info { "Schema: $schema | Table: $table" }
-                /**
-                 * Script sql - a snippet that extracts characters and creates appearances
-                 * for them
-                 */
-                val selectStoriesQuery =
-                    """SELECT g.id, g.characters, gs.publisher_id
+        val table = if (initial) "gcd_story" else "stories_to_migrate"
+
+        logger.debug { "Schema: $schema | Table: $table" }
+
+        val selectStoriesQuery =
+            """SELECT g.id, g.characters, gs.publisher_id
                 FROM $schema.$table g
                 JOIN $schema.gcd_issue gi on gi.id = g.issue_id
                 JOIN $schema.gcd_series gs on gs.id = gi.series_id
                 where g.id > $lastIdCompleted
                 ORDER BY g.id """.trimIndent()
 
-                logger.debug { "SelectStoriesQuery: $selectStoriesQuery" }
+        logger.debug { "SelectStoriesQuery: $selectStoriesQuery" }
 
-                extractAndInsertItems(
-                    selectItemsQuery = selectStoriesQuery,
-                    extractor = extractor,
-                    batchSize = batchSize
-                )
-            }
-        }
+        @Suppress("kotlin:S6307")
+        extractAndInsertItems(
+            selectItemsQuery = selectStoriesQuery,
+            extractor = extractor,
+            batchSize = batchSize
+        )
     }
 
     /**
@@ -161,16 +141,16 @@ class DBTask(
      * @throws SQLException if an error occurs
      */
     @Throws(SQLException::class)
-    private suspend fun extractAndInsertItems(
+    private fun extractAndInsertItems(
         selectItemsQuery: String,
         extractor: Extractor,
         batchSize: Int = DEFAULT_BATCH_SIZE
     ) {
-        logger.debug { "Extracting and inserting items..."}
+        logger.debug { "Extracting and inserting items..." }
         val progressTracker = ExtractionProgressTracker(
             extractedType = extractor.extractedItem,
-            database = targetSchema,
-            totalItems = withContext(ioDispatcher) { getItemCount(extractor.extractTable) },
+            targetSchema = targetSchema,
+            totalItems = queryExecutor.getItemCount(extractor.extractTable),
         )
         logger.debug { "Progress tracker: $progressTracker" }
 
@@ -182,28 +162,22 @@ class DBTask(
 
         try {
             while (!done) {
-                connectionSource.getConnection(targetSchema).use { conn ->
-                    conn.createStatement().use { statement ->
+                val queryWithLimitAndOffset =
+                    "$selectItemsQuery LIMIT $batchSize OFFSET ${offset * batchSize}"
 
-                        val queryWithLimitAndOffset =
-                            "$selectItemsQuery LIMIT $batchSize OFFSET ${offset * batchSize}"
+                logger.debug { "Query: $queryWithLimitAndOffset" }
 
-                        logger.debug { "Query: $queryWithLimitAndOffset" }
-
-                        val resultSet = statement.executeQuery(queryWithLimitAndOffset)
-
-                        if (!resultSet.next()) {
-                            logger.info { "No more items to update" }
-                            done = true
-                        } else {
-                            do {
-                                totalTimeMillis += measureTimeMillis {
-                                    val processedItemId = extractor.extractAndInsert(resultSet)
-
-                                    progressTracker.updateProgressInfo(processedItemId, totalTimeMillis)
-                                }
-                            } while (resultSet.next())
-                        }
+                queryExecutor.executeQueryAndDo(queryWithLimitAndOffset) { resultSet ->
+                    if (!resultSet.next()) {
+                        logger.info { "No more items to update" }
+                        done = true
+                    } else {
+                        do {
+                            totalTimeMillis += measureTimeMillis {
+                                val processedItemId = extractor.extractAndInsert(resultSet)
+                                progressTracker.updateProgressInfo(processedItemId, totalTimeMillis)
+                            }
+                        } while (resultSet.next())
                     }
                 }
 
@@ -218,29 +192,14 @@ class DBTask(
         progressTracker.resetProgressInfo()
     }
 
-    /**
-     * Get item count - gets the number of items in a table.
-     *
-     * @param tableName the table name
-     * @param condition the condition
-     * @return the item count
-     * @throws SQLException if an error occurs
-     */
-    @Throws(SQLException::class)
-    private fun getItemCount(
-        tableName: String,
-        condition: String? = null,
-    ): Int = SqlQueryExecutor(targetSchema).getItemCount(tableName, condition)
-
     @Throws(SQLException::class)
     fun runSqlScript(
         sqlScriptPath: String,
         runAsTransaction: Boolean = false
-    ) = database.runSqlScript(sqlScriptPath, runAsTransaction)
+    ) = queryExecutor.executeSqlScript(sqlScriptPath, runAsTransaction)
 
     @Throws(SQLException::class)
     fun executeSqlStatement(
-        sqlStmt: String,
-        stmt: Statement = connectionSource.getConnection(targetSchema).createStatement()
-    ) = database.executeSqlStatement(sqlStmt, stmt)
+        sqlStmt: String
+    ) = queryExecutor.executeSqlStatement(sqlStmt)
 }

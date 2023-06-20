@@ -1,5 +1,9 @@
-package dev.benica.creditupdater.converter
+package dev.benica.creditupdater.extractor
 
+import dev.benica.creditupdater.extractor.utils.CharacterParser
+import dev.benica.creditupdater.models.CharacterAppearance
+import dev.benica.creditupdater.models.Individual
+import dev.benica.creditupdater.models.Team
 import mu.KLogger
 import mu.KotlinLogging
 import org.junit.jupiter.api.Assertions
