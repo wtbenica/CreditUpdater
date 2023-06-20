@@ -1,10 +1,27 @@
 package dev.benica.creditupdater.db
 
-import java.sql.Connection
-import java.sql.PreparedStatement
+import dev.benica.creditupdater.di.DaggerQueryExecutorComponent
+import dev.benica.creditupdater.di.QueryExecutorComponent
+import dev.benica.creditupdater.di.QueryExecutorSource
 import java.sql.SQLException
+import javax.inject.Inject
 
-class CreditRepository(private val database: String, private val conn: Connection) {
+class CreditRepository(
+    private val targetSchema: String,
+    queryExecutorProvider: QueryExecutorComponent = DaggerQueryExecutorComponent.create(),
+) : Repository {
+    // Dependencies
+    @Inject
+    internal lateinit var queryExecutorSource: QueryExecutorSource
+
+    private val queryExecutor: QueryExecutor
+
+    init {
+        queryExecutorProvider.inject(this)
+        queryExecutor = queryExecutorSource.getQueryExecutor(targetSchema)
+    }
+
+    // Public Methods
     /**
      * Create or Update Story Credit - checks for an existing story credit for
      * [extractedName], [storyId], and [roleId]. If one does not exist, it
@@ -15,7 +32,7 @@ class CreditRepository(private val database: String, private val conn: Connectio
      * @param roleId the credit_type id
      */
     internal fun createOrUpdateStoryCredit(extractedName: String, storyId: Int, roleId: Int) {
-        lookupGcndId(extractedName, conn)?.let { gcndId ->
+        lookupGcndId(extractedName)?.let { gcndId ->
             lookupStoryCreditId(gcndId, storyId, roleId) ?: insertStoryCredit(
                 gcndId,
                 roleId,
@@ -24,15 +41,15 @@ class CreditRepository(private val database: String, private val conn: Connectio
         }
     }
 
+    // Private Methods
     /**
      * Lookup Gcnd Id - looks for a gcd_creator_name_detail with the given
      * [extractedName]
      *
      * @param extractedName the name to check
-     * @param conn the connection to the database
      * @return the gcd_creator_name_detail id if found, null otherwise
      */
-    internal fun lookupGcndId(extractedName: String, conn: Connection?): Int? {
+    private fun lookupGcndId(extractedName: String): Int? {
         var gcndId: Int? = null
 
         try {
@@ -42,12 +59,12 @@ class CreditRepository(private val database: String, private val conn: Connectio
                WHERE gcnd.name = ?                
             """
 
-            conn?.prepareStatement(getGcndSql).use { getCondStmt ->
-                getCondStmt?.setString(1, extractedName)
+            queryExecutor.executePreparedStatement(getGcndSql) { statement ->
+                statement.setString(1, extractedName)
 
-                getCondStmt?.executeQuery()?.use { gcndResultSet ->
-                    if (gcndResultSet.next()) {
-                        gcndId = gcndResultSet.getInt("id")
+                statement.executeQuery().use { resultSet ->
+                    if (resultSet?.next() == true) {
+                        gcndId = resultSet.getInt("id")
                     }
                 }
             }
@@ -70,20 +87,20 @@ class CreditRepository(private val database: String, private val conn: Connectio
      * @param roleId the credit_type id
      * @return the story credit id if found, null otherwise
      */
-    internal fun lookupStoryCreditId(gcndId: Int, storyId: Int, roleId: Int): Int? {
+    private fun lookupStoryCreditId(gcndId: Int, storyId: Int, roleId: Int): Int? {
         var storyCreditId: Int? = null
 
         try {
             /** Get story credit id sql */
             val getStoryCreditIdSql = """
                     SELECT gsc.id
-                    FROM ${database}.gcd_story_credit gsc
+                    FROM ${targetSchema}.gcd_story_credit gsc
                     WHERE gsc.creator_id = ?
                     AND gsc.story_id = ?
                     AND gsc.credit_type_id = ?
             """
 
-            conn.prepareStatement(getStoryCreditIdSql)?.use { statement ->
+            queryExecutor.executePreparedStatement(getStoryCreditIdSql) { statement ->
                 statement.setInt(1, gcndId)
                 statement.setInt(2, storyId)
                 statement.setInt(3, roleId)
@@ -104,18 +121,18 @@ class CreditRepository(private val database: String, private val conn: Connectio
             try {
                 val getMStoryCreditIdSql = """
                     SELECT gsc.id
-                    FROM ${database}.m_story_credit gsc
+                    FROM ${targetSchema}.m_story_credit gsc
                     WHERE gsc.creator_id = ?
                     AND gsc.story_id = ?
                     AND gsc.credit_type_id = ?
             """
 
-                conn.prepareStatement(getMStoryCreditIdSql)?.use { statement2 ->
-                    statement2.setInt(1, gcndId)
-                    statement2.setInt(2, storyId)
-                    statement2.setInt(3, roleId)
+                queryExecutor.executePreparedStatement(getMStoryCreditIdSql) { statement ->
+                    statement.setInt(1, gcndId)
+                    statement.setInt(2, storyId)
+                    statement.setInt(3, roleId)
 
-                    statement2.executeQuery().use { resultSet ->
+                    statement.executeQuery().use { resultSet ->
                         if (resultSet?.next() == true) {
                             storyCreditId = resultSet.getInt("id")
                         }
@@ -133,27 +150,25 @@ class CreditRepository(private val database: String, private val conn: Connectio
 
     /**
      * Insert story credit - prepares a statement with [gcndId], [roleId], and
-     * [storyId] to insert a story credit into m_story_credit in [database] and
-     * executes it.
+     * [storyId] to insert a story credit into m_story_credit in [targetSchema]
+     * and executes it.
      *
      * @param gcndId gcd_creator_name_detail.id
      * @param roleId credit_type.id
      * @param storyId gcd_story.id
      */
     private fun insertStoryCredit(gcndId: Int, roleId: Int, storyId: Int) {
-        val insertStoryCreditStmt: PreparedStatement?
-
-        /** Insert story credit sql */
         val insertStoryCreditSql =
-            """INSERT IGNORE INTO $database.m_story_credit(created, modified, deleted, is_credited, is_signed, 
+            """INSERT IGNORE INTO $targetSchema.m_story_credit(created, modified, deleted, is_credited, is_signed, 
                 uncertain, signed_as, credited_as, credit_name, creator_id, credit_type_id, story_id, signature_id)
                 VALUE (CURTIME(), CURTIME(), 0, 0, 0, 0, '', '', '', ?, ?, ?, NULL)"""
 
-        insertStoryCreditStmt = conn.prepareStatement(insertStoryCreditSql)
-        insertStoryCreditStmt?.setInt(1, gcndId)
-        insertStoryCreditStmt?.setInt(2, roleId)
-        insertStoryCreditStmt?.setInt(3, storyId)
+        queryExecutor.executePreparedStatement(insertStoryCreditSql) { statement ->
+            statement.setInt(1, gcndId)
+            statement.setInt(2, roleId)
+            statement.setInt(3, storyId)
 
-        insertStoryCreditStmt?.executeUpdate()
+            statement.executeUpdate()
+        }
     }
 }

@@ -1,18 +1,39 @@
 package dev.benica.creditupdater.db
 
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
+import dev.benica.creditupdater.di.DaggerQueryExecutorComponent
+import dev.benica.creditupdater.di.QueryExecutorComponent
+import dev.benica.creditupdater.di.QueryExecutorSource
 import dev.benica.creditupdater.models.Appearance
 import mu.KLogger
 import mu.KotlinLogging
-import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.SQLException
 import java.sql.Statement
+import javax.inject.Inject
 
-class CharacterRepository(private val database: String, private val conn: Connection) {
+interface Repository
+
+class CharacterRepository(
+    private val targetSchema: String,
+    queryExecutorProvider: QueryExecutorComponent = DaggerQueryExecutorComponent.create()
+) : Repository {
+    // Dependencies
+    @Inject
+    internal lateinit var queryExecutorSource: QueryExecutorSource
+
+    private val queryExecutor: QueryExecutor
+
+    init {
+        queryExecutorProvider.inject(this)
+        queryExecutor = queryExecutorSource.getQueryExecutor(targetSchema)
+    }
+
+    // Private Properties
     private val logger: KLogger
-        get() = KotlinLogging.logger (this::class.java.simpleName)
+        get() = KotlinLogging.logger(this::class.java.simpleName)
 
+    // Public Methods
     /**
      * Gets the ID of a character with the given name, alter ego, and publisher
      * ID. If the character does not exist in the database, it is inserted and
@@ -39,6 +60,11 @@ class CharacterRepository(private val database: String, private val conn: Connec
         publisherId
     )
 
+    /** Insert character appearance - inserts [appearance] into [targetSchema] */
+    fun insertCharacterAppearance(appearance: Appearance) =
+        insertCharacterAppearances(setOf(appearance))
+
+
     // TODO: Fix this. It's a hack to avoid having to figure out how to deal with teams and teams within teams
     // See "All-Star Squadron #57"
     private fun String.truncate(maxLength: Int): String {
@@ -49,70 +75,71 @@ class CharacterRepository(private val database: String, private val conn: Connec
         }
     }
 
-    /**
-     * Insert character appearances - inserts [appearances] into [database]
-     * using [conn]
-     */
-    internal fun insertCharacterAppearances(appearances: Set<Appearance>) {
-        val sql = """
-               INSERT IGNORE INTO $database.m_character_appearance(id, details, character_id, story_id, notes, membership)
+    /** Insert character appearances - inserts [appearances] into [targetSchema] */
+    private fun insertCharacterAppearances(appearances: Set<Appearance>) {
+        try {
+            val sql = """
+               INSERT IGNORE INTO $targetSchema.m_character_appearance(id, details, character_id, story_id, notes, membership)
                VALUES (?, ?, ?, ?, ?, ?)
             """.trimIndent()
 
-        conn.prepareStatement(sql).use { statement ->
-            appearances.forEach { appearance ->
-                statement?.setInt(1, appearance.id)
-                statement?.setString(2, appearance.appearanceInfo)
-                statement?.setInt(3, appearance.characterId)
-                statement?.setInt(4, appearance.storyId)
-                statement?.setString(5, appearance.notes)
-                statement?.setString(6, appearance.membership)
-                statement?.addBatch()
+            queryExecutor.executePreparedStatementBatch(sql) { statement: PreparedStatement ->
+                appearances.forEach { appearance ->
+                    statement.setInt(1, appearance.id)
+                    statement.setString(2, appearance.appearanceInfo)
+                    statement.setInt(3, appearance.characterId)
+                    statement.setInt(4, appearance.storyId)
+                    statement.setString(5, appearance.notes)
+                    statement.setString(6, appearance.membership)
+                    statement.addBatch()
+                }
             }
-
-            statement?.executeBatch()
+        } catch (e: SQLException) {
+            logger.error("Error inserting character appearances", e)
+            throw e
         }
     }
 
     /**
-     * Insert character appearance - inserts [appearance] into [database] using
-     * [conn]
-     */
-    fun insertCharacterAppearance(appearance: Appearance) =
-        insertCharacterAppearances(setOf(appearance))
-
-    /**
      * Insert character - inserts [name], [alterEgo], and [publisherId] into
-     * [database] table m_character
+     * [targetSchema] table m_character
      *
      * @param name character name
      * @param alterEgo character alter ego
      * @param publisherId publisher id
      * @return inserted character's id
+     * @throws SQLException if there is an error inserting the character
      */
+    @Throws(SQLException::class)
     internal fun insertCharacter(
         name: String,
         alterEgo: String?,
         publisherId: Int
     ): Int? {
-        val statement: PreparedStatement?
         var characterId: Int? = null
         val truncatedName = name.substring(0, Integer.min(255, name.length))
         val sql = """
-           INSERT INTO ${database}.m_character(name, alter_ego, publisher_id)
+           INSERT INTO ${targetSchema}.m_character(name, alter_ego, publisher_id)
            VALUE (?, ?, ?)
         """
 
-        statement = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
-        statement?.setString(1, truncatedName)
-        statement?.setString(2, alterEgo)
-        statement?.setInt(3, publisherId)
+        queryExecutor.executePreparedStatementBatch(sql, Statement.RETURN_GENERATED_KEYS) { s ->
+            try {
+                s.setString(1, truncatedName)
+                s.setString(2, alterEgo)
+                s.setInt(3, publisherId)
 
-        statement?.executeUpdate()
+                s.executeUpdate()
 
-        val genKeys = statement?.generatedKeys
-        if (genKeys?.next() == true) {
-            characterId = genKeys.getInt("GENERATED_KEY")
+                val genKeys = s.generatedKeys
+                if (genKeys?.next() == true) {
+                    characterId = genKeys.getInt("GENERATED_KEY")
+                }
+
+            } catch (e: SQLException) {
+                logger.error("Error inserting character $name", e)
+                throw e
+            }
         }
 
         return characterId
@@ -120,28 +147,30 @@ class CharacterRepository(private val database: String, private val conn: Connec
 
     /**
      * Lookup character - looks up character by [name], [alterEgo], and
-     * [publisherId]. If [checkPrimary] is true, [PRIMARY_DATABASE] is checked
-     * first, then [database]. If [checkPrimary] is false, only [database]
-     * is checked. If [checkPrimary] is true, [PRIMARY_DATABASE] will not be
-     * checked, only [database].
+     * [publisherId]. If [checkPrimary] is true, [PRIMARY_DATABASE] is
+     * checked first, then [targetSchema]. If [checkPrimary] is false, only
+     * [targetSchema] is checked. If [checkPrimary] is true, [PRIMARY_DATABASE]
+     * will not be checked, only [targetSchema].
      *
      * @param name character name
      * @param alterEgo character alter ego
      * @param publisherId publisher id
      * @param checkPrimary whether to check [PRIMARY_DATABASE] first
      * @return character id if found, null otherwise
+     * @throws SQLException if there is an error looking up the character
      */
+    @Throws(SQLException::class)
     private fun lookupCharacter(
         name: String,
         alterEgo: String?,
         publisherId: Int,
-        checkPrimary: Boolean = database != PRIMARY_DATABASE
+        checkPrimary: Boolean = targetSchema != PRIMARY_DATABASE
     ): Int? {
         var characterId: Int? = null
         val db = if (checkPrimary) {
             PRIMARY_DATABASE
         } else {
-            database
+            targetSchema
         }
 
         try {
@@ -153,21 +182,22 @@ class CharacterRepository(private val database: String, private val conn: Connec
             AND mc.alter_ego ${if (alterEgo == null) "IS NULL" else "= ?"}
         """
 
-            conn.prepareStatement(getCharacterSql).use { statement ->
-                statement?.setString(1, name)
-                statement?.setInt(2, publisherId)
+            queryExecutor.executePreparedStatementBatch(getCharacterSql) { statement ->
+                statement.setString(1, name)
+                statement.setInt(2, publisherId)
                 if (alterEgo != null) {
-                    statement?.setString(3, alterEgo)
+                    statement.setString(3, alterEgo)
                 }
 
-                statement?.executeQuery().use { resultSet ->
+                statement.executeQuery().use { resultSet ->
                     if (resultSet?.next() == true) {
                         characterId = resultSet.getInt("id")
                     }
                 }
             }
 
-            if (characterId == null && database != PRIMARY_DATABASE && checkPrimary) {
+
+            if (characterId == null && targetSchema != PRIMARY_DATABASE && checkPrimary) {
                 characterId =
                     lookupCharacter(
                         name = name,
@@ -178,8 +208,8 @@ class CharacterRepository(private val database: String, private val conn: Connec
             }
         } catch (sqlEx: SQLException) {
             logger.error("Error looking up character", sqlEx)
+            throw sqlEx
         }
         return characterId
     }
-
 }

@@ -22,7 +22,7 @@ class Credentials {
         const val CHARACTER_STORY_START_NEW: Long = 0
         const val CHARACTER_STORIES_COMPLETE_NEW: Long = 0
 
-        const val MAX_CONNECTION_POOL_SIZE = 800
+        const val MAX_CONNECTION_POOL_SIZE = 2000
 
         /**
          * This SQL query adds issue and series columns to the gcd_story_credit

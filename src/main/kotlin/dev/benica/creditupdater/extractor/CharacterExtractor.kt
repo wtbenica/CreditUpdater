@@ -1,12 +1,19 @@
-package dev.benica.creditupdater.converter
+package dev.benica.creditupdater.extractor
 
 import dev.benica.creditupdater.db.CharacterRepository
+import dev.benica.creditupdater.di.CharacterRepositoryComponent
+import dev.benica.creditupdater.di.DaggerCharacterRepositoryComponent
+import dev.benica.creditupdater.di.RepoSource
+import dev.benica.creditupdater.extractor.utils.CharacterParser
 import dev.benica.creditupdater.models.Appearance
+import dev.benica.creditupdater.models.CharacterAppearance
+import dev.benica.creditupdater.models.Individual
+import dev.benica.creditupdater.models.Team
 import mu.KLogger
 import mu.KotlinLogging
-import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
+import javax.inject.Inject
 
 /**
  * Character extractor - extracts character records and character
@@ -16,21 +23,31 @@ import java.sql.SQLException
  *
  * @param database the database to which to write the extracted character
  *     and appearance data.
- * @param conn
  */
-class CharacterExtractor(database: String, conn: Connection) : Extractor(database, conn) {
+class CharacterExtractor(
+    database: String,
+    repositoryComponent: CharacterRepositoryComponent = DaggerCharacterRepositoryComponent.create()
+) : Extractor(database) {
     override val extractTable: String = "gcd_story"
     override val extractedItem: String = "Character"
     override val fromValue: String = "StoryId"
 
-    private val repository = CharacterRepository(database, conn)
+    @Inject
+    internal lateinit var repoSource: RepoSource<CharacterRepository>
+
+    private val repository: CharacterRepository
+
+    init {
+        repositoryComponent.inject(this)
+        repository = repoSource.getRepo(database)
+    }
 
     private val logger: KLogger
-        get() = KotlinLogging.logger (this::class.java.simpleName)
+        get() = KotlinLogging.logger(this::class.java.simpleName)
 
     /**
-     * Extracts character records and character appearance records from
-     * the 'character' text field in a gcd_story and creates linked entries
+     * Extracts character records and character appearance records from the
+     * 'character' text field in a gcd_story and creates linked entries
      * for them in the 'm_character' and 'm_character_appearance' tables.
      *
      * @param resultSet expecting a result set containing a story
@@ -38,7 +55,7 @@ class CharacterExtractor(database: String, conn: Connection) : Extractor(databas
      * @throws SQLException
      */
     @Throws(SQLException::class)
-    override suspend fun extractAndInsert(
+    override fun extractAndInsert(
         resultSet: ResultSet,
     ): Int {
         try {

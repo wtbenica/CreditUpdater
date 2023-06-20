@@ -4,8 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import dev.benica.creditupdater.TerminalUtil
-import dev.benica.creditupdater.di.DaggerDatabaseWorkerComponent
-import dev.benica.creditupdater.di.DatabaseWorkerComponent
+import dev.benica.creditupdater.di.*
 import dev.benica.creditupdater.toPercent
 import kotlinx.coroutines.*
 import mu.KLogger
@@ -18,19 +17,22 @@ import javax.inject.Named
 
 class ExtractionProgressTracker(
     private val extractedType: String,
-    private val database: String,
+    targetSchema: String,
     private val totalItems: Int = 0,
-    databaseComponent: DatabaseWorkerComponent = DaggerDatabaseWorkerComponent.create(),
-) {
+    dispatchAndExecuteComponent: DispatchAndExecuteComponent = DaggerDispatchAndExecuteComponent.create(),
+    ) {
     @Inject
-    internal lateinit var connectionSource: ConnectionSource
+    internal lateinit var queryExecutorSource: QueryExecutorSource
+
+    private val queryExecutor: QueryExecutor
 
     @Inject
     @Named("IO")
     internal lateinit var ioDispatcher: CoroutineDispatcher
 
     init {
-        databaseComponent.inject(this)
+        dispatchAndExecuteComponent.inject(this)
+        queryExecutor = queryExecutorSource.getQueryExecutor(targetSchema)
     }
 
     @Volatile
@@ -122,21 +124,8 @@ class ExtractionProgressTracker(
         logger.info("Elapsed: $elapsed ETR: $remaining")
     }
 
-    private suspend fun getItemsCompleted(): Int =
-        withContext(ioDispatcher) {
-            connectionSource.getConnection(database).use { conn ->
-                conn.createStatement().use { statement ->
-                    statement.executeQuery(
-                        """SELECT COUNT(*) 
-                                |FROM $database.gcd_story 
-                                |WHERE id <= ${progressInfo.lastProcessedItemId}""".trimMargin()
-                    ).use { resultSet ->
-                        resultSet.next()
-                        resultSet.getInt(1)
-                    }
-                }
-            }
-        }
+    private fun getItemsCompleted(): Int =
+        queryExecutor.getItemCount("gcd_story", "id <= ${progressInfo.lastProcessedItemId}")
 
     companion object {
         private val progressFile = File("progress.json")
