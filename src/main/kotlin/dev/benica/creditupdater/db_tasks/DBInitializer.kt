@@ -1,13 +1,12 @@
 package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.Credentials.Companion.ISSUE_SERIES_PATH
-import dev.benica.creditupdater.Credentials.Companion.TABLES_PATH
+import dev.benica.creditupdater.Credentials.Companion.PREP_REMOVE_RECORDS_PATH
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
 import dev.benica.creditupdater.Credentials.Companion.REMOVE_RECORDS_PATH
-import dev.benica.creditupdater.Credentials.Companion.PREP_REMOVE_RECORDS_PATH
-import dev.benica.creditupdater.db.ConnectionSource
-import dev.benica.creditupdater.di.DaggerDatabaseWorkerComponent
-import dev.benica.creditupdater.di.DatabaseWorkerComponent
+import dev.benica.creditupdater.Credentials.Companion.TABLES_PATH
+import dev.benica.creditupdater.di.DaggerDispatchersComponent
+import dev.benica.creditupdater.di.DispatchersComponent
 import kotlinx.coroutines.*
 import mu.KLogger
 import mu.KotlinLogging
@@ -34,10 +33,10 @@ class DBInitializer(
     private val targetSchema: String = PRIMARY_DATABASE,
     private val startAtStep: Int,
     private val startingId: Int? = null,
-    databaseWorkerComponent: DatabaseWorkerComponent = DaggerDatabaseWorkerComponent.create(),
+    dispatcherComponent: DispatchersComponent = DaggerDispatchersComponent.create(),
 ) {
     init {
-        databaseWorkerComponent.inject(this)
+        dispatcherComponent.inject(this)
     }
 
     private val logger: KLogger
@@ -48,9 +47,6 @@ class DBInitializer(
     @Inject
     @Named("IO")
     internal lateinit var ioDispatcher: CoroutineDispatcher
-
-    @Inject
-    internal lateinit var connectionSource: ConnectionSource
 
     /**
      * Prepare database - this is the main entry point for the
@@ -77,8 +73,8 @@ class DBInitializer(
                     dbTask.extractCharactersAndAppearances(
                         schema = targetSchema,
                         initial = true,
+
                         startingId = startingId,
-                        batchSize = 20000
                     )
                 }
 

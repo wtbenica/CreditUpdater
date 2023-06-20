@@ -1,42 +1,54 @@
-package dev.benica.creditupdater.converter
+package dev.benica.creditupdater.extractor
 
 import dev.benica.creditupdater.db.CreditRepository
+import dev.benica.creditupdater.di.CreditRepositoryComponent
+import dev.benica.creditupdater.di.DaggerCreditRepositoryComponent
+import dev.benica.creditupdater.di.RepoSource
 import mu.KLogger
 import mu.KotlinLogging
-import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
+import javax.inject.Inject
 import kotlin.jvm.Throws
 
 /**
  * Credit extractor - creates linked credits from named credits
  *
  * @param database the database
- * @param conn the connection
  * @constructor Create empty Credit extractor
  */
-class CreditExtractor(database: String, conn: Connection) : Extractor(database, conn) {
+class CreditExtractor(
+    database: String,
+    repositoryComponent: CreditRepositoryComponent = DaggerCreditRepositoryComponent.create()
+) : Extractor(database) {
     override val extractTable: String = "gcd_story"
     override val extractedItem = "Credit"
     override val fromValue = "StoryId"
-    private val repository = CreditRepository(database, conn)
+
+    @Inject
+    internal lateinit var repoSource: RepoSource<CreditRepository>
+
+    private val repository: CreditRepository
+
+    init {
+        repositoryComponent.inject(this)
+        repository = repoSource.getRepo(database)
+    }
 
     private val logger: KLogger
-        get() = KotlinLogging.logger (this::class.java.simpleName)
+        get() = KotlinLogging.logger(this::class.java.simpleName)
 
     /**
      * Extracts credits from the 'script', 'pencils', 'inks', 'colors',
-     * 'letters', and 'editing' text fields in a gcd_story and creates
-     * linked entries for them in the 'm_story_credit' table.
+     * 'letters', and 'editing' text fields in a gcd_story and
+     * creates linked entries for them in the 'm_story_credit' table.
      *
      * @param resultSet expecting a result set containing a story
      * @return the story id
      * @throws SQLException
      */
     @Throws(SQLException::class)
-    override suspend fun extractAndInsert(
-        resultSet: ResultSet,
-    ): Int {
+    override fun extractAndInsert(resultSet: ResultSet): Int {
         try {
             val storyId = resultSet.getInt("id")
 

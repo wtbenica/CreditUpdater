@@ -2,9 +2,8 @@ package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.Credentials.Companion.INCOMING_DATABASE
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
-import dev.benica.creditupdater.db.ConnectionSource
-import dev.benica.creditupdater.di.DaggerDatabaseWorkerComponent
-import dev.benica.creditupdater.di.DatabaseWorkerComponent
+import dev.benica.creditupdater.di.DaggerDispatchersComponent
+import dev.benica.creditupdater.di.DispatchersComponent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import java.sql.SQLException
@@ -19,19 +18,16 @@ import javax.inject.Named
  */
 class DBMigrator(
     private val targetSchema: String = INCOMING_DATABASE,
-    databaseWorkerComponent: DatabaseWorkerComponent = DaggerDatabaseWorkerComponent.create(),
+    dispatcherComponent: DispatchersComponent = DaggerDispatchersComponent.create(),
 ) {
     init {
-        databaseWorkerComponent.inject(this)
+        dispatcherComponent.inject(this)
     }
     private val dbTask: DBTask = DBTask(targetSchema)
 
     @Inject
     @Named("IO")
     internal lateinit var ioDispatcher: CoroutineDispatcher
-
-    @Inject
-    internal lateinit var connectionSource: ConnectionSource
 
     /** Migrate - migrates the data from the old database to the new database. */
     suspend fun migrate() {

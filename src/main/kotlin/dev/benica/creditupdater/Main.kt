@@ -4,20 +4,13 @@ import ch.qos.logback.classic.Level
 import dev.benica.creditupdater.cli_parser.CLIParser
 import dev.benica.creditupdater.db_tasks.DBInitializer
 import dev.benica.creditupdater.db_tasks.DBMigrator
-import dev.benica.creditupdater.di.DaggerDispatchersComponent
-import dev.benica.creditupdater.di.DispatchersComponent
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import mu.KLogger
 import mu.KotlinLogging
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 fun main(args: Array<String>) {
-    val dispatchersComponent: DispatchersComponent = DaggerDispatchersComponent.create()
-    val dispatcher: CoroutineDispatcher = dispatchersComponent.provideIODispatcher()
-
     val logger: KLogger = KotlinLogging.logger("Main")
 
     runBlocking {
@@ -25,7 +18,7 @@ fun main(args: Array<String>) {
 
         try {
             parsedArgs.parse(args)
-            initLoggers(parsedArgs.quiet)
+            initLoggers(parsedArgs)
 
             when {
                 parsedArgs.help -> {
@@ -33,40 +26,35 @@ fun main(args: Array<String>) {
                 }
 
                 parsedArgs.prepare != null && parsedArgs.migrate != null -> {
-                    withContext(dispatcher) {
-                        DBInitializer(
-                            targetSchema = parsedArgs.prepare!!,
-                            startAtStep = parsedArgs.step,
-                            startingId = parsedArgs.startingId
-                        ).prepareDb()
-                        DBMigrator().migrate()
-                    }
+                    @Suppress("kotlin:S6307")
+                    DBInitializer(
+                        targetSchema = parsedArgs.prepare!!,
+                        startAtStep = parsedArgs.step,
+                        startingId = parsedArgs.startingId
+                    ).prepareDb()
+                    DBMigrator().migrate()
                 }
 
                 parsedArgs.prepare != null -> {
-                    withContext(dispatcher) {
-                        DBInitializer(
-                            targetSchema = parsedArgs.prepare!!,
-                            startAtStep = parsedArgs.step,
-                            startingId = parsedArgs.startingId
-                        ).prepareDb()
-                    }
+                    @Suppress("kotlin:S6307")
+                    DBInitializer(
+                        targetSchema = parsedArgs.prepare!!,
+                        startAtStep = parsedArgs.step,
+                        startingId = parsedArgs.startingId
+                    ).prepareDb()
                 }
 
                 parsedArgs.migrate != null -> {
-                    withContext(dispatcher) {
-                        DBMigrator().migrate()
-                    }
+                    DBMigrator().migrate()
                 }
 
                 else -> {
-                    withContext(dispatcher) {
-                        DBInitializer(
-                            startAtStep = parsedArgs.step,
-                            startingId = parsedArgs.startingId
-                        ).prepareDb()
-                        DBMigrator().migrate()
-                    }
+                    @Suppress("kotlin:S6307")
+                    DBInitializer(
+                        startAtStep = parsedArgs.step,
+                        startingId = parsedArgs.startingId
+                    ).prepareDb()
+                    DBMigrator().migrate()
                 }
             }
         } catch (e: com.beust.jcommander.ParameterException) {
@@ -85,15 +73,29 @@ fun main(args: Array<String>) {
     }
 }
 
-private fun initLoggers(quiet: Boolean) {
+private fun initLoggers(quiet: CLIParser) {
+    val loggerLevel = when {
+        quiet.verbose -> Level.ALL
+        quiet.debug -> Level.DEBUG
+        quiet.quiet -> Level.WARN
+        else -> Level.INFO
+    }
+
+    val hikariLoggerLevel = when {
+        quiet.verbose -> Level.WARN
+        quiet.debug -> Level.ERROR
+        quiet.quiet -> Level.OFF
+        else -> Level.ERROR
+    }
+
     LoggerFactory.getLogger("com.zaxxer.hikari").let { logger ->
         if (logger is ch.qos.logback.classic.Logger) {
-            logger.level = Level.OFF
+            logger.level = hikariLoggerLevel
         }
     }
     LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME).let { logger ->
         if (logger is ch.qos.logback.classic.Logger) {
-            logger.level = if (quiet) Level.WARN else Level.ALL
+            logger.level = loggerLevel
         }
     }
 }
