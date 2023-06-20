@@ -1,4 +1,9 @@
-package dev.benica.creditupdater.converter
+package dev.benica.creditupdater.extractor.utils
+
+import dev.benica.creditupdater.extractor.cleanup
+import dev.benica.creditupdater.models.CharacterAppearance
+import dev.benica.creditupdater.models.Individual
+import dev.benica.creditupdater.models.Team
 
 class CharacterParser {
     companion object {

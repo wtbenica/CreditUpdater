@@ -19,9 +19,27 @@ class CLIParser {
 
     @Parameter(
         names = ["-q", "--quiet"],
-        description = "Only warnings and errors will be logged",
+        description = "Sets logger level to WARN",
     )
     var quiet: Boolean = false
+
+    @Parameter(
+        names = ["-v", "--verbose"],
+        description = "Prints all logs",
+    )
+    var verbose: Boolean = false
+
+    @Parameter(
+        names = ["-d", "--debug"],
+        description = "Sets logger level to DEBUG",
+    )
+    var debug: Boolean = false
+
+    @Parameter(
+        names = ["-i", "--info"],
+        description = "Sets logger level to INFO",
+    )
+    var info: Boolean = false
 
     @Parameter(
         names = ["-p", "--prepare"],

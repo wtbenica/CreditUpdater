@@ -1,4 +1,4 @@
-package dev.benica.creditupdater.converter
+package dev.benica.creditupdater.models
 
 sealed class CharacterAppearance {
     abstract val name: String
