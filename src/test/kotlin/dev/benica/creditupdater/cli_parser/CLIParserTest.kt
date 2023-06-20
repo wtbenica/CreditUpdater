@@ -115,9 +115,11 @@ class CLIParserTest {
         this.parser.parse(arrayOf("-h"))
 
         @Suppress("RegExpRepeatedSpace", "RegExpDuplicateCharacterInClass")
-        val expectedOutput =
-            """Usage: CreditUpdater [options]
+        val expectedOutput = """Usage: CreditUpdater [options]
   Options:
+    -d, --debug
+      Sets logger level to DEBUG
+      Default: false
     -h, --help
       print this message
       Default: false
@@ -128,10 +130,13 @@ class CLIParserTest {
     -p, --prepare
       Prepare new primary database
     -q, --quiet
-      Only warnings and errors will be logged
+      Sets logger level to WARN
       Default: false
     -s, --step
-      Start at the indicated step, skipping completed steps."""
+      Start at the indicated step, skipping completed steps.
+    -v, --verbose
+      Prints all logs
+      Default: false"""
 
         val outputStream = ByteArrayOutputStream()
         val printStream = PrintStream(outputStream)

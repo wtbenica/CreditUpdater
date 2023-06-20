@@ -36,12 +36,6 @@ class CLIParser {
     var debug: Boolean = false
 
     @Parameter(
-        names = ["-i", "--info"],
-        description = "Sets logger level to INFO [Default]",
-    )
-    var info: Boolean = false
-
-    @Parameter(
         names = ["-p", "--prepare"],
         description = "Prepare new primary database",
         arity = 1,

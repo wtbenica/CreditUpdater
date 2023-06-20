@@ -1,10 +1,7 @@
 package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.Credentials.Companion.ISSUE_SERIES_PATH
-import dev.benica.creditupdater.Credentials.Companion.PREP_REMOVE_RECORDS_PATH
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
-import dev.benica.creditupdater.Credentials.Companion.REMOVE_RECORDS_PATH
-import dev.benica.creditupdater.Credentials.Companion.TABLES_PATH
 import dev.benica.creditupdater.di.DaggerDispatchersComponent
 import dev.benica.creditupdater.di.DispatchersComponent
 import kotlinx.coroutines.*
@@ -39,14 +36,16 @@ class DBInitializer(
         dispatcherComponent.inject(this)
     }
 
+    // Dependencies
+    @Inject
+    @Named("IO")
+    internal lateinit var ioDispatcher: CoroutineDispatcher
+
+    // Private properties
     private val logger: KLogger
         get() = KotlinLogging.logger(this::class.java.simpleName)
 
     private val dbTask: DBTask = DBTask(targetSchema)
-
-    @Inject
-    @Named("IO")
-    internal lateinit var ioDispatcher: CoroutineDispatcher
 
     /**
      * Prepare database - this is the main entry point for the
@@ -61,40 +60,43 @@ class DBInitializer(
         withContext(ioDispatcher) {
             try {
                 logger.info { "Updating $targetSchema" }
-                dropIsSourcedAndSourcedByColumns()
 
                 if (startAtStep == 1) {
                     logger.info { "Starting Table Updates..." }
+                    dropIsSourcedAndSourcedByColumns()
                     addAndModifyTables()
                     removeUnnecessaryRecords()
                 }
 
-                if (startAtStep <= 2) {
-                    dbTask.extractCharactersAndAppearances(
-                        schema = targetSchema,
-                        initial = true,
-
-                        startingId = startingId,
-                    )
-                }
-
-                if (startAtStep <= 3) {
-                    dbTask.extractCredits(
-                        sourceSchema = targetSchema,
-                        initial = true,
-                        startingId = startingId.takeIf { startAtStep == 3 },
-                    )
-                }
-
-                if (startAtStep <= 4) {
-                    logger.info { "Starting FKey updates" }
-                    addIssueSeriesColumnsAndConstraints()
-                }
+                //if (startAtStep <= 2) {
+                //    logger.info { "Starting Character Updates..." }
+                //    dbTask.extractCharactersAndAppearances(
+                //        schema = targetSchema,
+                //        initial = true,
+                //        startingId = startingId,
+                //    )
+                //}
+                //
+                //if (startAtStep <= 3) {
+                //    logger.info { "Starting Credit Updates..." }
+                //    dbTask.extractCredits(
+                //        schema = targetSchema,
+                //        initial = true,
+                //        startingId = startingId.takeIf { startAtStep == 3 },
+                //    )
+                //}
+                //
+                //if (startAtStep <= 4) {
+                //    logger.info { "Starting foreign key updates" }
+                //    addIssueSeriesColumnsAndConstraints()
+                //}
 
                 logger.info { "Successfully updated $targetSchema" }
-            } catch (e: SQLException) {
+            } catch (sqlEx: SQLException) {
                 logger.error { "Failed to update $targetSchema" }
-                throw e
+                logger.error { sqlEx.message }
+                logger.error { sqlEx.stackTrace }
+                throw sqlEx
             }
         }
     }
@@ -125,7 +127,7 @@ class DBInitializer(
      * @throws SQLException
      */
     @Throws(SQLException::class)
-    private fun addAndModifyTables() = dbTask.runSqlScript(sqlScriptPath = TABLES_PATH)
+    private fun addAndModifyTables() = dbTask.runSqlScript(sqlScriptPath = INIT_TABLES_PATH)
 
     /**
      * Shrink database - this function shrinks the database by removing a bunch
@@ -136,8 +138,8 @@ class DBInitializer(
      */
     @Throws(SQLException::class)
     private fun removeUnnecessaryRecords() {
-        dbTask.runSqlScript(sqlScriptPath = PREP_REMOVE_RECORDS_PATH)
-        dbTask.runSqlScript(sqlScriptPath = REMOVE_RECORDS_PATH)
+        dbTask.runSqlScript(sqlScriptPath = INIT_CREATE_VIEWS_FOR_DELETION)
+        dbTask.runSqlScript(sqlScriptPath = INIT_REMOVE_ITEMS)
     }
 
     /**
@@ -153,5 +155,34 @@ class DBInitializer(
     private fun addIssueSeriesColumnsAndConstraints() =
         dbTask.runSqlScript(sqlScriptPath = ISSUE_SERIES_PATH, runAsTransaction = true)
 
+    companion object {
+        /**
+         * This SQL query adds issue and series columns to the gcd_story_credit
+         * table. It creates the m_character and m_character_appearance tables if
+         * they don't already exist.
+         */
+        const val INIT_TABLES_PATH = "src/main/resources/sql/init_add_tables.sql"
+
+        /**
+         * This script creates several views that filter out records from the
+         * database based on certain criteria. These views are then used to delete
+         * records from various tables in the database.
+         */
+        const val INIT_CREATE_VIEWS_FOR_DELETION = "src/main/resources/sql/init_create_views_for_deletion.sql"
+
+        /**
+         * This script creates several views that filter out records from the
+         * database based on certain criteria. These views are then used to delete
+         * records from various tables in the database. The script also updates
+         * some records in the gcd_issue and gcd_series tables by setting their
+         * variant_of_id, first_issue_id, and last_issue_id fields to NULL.
+         * Finally, the script deletes records from the gcd_indicia_publisher,
+         * gcd_brand_group, gcd_brand_emblem_group, gcd_brand_use, and
+         * gcd_publisher tables based on certain criteria. Overall, this script is
+         * used to limit the records in the database based on certain criteria.
+         */
+        const val INIT_REMOVE_ITEMS = "src/main/resources/sql/init_remove_items.sql"
+
+    }
 }
 

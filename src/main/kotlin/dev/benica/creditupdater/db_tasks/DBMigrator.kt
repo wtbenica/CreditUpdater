@@ -6,58 +6,84 @@ import dev.benica.creditupdater.di.DaggerDispatchersComponent
 import dev.benica.creditupdater.di.DispatchersComponent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
+import mu.KLogger
+import mu.KotlinLogging
 import java.sql.SQLException
 import javax.inject.Inject
 import javax.inject.Named
 
 /**
- * dev.benica.CreditUpdater.Migrator - migrates the data from the old
- * database to the new database.
+ * Migrator - migrates the data from the old database to the new database.
  *
  * @constructor Create empty dev.benica.CreditUpdater.Migrator
  */
 class DBMigrator(
-    private val targetSchema: String = INCOMING_DATABASE,
+    private val sourceSchema: String = INCOMING_DATABASE,
+    private val destSchema: String = PRIMARY_DATABASE,
+    private val startAtStep: Int = 1,
+    private val startingId: Int? = null,
     dispatcherComponent: DispatchersComponent = DaggerDispatchersComponent.create(),
 ) {
     init {
         dispatcherComponent.inject(this)
     }
-    private val dbTask: DBTask = DBTask(targetSchema)
 
+    // Dependencies
     @Inject
     @Named("IO")
     internal lateinit var ioDispatcher: CoroutineDispatcher
+
+    // Private properties
+    private val logger: KLogger
+        get() = KotlinLogging.logger(this::class.java.simpleName)
+
+    private val dbTask: DBTask = DBTask(sourceSchema)
 
     /** Migrate - migrates the data from the old database to the new database. */
     suspend fun migrate() {
         withContext(ioDispatcher) {
             try {
-                println("Migrating to $PRIMARY_DATABASE from $targetSchema")
+                logger.info { "Migrating to $destSchema from $sourceSchema" }
 
-                println("starting tables...")
-                addTablesNew()
+                if (startAtStep == 1) {
+                    logger.info { "starting tables..." }
+                    addTablesNew()
+                }
 
-                dbTask.extractCharactersAndAppearances(
-                    schema = targetSchema,
-                    initial = false
-                )
+                if (startAtStep <= 2) {
+                    logger.info { "starting characters..." }
+                    dbTask.extractCharactersAndAppearances(
+                        schema = sourceSchema,
+                        initial = true,
+                        startingId = startingId
+                    )
+                }
 
-                println("Done extracting characters.")
+                if (startAtStep <= 3) {
+                    logger.info { "starting credits..." }
+                    dbTask.extractCredits(
+                        schema = sourceSchema,
+                        initial = true,
+                        startingId = startingId.takeIf { startAtStep == 3 }
+                    )
+                }
 
-                dbTask.extractCredits(
-                    targetSchema,
-                    false
-                )
+                if (startAtStep <= 4) {
+                    logger.info { "starting foreign keys updates" }
+                    addIssueSeriesToCreditsNew()
+                    logger.info { "Done prepping $sourceSchema for migration" }
+                }
 
-                addIssueSeriesToCreditsNew()
-                println("Done updating credits")
-
-                println("Starting migration")
-                migrateRecords()
+                if (startAtStep <= 5) {
+                    logger.info { "starting migration..." }
+                    migrateRecords()
+                    logger.info { "Done migrating records" }
+                }
             } catch (sqlEx: SQLException) {
-                println("Error migrating records: ${sqlEx.message}")
-                sqlEx.printStackTrace()
+                logger.error { "Error migrating to $destSchema from $sourceSchema" }
+                logger.error { sqlEx.message }
+                logger.error { sqlEx.stackTrace }
+                throw sqlEx
             }
         }
     }
@@ -71,10 +97,7 @@ class DBMigrator(
     internal fun addTablesNew() =
         dbTask.runSqlScript(ADD_MODIFY_TABLES_PATH_NEW)
 
-    /**
-     * Add issue series to credits new - adds the issue_id and series_id
-     * columns
-     */
+    /** adds the issue_id and series_id columns */
     internal fun addIssueSeriesToCreditsNew() =
         dbTask.runSqlScript(ADD_ISSUE_SERIES_TO_CREDITS_PATH_NEW)
 
