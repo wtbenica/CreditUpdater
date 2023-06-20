@@ -37,7 +37,7 @@ class CLIParser {
 
     @Parameter(
         names = ["-i", "--info"],
-        description = "Sets logger level to INFO",
+        description = "Sets logger level to INFO [Default]",
     )
     var info: Boolean = false
 
@@ -96,12 +96,11 @@ class CLIParser {
         }
     }
 
-}
-
-class StartIdValidator : IParameterValidator {
-    override fun validate(name: String?, value: String?) {
-        if (value != null && (value.toIntOrNull() == null || value.toInt() < 0)) {
-            throw ParameterException("Parameter $name should be a non-negative integer")
+    class StartIdValidator : IParameterValidator {
+        override fun validate(name: String?, value: String?) {
+            if (value != null && (value.toIntOrNull() == null || value.toInt() < 0)) {
+                throw ParameterException("Parameter $name should be a non-negative integer")
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
 import dev.benica.creditupdater.di.DaggerQueryExecutorComponent
 import dev.benica.creditupdater.di.QueryExecutorComponent
 import dev.benica.creditupdater.di.QueryExecutorSource
+import dev.benica.creditupdater.di.Repository
 import dev.benica.creditupdater.models.Appearance
 import mu.KLogger
 import mu.KotlinLogging
@@ -11,8 +12,6 @@ import java.sql.PreparedStatement
 import java.sql.SQLException
 import java.sql.Statement
 import javax.inject.Inject
-
-interface Repository
 
 class CharacterRepository(
     private val targetSchema: String,

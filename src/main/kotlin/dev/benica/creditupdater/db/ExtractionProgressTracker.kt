@@ -5,7 +5,6 @@ import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import dev.benica.creditupdater.TerminalUtil
 import dev.benica.creditupdater.di.*
-import dev.benica.creditupdater.toPercent
 import kotlinx.coroutines.*
 import mu.KLogger
 import mu.KotlinLogging
@@ -19,8 +18,8 @@ class ExtractionProgressTracker(
     private val extractedType: String,
     targetSchema: String,
     private val totalItems: Int = 0,
-    dispatchAndExecuteComponent: DispatchAndExecuteComponent = DaggerDispatchAndExecuteComponent.create(),
-    ) {
+    dispatchAndExecuteComponent: DispatchAndExecuteComponent = DaggerDispatchAndExecuteComponent.create()
+) {
     @Inject
     internal lateinit var queryExecutorSource: QueryExecutorSource
 
@@ -126,6 +125,11 @@ class ExtractionProgressTracker(
 
     private fun getItemsCompleted(): Int =
         queryExecutor.getItemCount("gcd_story", "id <= ${progressInfo.lastProcessedItemId}")
+
+    private fun Float.toPercent(): String {
+        val decimal = String.format("%.2f", this * 100)
+        return "$decimal%"
+    }
 
     companion object {
         private val progressFile = File("progress.json")

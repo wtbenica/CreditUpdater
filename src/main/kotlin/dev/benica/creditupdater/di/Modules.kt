@@ -10,7 +10,6 @@ import dev.benica.creditupdater.Credentials.Companion.USERNAME_INITIALIZER
 import dev.benica.creditupdater.db.CharacterRepository
 import dev.benica.creditupdater.db.CreditRepository
 import dev.benica.creditupdater.db.QueryExecutor
-import dev.benica.creditupdater.db.Repository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import javax.inject.Named
@@ -19,6 +18,8 @@ import javax.inject.Singleton
 abstract class ConnectionSource {
     abstract fun getConnection(targetSchema: String): HikariDataSource
 }
+
+interface Repository
 
 abstract class RepoSource<T : Repository> {
     abstract fun getRepo(db: String): T

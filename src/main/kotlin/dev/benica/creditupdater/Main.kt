@@ -20,22 +20,11 @@ fun main(args: Array<String>) {
             parsedArgs.parse(args)
             initLoggers(parsedArgs)
 
-            when {
-                parsedArgs.help -> {
-                    parsedArgs.usage
-                }
+            if (parsedArgs.help) {
+                parsedArgs.usage
+            } else {
 
-                parsedArgs.prepare != null && parsedArgs.migrate != null -> {
-                    @Suppress("kotlin:S6307")
-                    DBInitializer(
-                        targetSchema = parsedArgs.prepare!!,
-                        startAtStep = parsedArgs.step,
-                        startingId = parsedArgs.startingId
-                    ).prepareDb()
-                    DBMigrator().migrate()
-                }
-
-                parsedArgs.prepare != null -> {
+                if (parsedArgs.prepare != null) {
                     @Suppress("kotlin:S6307")
                     DBInitializer(
                         targetSchema = parsedArgs.prepare!!,
@@ -44,11 +33,9 @@ fun main(args: Array<String>) {
                     ).prepareDb()
                 }
 
-                parsedArgs.migrate != null -> {
+                if (parsedArgs.migrate != null) {
                     DBMigrator().migrate()
-                }
-
-                else -> {
+                } else if (parsedArgs.prepare == null) {
                     @Suppress("kotlin:S6307")
                     DBInitializer(
                         startAtStep = parsedArgs.step,
@@ -57,7 +44,7 @@ fun main(args: Array<String>) {
                     DBMigrator().migrate()
                 }
             }
-        } catch (e: com.beust.jcommander.ParameterException) {
+        } catch (e: Exception) {
             val msg = if (e.message?.startsWith("Was passed main parameter '") == true) {
                 "Unrecognized argument: ${e.message?.substringAfter("'")?.substringBefore("'")}"
             } else {
@@ -65,15 +52,13 @@ fun main(args: Array<String>) {
             }
             logger.error { msg }
             parsedArgs.usage
-        } catch (e: Exception) {
-            logger.error { e }
         } finally {
             parsedArgs.parsedCommand
         }
     }
 }
 
-private fun initLoggers(quiet: CLIParser) {
+fun initLoggers(quiet: CLIParser) {
     val loggerLevel = when {
         quiet.verbose -> Level.ALL
         quiet.debug -> Level.DEBUG
@@ -99,14 +84,3 @@ private fun initLoggers(quiet: CLIParser) {
         }
     }
 }
-
-private const val MILLIS_PER_SECOND = 1000
-internal const val MILLIS_PER_MINUTE = 60 * MILLIS_PER_SECOND
-internal const val MILLIS_PER_HOUR = 60 * MILLIS_PER_MINUTE
-internal const val MILLIS_PER_DAY = 24 * MILLIS_PER_HOUR
-
-fun Float.toPercent(): String {
-    val decimal = String.format("%.2f", this * 100)
-    return "$decimal%"
-}
-

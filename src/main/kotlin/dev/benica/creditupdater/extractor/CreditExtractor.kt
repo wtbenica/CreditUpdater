@@ -94,4 +94,18 @@ class CreditExtractor(
             )
         }
     }
+
+    /**
+     * Prepare name - removes any parentheticals, brackets, and question marks
+     * from the name.
+     *
+     * @return the name with parentheticals, brackets, and question marks
+     *     removed.
+     */
+    fun String.prepareName(): String = this
+        .replace(Regex("\\s*\\([^)]*\\)\\s*"), "")
+        .replace(Regex("\\s*\\[[^]]*]\\s*"), "")
+        .replace(Regex("\\s*\\?\\s*"), "")
+        .replace(Regex("^\\s*"), "")
+        .cleanup()
 }
