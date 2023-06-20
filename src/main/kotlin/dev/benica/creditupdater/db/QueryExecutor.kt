@@ -51,7 +51,7 @@ class QueryExecutor(
             connectionSource.getConnection(database).connection.use { conn ->
                 conn.createStatement().use { stmt ->
                     when {
-                        sqlStmt.startsWithAny(listOf("CREATE", "ALTER", "DROP", "TRUNCATE")) -> {
+                        sqlStmt.startsWithAny(listOf("CREATE", "ALTER", "DROP", "TRUNCATE", "SET", "PREPARE", "EXECUTE")) -> {
                             val autoCommit = stmt.connection.autoCommit
                             stmt.connection.autoCommit = true
                             stmt.execute(sqlStmt)
@@ -73,14 +73,14 @@ class QueryExecutor(
         }
     }
 
-    fun executeQuery(query: String): ResultSet {
-        return connectionSource.getConnection(database).connection.use { c ->
-            c.createStatement().use { stmt ->
-                stmt.executeQuery(query)
-            }
-        }
-    }
-
+    /**
+     * Executes the SQL [query] and calls [handleResultSet] on the [ResultSet].
+     *
+     * @param query the SQL query to execute
+     * @param handleResultSet the function to call on the [ResultSet]
+     * @throws SQLException if an error occurs
+     */
+    @Throws(SQLException::class)
     fun executeQueryAndDo(query: String, handleResultSet: (ResultSet) -> Unit) {
         connectionSource.getConnection(database).connection.use { c ->
             c.createStatement().use { stmt ->
@@ -102,6 +102,7 @@ class QueryExecutor(
      *
      * @param sqlScriptPath the sql script path
      * @param runAsTransaction whether to run the script as a transaction
+     * @throws SQLException if an error occurs
      */
     @Throws(SQLException::class)
     fun executeSqlScript(
@@ -139,6 +140,7 @@ class QueryExecutor(
      * @param statements the list of statements
      */
     private fun executeStatements(statements: List<String>) {
+        logger.info { "executeStatements: ${statements.size} statements" }
         statements.filter { it.isNotBlank() }.forEach { sqlStmt ->
             logger.info { "${sqlStmt.replace("\\s{2,}".toRegex(), "\n")}\n" }
             executeSqlStatement(sqlStmt)
