@@ -45,8 +45,7 @@ class QueryExecutor(
      *
      * @param sqlStmt the SQL statement to execute
      */
-    @Throws(SQLException::class)
-    fun executeSqlStatement(sqlStmt: String) {
+     fun executeSqlStatement(sqlStmt: String) {
         try {
             connectionSource.getConnection(database).connection.use { conn ->
                 conn.createStatement().use { stmt ->
@@ -59,7 +58,7 @@ class QueryExecutor(
                         }
 
                         sqlStmt.startsWithAny(listOf("INSERT", "UPDATE", "DELETE")) -> stmt.executeUpdate(sqlStmt)
-                        sqlStmt.startsWithAny(listOf("SELECT")) -> stmt.executeQuery(sqlStmt)
+                        sqlStmt.startsWithAny(listOf("SELECT")) -> throw SQLException("Use executeQueryAndDo for SELECT statements")
                         else -> Unit
                     }
                 }
