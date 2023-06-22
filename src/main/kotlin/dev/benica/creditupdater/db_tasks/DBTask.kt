@@ -11,6 +11,7 @@ import dev.benica.creditupdater.extractor.CreditExtractor
 import dev.benica.creditupdater.extractor.Extractor
 import mu.KLogger
 import mu.KotlinLogging
+import java.io.File
 import java.sql.SQLException
 import javax.inject.Inject
 import kotlin.system.measureTimeMillis
@@ -196,7 +197,7 @@ class DBTask(
     fun runSqlScript(
         sqlScriptPath: String,
         runAsTransaction: Boolean = false
-    ) = queryExecutor.executeSqlScript(sqlScriptPath, runAsTransaction)
+    ) = queryExecutor.executeSqlScript(File(sqlScriptPath), runAsTransaction)
 
     @Throws(SQLException::class)
     fun executeSqlStatement(

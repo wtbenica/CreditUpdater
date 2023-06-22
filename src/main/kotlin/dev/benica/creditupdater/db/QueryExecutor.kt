@@ -45,12 +45,22 @@ class QueryExecutor(
      *
      * @param sqlStmt the SQL statement to execute
      */
-     fun executeSqlStatement(sqlStmt: String) {
+    fun executeSqlStatement(sqlStmt: String) {
         try {
             connectionSource.getConnection(database).connection.use { conn ->
                 conn.createStatement().use { stmt ->
                     when {
-                        sqlStmt.startsWithAny(listOf("CREATE", "ALTER", "DROP", "TRUNCATE", "SET", "PREPARE", "EXECUTE")) -> {
+                        sqlStmt.startsWithAny(
+                            listOf(
+                                "CREATE",
+                                "ALTER",
+                                "DROP",
+                                "TRUNCATE",
+                                "SET",
+                                "PREPARE",
+                                "EXECUTE"
+                            )
+                        ) -> {
                             val autoCommit = stmt.connection.autoCommit
                             stmt.connection.autoCommit = true
                             stmt.execute(sqlStmt)
@@ -66,9 +76,6 @@ class QueryExecutor(
         } catch (sqlEx: SQLException) {
             logger.error("Error running SQL script $sqlStmt", sqlEx)
             throw sqlEx
-        } catch (ex: Exception) {
-            logger.error("Error running SQL script $sqlStmt", ex)
-            throw ex
         }
     }
 
@@ -99,18 +106,18 @@ class QueryExecutor(
      * - Note: Comments must be followed by a semicolon. If not, the following
      *   statement will be commented out.
      *
-     * @param sqlScriptPath the sql script path
+     * @param sqlScript the SQL script to run
      * @param runAsTransaction whether to run the script as a transaction
      * @throws SQLException if an error occurs
      */
     @Throws(SQLException::class)
     fun executeSqlScript(
-        sqlScriptPath: String,
+        sqlScript: File,
         runAsTransaction: Boolean = false
     ) {
         connectionSource.getConnection(database).connection.use { conn ->
             try {
-                val statements: List<String> = parseSqlScript(File(sqlScriptPath))
+                val statements: List<String> = sqlScript.parseSqlScript()
                 if (runAsTransaction) {
                     conn.autoCommit = false
                     executeStatements(statements)
@@ -159,7 +166,7 @@ class QueryExecutor(
      * @return the list of statements
      */
     internal fun parseSqlScript(file: File): List<String> =
-        file.useLines { lines ->
+        file.useLines(Charsets.UTF_8) { lines: Sequence<String> ->
             lines.filter { it.isNotBlank() }
                 .map { it.replace("<schema>", database).trim() }
                 .joinToString(separator = " ")
@@ -167,6 +174,7 @@ class QueryExecutor(
                 .filter { it.isNotBlank() }
                 .map { it.trim() }
         }
+
 
     /**
      * Checks if a string starts with any of the strings in a list.
@@ -190,7 +198,8 @@ class QueryExecutor(
         tableName: String,
         condition: String? = null
     ): Int {
-        val sql = "SELECT COUNT(*) AS count FROM $tableName g" + if (condition != null) " WHERE $condition" else ""
+        val sql =
+            "SELECT COUNT(*) AS count FROM $tableName g" + if (condition != null) " WHERE $condition" else ""
         connectionSource.getConnection(database).connection.use { conn ->
             conn.createStatement().use { stmt ->
                 val rs = stmt.executeQuery(sql)
@@ -231,4 +240,15 @@ class QueryExecutor(
             act(stmt)
         }
     }
+
+    fun File.parseSqlScript(): List<String> =
+        useLines(Charsets.UTF_8) { lines: Sequence<String> ->
+            lines.filter { it.isNotBlank() }
+                .map { it.replace("<schema>", database).trim() }
+                .joinToString(separator = " ")
+                .split(";")
+                .filter { it.isNotBlank() }
+                .map { it.trim() }
+        }
 }
+
