@@ -4,9 +4,8 @@ import dev.benica.creditupdater.Credentials.Companion.PASSWORD_INITIALIZER
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.Credentials.Companion.USERNAME_INITIALIZER
 import org.junit.jupiter.api.*
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.mockito.Mockito.*
+import org.junit.jupiter.api.Assertions.*
+import org.mockito.kotlin.*
 import java.io.File
 import java.sql.*
 
@@ -47,6 +46,8 @@ class QueryExecutorTest {
     fun tearDown() {
     }
 
+
+    // executeSqlStatement
     @Test
     @DisplayName("Should execute CREATE TABLE")
     fun shouldExecuteCreateTable() {
@@ -212,21 +213,170 @@ class QueryExecutorTest {
     @Test
     @DisplayName("Should throw SQLException when executing SELECT statement")
     fun shouldThrowSQLExceptionWhenExecutingSelectStatement() {
+        // Setup
         val sqlStmt = "SELECT * FROM test_table;"
 
+        // Execute & Assert
         assertThrows<SQLException> {
             queryExecutor.executeSqlStatement(sqlStmt)
         }
     }
 
     @Test
-    fun executeQueryAndDo() {
+    @DisplayName("Should not change database when executing comment")
+    fun shouldNotChangeDatabaseWhenExecutingComment() {
+        // Setup
+        val sqlStmt = "/* comment */"
+
+
+        DriverManager.getConnection(
+            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
+        ).use { conn ->
+            val databaseBefore = conn.catalog
+
+            // Execute
+            queryExecutor.executeSqlStatement(sqlStmt)
+            val databaseAfter = conn.catalog
+
+            // Assert
+            assertEquals(databaseBefore, databaseAfter, "Database should not change")
+        }
+    }
+
+    // executeQueryAndDo
+    @Test
+    @DisplayName("Should execute query and handle result set")
+    fun shouldExecuteQueryAndHandleResultSet() {
+        val tableName = "test_table_query"
+        val sqlStmt = "SELECT * FROM $tableName;"
+
+        DriverManager.getConnection(
+            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
+        ).use { conn ->
+            // Create test table
+            val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
+            conn.createStatement().use { stmt ->
+                stmt.execute(createTableStmt)
+            }
+
+            // Insert row
+            val insertStmt = "INSERT INTO $tableName VALUES (1);"
+            conn.createStatement().use { stmt ->
+                stmt.execute(insertStmt)
+            }
+
+            // Execute query
+            queryExecutor.executeQueryAndDo(sqlStmt) { resultSet ->
+                assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
+                assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
+                assertFalse(resultSet.next(), "There should be only one row in table $tableName")
+            }
+        }
     }
 
     @Test
-    fun executeSqlScript() {
+    @DisplayName("Should execute query and handle result set with multiple rows")
+    fun shouldExecuteQueryAndHandleResultSetWithMultipleRows() {
+        val tableName = "test_table_query_multiple_rows"
+        val sqlStmt = "SELECT * FROM $tableName;"
+
+        DriverManager.getConnection(
+            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
+        ).use { conn ->
+            // Create test table
+            val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
+            conn.createStatement().use { stmt ->
+                stmt.execute(createTableStmt)
+            }
+
+            // Insert rows
+            val insertStmt = "INSERT INTO $tableName VALUES (1), (2);"
+            conn.createStatement().use { stmt ->
+                stmt.execute(insertStmt)
+            }
+
+            // Execute query
+            queryExecutor.executeQueryAndDo(sqlStmt) { resultSet ->
+                assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
+                assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
+                assertTrue(resultSet.next(), "Row with id 2 should exist in table $tableName")
+                assertTrue(resultSet.getInt("id") == 2, "Row with id 2 should exist in table $tableName")
+                assertFalse(resultSet.next(), "There should be only two rows in table $tableName")
+            }
+        }
     }
 
+    @Test
+    @DisplayName("Should execute query and handle result set with multiple columns")
+    fun shouldExecuteQueryAndHandleResultSetWithMultipleColumns() {
+        val tableName = "test_table_query_multiple_columns"
+        val sqlStmt = "SELECT * FROM $tableName;"
+
+        DriverManager.getConnection(
+            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
+        ).use { conn ->
+            // Create test table
+            val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY, name VARCHAR(255));"
+            conn.createStatement().use { stmt ->
+                stmt.execute(createTableStmt)
+            }
+
+            // Insert row
+            val insertStmt = "INSERT INTO $tableName VALUES (1, 'test');"
+            conn.createStatement().use { stmt ->
+                stmt.execute(insertStmt)
+            }
+
+            // Execute query
+            queryExecutor.executeQueryAndDo(sqlStmt) { resultSet ->
+                assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
+                assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
+                assertTrue(resultSet.getString("name") == "test", "Row with id 1 should exist in table $tableName")
+                assertFalse(resultSet.next(), "There should be only one row in table $tableName")
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("Should execute query and handle result set with multiple rows and columns")
+    fun shouldExecuteQueryAndHandleResultSetWithMultipleRowsAndColumns() {
+        val tableName = "test_table_query_multiple_rows_and_columns"
+        val sqlStmt = "SELECT * FROM $tableName;"
+
+        DriverManager.getConnection(
+            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
+        ).use { conn ->
+            // Create test table
+            val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY, name VARCHAR(255));"
+            conn.createStatement().use { stmt ->
+                stmt.execute(createTableStmt)
+            }
+
+            // Insert rows
+            val insertStmt = "INSERT INTO $tableName VALUES (1, 'test1'), (2, 'test2');"
+            conn.createStatement().use { stmt ->
+                stmt.execute(insertStmt)
+            }
+
+            // Execute query
+            queryExecutor.executeQueryAndDo(sqlStmt) { resultSet ->
+                assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
+                assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
+                assertTrue(resultSet.getString("name") == "test1", "Row with id 1 should exist in table $tableName")
+                assertTrue(resultSet.next(), "Row with id 2 should exist in table $tableName")
+                assertTrue(resultSet.getInt("id") == 2, "Row with id 2 should exist in table $tableName")
+                assertTrue(resultSet.getString("name") == "test2", "Row with id 2 should exist in table $tableName")
+                assertFalse(resultSet.next(), "There should be only two rows in table $tableName")
+            }
+        }
+    }
+
+    // executeSqlScript
+    //@Test
+    //@DisplayName("Should execute sql script")
+
+
+    // parseSqlScript
     @Test
     fun `parseSqlScript$CreditUpdater`() {
     }
@@ -264,7 +414,8 @@ class QueryExecutorTest {
             DriverManager.getConnection(
                 "jdbc:mysql://localhost:3306/credit_updater_test", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
             ).use { conn ->
-                val query = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'credit_updater_test'"
+                val query =
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'credit_updater_test'"
                 conn.createStatement().use { stmt ->
                     // Retrieve the names of all tables in the database
                     stmt.executeQuery(query).use { resultSet ->
