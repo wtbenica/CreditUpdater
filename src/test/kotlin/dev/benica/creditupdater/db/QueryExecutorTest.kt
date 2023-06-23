@@ -690,7 +690,7 @@ class QueryExecutorTest {
         verify(preparedStatement).executeUpdate()
         verify(preparedStatement).setString(1, "Jane")
         verify(preparedStatement).setInt(2, 25)
-        verify(preparedStatement, times(2)).addBatch()
+        verify(preparedStatement).addBatch()
     }
 
     companion object {
