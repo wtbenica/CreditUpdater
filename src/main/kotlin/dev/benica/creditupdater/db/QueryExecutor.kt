@@ -6,10 +6,7 @@ import dev.benica.creditupdater.di.DatabaseComponent
 import mu.KLogger
 import mu.KotlinLogging
 import java.io.File
-import java.sql.PreparedStatement
-import java.sql.ResultSet
-import java.sql.SQLException
-import java.sql.Statement
+import java.sql.*
 import javax.inject.Inject
 
 /**
@@ -44,38 +41,48 @@ class QueryExecutor(
      * statement. Comments are ignored.
      *
      * @param sqlStmt the SQL statement to execute
+     * @param connection the [Connection] to use, or null to use a new
+     *     connection
+     *    - Note: If a connection is provided, it will not be closed
+     *    - Note: If a connection is provided, it will not be committed
+     *
+     *    @throws SQLException if an error occurs
      */
-    fun executeSqlStatement(sqlStmt: String) {
+    @Throws(SQLException::class)
+    fun executeSqlStatement(sqlStmt: String, connection: Connection? = null) {
+        val conn = connection ?: connectionSource.getConnection(database).connection
         try {
-            connectionSource.getConnection(database).connection.use { conn ->
-                conn.createStatement().use { stmt ->
-                    when {
-                        sqlStmt.startsWithAny(
-                            listOf(
-                                "CREATE",
-                                "ALTER",
-                                "DROP",
-                                "TRUNCATE",
-                                "SET",
-                                "PREPARE",
-                                "EXECUTE"
-                            )
-                        ) -> {
-                            val autoCommit = stmt.connection.autoCommit
-                            stmt.connection.autoCommit = true
-                            stmt.execute(sqlStmt)
-                            stmt.connection.autoCommit = autoCommit
-                        }
-
-                        sqlStmt.startsWithAny(listOf("INSERT", "UPDATE", "DELETE")) -> stmt.executeUpdate(sqlStmt)
-                        sqlStmt.startsWithAny(listOf("SELECT")) -> throw SQLException("Use executeQueryAndDo for SELECT statements")
-                        else -> Unit
+            conn.createStatement().use { stmt ->
+                when {
+                    sqlStmt.startsWithAny(
+                        listOf(
+                            "CREATE",
+                            "ALTER",
+                            "DROP",
+                            "TRUNCATE",
+                            "SET",
+                            "PREPARE",
+                            "EXECUTE"
+                        )
+                    ) -> {
+                        val autoCommit = stmt.connection.autoCommit
+                        stmt.connection.autoCommit = true
+                        stmt.execute(sqlStmt)
+                        stmt.connection.autoCommit = autoCommit
                     }
+
+                    sqlStmt.startsWithAny(listOf("INSERT", "UPDATE", "DELETE")) -> stmt.executeUpdate(sqlStmt)
+                    sqlStmt.startsWithAny(listOf("SELECT")) -> throw SQLException("Use executeQueryAndDo for SELECT statements")
+                    else -> Unit
                 }
             }
         } catch (sqlEx: SQLException) {
             logger.error("Error running SQL script $sqlStmt", sqlEx)
             throw sqlEx
+        } finally {
+            if (connection == null) {
+                conn.close()
+            }
         }
     }
 
@@ -120,7 +127,7 @@ class QueryExecutor(
                 val statements: List<String> = sqlScript.parseSqlScript()
                 if (runAsTransaction) {
                     conn.autoCommit = false
-                    executeStatements(statements)
+                    executeStatements(statements, conn)
                     conn.commit()
                 } else {
                     executeStatements(statements)
@@ -139,17 +146,17 @@ class QueryExecutor(
         }
     }
 
-    // Private Methods
+// Private Methods
     /**
      * Executes a list of SQL statements.
      *
      * @param statements the list of statements
      */
-    private fun executeStatements(statements: List<String>) {
+    private fun executeStatements(statements: List<String>, conn: Connection? = null) {
         logger.info { "executeStatements: ${statements.size} statements" }
         statements.filter { it.isNotBlank() }.forEach { sqlStmt ->
             logger.info { "${sqlStmt.replace("\\s{2,}".toRegex(), "\n")}\n" }
-            executeSqlStatement(sqlStmt)
+            executeSqlStatement(sqlStmt, conn)
         }
     }
 
@@ -231,17 +238,24 @@ class QueryExecutor(
             }
         }
 
+    /**
+     * Executes a prepared statement.
+     *
+     * @param sql the SQL statement
+     * @param act the act
+     * @throws SQLException the SQL exception
+     */
+    @Throws(SQLException::class)
     fun executePreparedStatement(
         sql: String,
-        autoGeneratedKeys: Int = Statement.NO_GENERATED_KEYS,
         act: (PreparedStatement) -> Unit
     ) = connectionSource.getConnection(database).connection.use { conn ->
-        conn.prepareStatement(sql, autoGeneratedKeys).use { stmt ->
+        conn.prepareStatement(sql).use { stmt ->
             act(stmt)
         }
     }
 
-    fun File.parseSqlScript(): List<String> =
+    private fun File.parseSqlScript(): List<String> =
         useLines(Charsets.UTF_8) { lines: Sequence<String> ->
             lines.filter { it.isNotBlank() }
                 .map { it.replace("<schema>", database).trim() }
