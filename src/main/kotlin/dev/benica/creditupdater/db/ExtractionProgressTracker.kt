@@ -126,11 +126,6 @@ class ExtractionProgressTracker(
     private fun getItemsCompleted(): Int =
         queryExecutor.getItemCount("gcd_story", "id <= ${progressInfo.lastProcessedItemId}")
 
-    private fun Float.toPercent(): String {
-        val decimal = String.format("%.2f", this * 100)
-        return "$decimal%"
-    }
-
     companion object {
         private val progressFile = File("progress.json")
 
@@ -171,3 +166,9 @@ class ExtractionProgressTracker(
         )
     }
 }
+
+internal fun Float.toPercent(): String {
+    val decimal = String.format("%.2f", this * 100)
+    return "$decimal%"
+}
+

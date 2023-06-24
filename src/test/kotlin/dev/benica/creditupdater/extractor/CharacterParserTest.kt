@@ -1,12 +1,12 @@
 package dev.benica.creditupdater.extractor
 
 import dev.benica.creditupdater.extractor.utils.CharacterParser
-import dev.benica.creditupdater.models.CharacterAppearance
+import dev.benica.creditupdater.models.Character
 import dev.benica.creditupdater.models.Individual
 import dev.benica.creditupdater.models.Team
 import mu.KLogger
 import mu.KotlinLogging
-import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
@@ -22,9 +22,9 @@ class CharacterParserTest {
 
         val actualList: Triple<String, String, String> = CharacterParser.splitString(character)
 
-        Assertions.assertEquals(expectedList[0], actualList.first)
-        Assertions.assertEquals(expectedList[1], actualList.second)
-        Assertions.assertEquals(expectedList[2], actualList.third)
+        assertEquals(expectedList[0], actualList.first)
+        assertEquals(expectedList[1], actualList.second)
+        assertEquals(expectedList[2], actualList.third)
     }
 
     @Test
@@ -35,9 +35,9 @@ class CharacterParserTest {
 
         val actualList: Triple<String, String, String> = CharacterParser.splitString(character)
 
-        Assertions.assertEquals(expectedList[0], actualList.first)
-        Assertions.assertEquals(expectedList[1], actualList.second)
-        Assertions.assertEquals(expectedList[2], actualList.third)
+        assertEquals(expectedList[0], actualList.first)
+        assertEquals(expectedList[1], actualList.second)
+        assertEquals(expectedList[2], actualList.third)
     }
 
     @Test
@@ -52,9 +52,9 @@ class CharacterParserTest {
 
         val actualList: Triple<String, String, String> = CharacterParser.splitString(character)
 
-        Assertions.assertEquals(expectedList[0], actualList.first)
-        Assertions.assertEquals(expectedList[1], actualList.second)
-        Assertions.assertEquals(expectedList[2], actualList.third)
+        assertEquals(expectedList[0], actualList.first)
+        assertEquals(expectedList[1], actualList.second)
+        assertEquals(expectedList[2], actualList.third)
     }
 
     @Test
@@ -66,10 +66,10 @@ class CharacterParserTest {
             Individual("Superman", "Clark Kent", "cameo")
         )
 
-        val actualList: List<CharacterAppearance> = CharacterParser.parseCharacters(characters)
+        val actualList: List<Character> = CharacterParser.parseCharacters(characters)
 
-        Assertions.assertEquals(expectedList[0], actualList[0])
-        Assertions.assertEquals(expectedList[1], actualList[1])
+        assertEquals(expectedList[0], actualList[0])
+        assertEquals(expectedList[1], actualList[1])
     }
 
     @Test
@@ -87,10 +87,10 @@ class CharacterParserTest {
             )
         )
 
-        val actualList: List<CharacterAppearance> = CharacterParser.parseCharacters(characters)
+        val actualList: List<Character> = CharacterParser.parseCharacters(characters)
 
-        Assertions.assertEquals(expectedList[0], actualList[0])
-        Assertions.assertEquals(expectedList[1], actualList[1])
+        assertEquals(expectedList[0], actualList[0])
+        assertEquals(expectedList[1], actualList[1])
     }
 
     @Test
@@ -113,10 +113,10 @@ class CharacterParserTest {
             )
         )
 
-        val actualList: List<CharacterAppearance> = CharacterParser.parseCharacters(characters)
+        val actualList: List<Character> = CharacterParser.parseCharacters(characters)
 
-        Assertions.assertEquals(expectedList[0], actualList[0])
-        Assertions.assertEquals(expectedList[1], actualList[1])
+        assertEquals(expectedList[0], actualList[0])
+        assertEquals(expectedList[1], actualList[1])
     }
 
 
@@ -128,9 +128,9 @@ class CharacterParserTest {
             Individual(name = "Buster Brown", alterEgo = "Major Ray (Major William Ray)", appearanceInfo = "cameo")
         )
 
-        val actualList: List<CharacterAppearance> = CharacterParser.parseCharacters(characters)
+        val actualList: List<Character> = CharacterParser.parseCharacters(characters)
 
-        Assertions.assertEquals(expectedList[0], actualList[0])
+        assertEquals(expectedList[0], actualList[0])
     }
 
     @Test
@@ -154,7 +154,7 @@ class CharacterParserTest {
 
         val actualResult: List<String> = CharacterParser.splitOnOuterSemicolons(string)
 
-        Assertions.assertEquals(expectedResult, actualResult)
+        assertEquals(expectedResult, actualResult)
     }
 
     @Test
@@ -170,7 +170,7 @@ class CharacterParserTest {
 
         val actualResult: List<String> = CharacterParser.splitOnOuterSemicolons(string)
 
-        Assertions.assertEquals(expectedResult, actualResult)
+        assertEquals(expectedResult, actualResult)
     }
 
     @Test
@@ -188,11 +188,11 @@ class CharacterParserTest {
             Individual(name = "Starro", alterEgo = null, appearanceInfo = "villain")
         )
 
-        val actualList: List<CharacterAppearance> = CharacterParser.parseCharacters(characters)
+        val actualList: List<Character> = CharacterParser.parseCharacters(characters)
         logger.debug { "${actualList[0].let { it::class.simpleName }} | $expectedList" }
-        Assertions.assertEquals(expectedList[0], actualList[0])
-        Assertions.assertEquals(expectedList[1], actualList[1])
-        Assertions.assertEquals(expectedList[2], actualList[2])
+        assertEquals(expectedList[0], actualList[0])
+        assertEquals(expectedList[1], actualList[1])
+        assertEquals(expectedList[2], actualList[2])
     }
 
     @Test
@@ -212,7 +212,18 @@ class CharacterParserTest {
 
         val actualString = CharacterParser.fixMissingBrackets(characterString)
 
-        Assertions.assertEquals(expectedString, actualString)
+        assertEquals(expectedString, actualString)
+    }
+
+    @Test
+    @DisplayName("fixMissingBrackets should handle malformed characterString that needs closing brackets at the end")
+    fun shouldHandleMalformedCharacterStringThatNeedsClosingBracketsAtTheEnd() {
+        val input = "name [alter ego; membership; appearance notes"
+        val expectedOutput = "name [alter ego; membership; appearance notes]"
+
+        val actualOutput = CharacterParser.fixMissingBrackets(input)
+
+        assertEquals(expectedOutput, actualOutput)
     }
 
     @Test
@@ -227,7 +238,7 @@ class CharacterParserTest {
 
         val actualResult: Pair<String?, String?> = CharacterParser.parseBracketedText(string)
 
-        Assertions.assertEquals(expectedResult, actualResult)
+        assertEquals(expectedResult, actualResult)
     }
 
     @Test
@@ -243,6 +254,6 @@ class CharacterParserTest {
 
         val actualResult: List<String> = CharacterParser.splitOnOuterSemicolons(string)
 
-        Assertions.assertEquals(expectedResult, actualResult)
+        assertEquals(expectedResult, actualResult)
     }
 }

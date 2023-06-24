@@ -11,6 +11,7 @@ import dev.benica.creditupdater.extractor.CreditExtractor
 import dev.benica.creditupdater.extractor.Extractor
 import mu.KLogger
 import mu.KotlinLogging
+import java.io.File
 import java.sql.SQLException
 import javax.inject.Inject
 import kotlin.system.measureTimeMillis
@@ -46,22 +47,22 @@ class DBTask(
     // Public Methods
     /**
      * Extract credits - extracts non-relational creator credits from stories
-     * in [sourceSchema].stories_to_migrate
+     * in [schema].stories_to_migrate
      *
-     * @param sourceSchema The schema with the stories_to_migrate table.
+     * @param schema The schema with the stories_to_migrate table.
      * @param initial Whether this is the initial run.
      * @throws SQLException if an error occurs
      */
     @Throws(SQLException::class)
     fun extractCredits(
-        sourceSchema: String,
+        schema: String,
         initial: Boolean,
         startingId: Int? = null,
         batchSize: Int = DEFAULT_BATCH_SIZE,
     ) {
         logger.info { "starting credits..." }
 
-        val extractor = CreditExtractor(sourceSchema)
+        val extractor = CreditExtractor(schema)
         val lastUpdatedItemId = startingId
             ?: ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
             ?: Credentials.CREDITS_STORY_START_ID
@@ -74,7 +75,7 @@ class DBTask(
          */
         val selectStoriesQuery =
             """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
-                        FROM $sourceSchema.$table g
+                        FROM $schema.$table g
                         WHERE g.id > $lastUpdatedItemId
                         ORDER BY g.id """.trimIndent()
 
@@ -196,7 +197,7 @@ class DBTask(
     fun runSqlScript(
         sqlScriptPath: String,
         runAsTransaction: Boolean = false
-    ) = queryExecutor.executeSqlScript(sqlScriptPath, runAsTransaction)
+    ) = queryExecutor.executeSqlScript(File(sqlScriptPath), runAsTransaction)
 
     @Throws(SQLException::class)
     fun executeSqlStatement(
