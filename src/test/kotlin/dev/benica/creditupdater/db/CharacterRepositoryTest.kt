@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Assertions.*
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
+import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.PreparedStatement
 import java.sql.SQLException
@@ -21,11 +22,7 @@ class CharacterRepositoryTest {
     fun shouldInsertNewCharacter() {
         val tableName = "m_character"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE",
-            USERNAME_INITIALIZER,
-            PASSWORD_INITIALIZER
-        ).use { conn ->
+        getDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("DELETE FROM $tableName")
             }
@@ -54,11 +51,7 @@ class CharacterRepositoryTest {
     fun shouldReturnExistingCharacter() {
         val tableName = "m_character"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE",
-            USERNAME_INITIALIZER,
-            PASSWORD_INITIALIZER
-        ).use { conn ->
+        getDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("INSERT INTO $tableName (name, alter_ego, publisher_id) VALUES ('Test Character', NULL, 1)")
             }
@@ -75,11 +68,7 @@ class CharacterRepositoryTest {
     fun shouldTruncateAlterEgo() {
         val tableName = "m_character"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE",
-            USERNAME_INITIALIZER,
-            PASSWORD_INITIALIZER
-        ).use { conn ->
+        getDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("DELETE FROM $tableName")
             }
@@ -108,11 +97,7 @@ class CharacterRepositoryTest {
     fun shouldTruncateName() {
         val tableName = "m_character"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE",
-            USERNAME_INITIALIZER,
-            PASSWORD_INITIALIZER
-        ).use { conn ->
+        getDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("DELETE FROM $tableName")
             }
@@ -142,11 +127,7 @@ class CharacterRepositoryTest {
     fun lookupCharacterShouldReturnNull() {
         val tableName = "m_character"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE",
-            USERNAME_INITIALIZER,
-            PASSWORD_INITIALIZER
-        ).use { conn ->
+        getDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("DELETE FROM $tableName")
             }
@@ -162,11 +143,7 @@ class CharacterRepositoryTest {
     fun lookupCharacterShouldReturnId() {
         val tableName = "m_character"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE",
-            USERNAME_INITIALIZER,
-            PASSWORD_INITIALIZER
-        ).use { conn ->
+        getDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("INSERT INTO $tableName (name, alter_ego, publisher_id) VALUES ('Test Character', NULL, 1)")
             }
@@ -185,7 +162,7 @@ class CharacterRepositoryTest {
         val queryExecutorMock = mock<QueryExecutor>()
 
         // Create the repository
-        val repo = CharacterRepository(TEST_DATABASE, pQueryExecutor = queryExecutorMock)
+        val repo = CharacterRepository(TEST_DATABASE, queryExecutor = queryExecutorMock)
 
         whenever(queryExecutorMock.executePreparedStatementBatch(any(), any(), any())).thenAnswer {
             throw SQLException()
@@ -202,11 +179,7 @@ class CharacterRepositoryTest {
     fun shouldInsertASetOfNewAppearancesWithAppearances() {
         val tableName = "m_character_appearance"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE",
-            USERNAME_INITIALIZER,
-            PASSWORD_INITIALIZER
-        ).use { conn ->
+        getDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("DELETE FROM $tableName")
             }
@@ -293,7 +266,7 @@ class CharacterRepositoryTest {
         val queryExecutorMock = mock<QueryExecutor>()
 
         // Create the repository
-        val repo = CharacterRepository(TEST_DATABASE, pQueryExecutor = queryExecutorMock)
+        val repo = CharacterRepository(TEST_DATABASE, queryExecutor = queryExecutorMock)
 
         whenever(
             queryExecutorMock.executePreparedStatementBatch(any(), any(), any())
@@ -314,7 +287,7 @@ class CharacterRepositoryTest {
         val queryExecutorMock = mock<QueryExecutor>()
 
         // Create the repository
-        val repo = CharacterRepository(TEST_DATABASE, pQueryExecutor = queryExecutorMock)
+        val repo = CharacterRepository(TEST_DATABASE, queryExecutor = queryExecutorMock)
 
         whenever(queryExecutorMock.executePreparedStatementBatch(any(), any(), any())).thenAnswer {
             val action = it.getArgument<(PreparedStatement) -> Unit>(2)
@@ -338,11 +311,7 @@ class CharacterRepositoryTest {
     // Setup and teardown
     @BeforeEach
     fun initEach() {
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE",
-            USERNAME_INITIALIZER,
-            PASSWORD_INITIALIZER,
-        ).use { conn ->
+        getDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("TRUNCATE TABLE m_character")
             }
@@ -351,11 +320,7 @@ class CharacterRepositoryTest {
 
     @AfterEach
     fun tearDown() {
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE",
-            USERNAME_INITIALIZER,
-            PASSWORD_INITIALIZER,
-        ).use { conn ->
+        getDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("TRUNCATE TABLE m_character")
             }
@@ -366,11 +331,7 @@ class CharacterRepositoryTest {
         @BeforeAll
         @JvmStatic
         fun setUp() {
-            DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306/$TEST_DATABASE",
-                USERNAME_INITIALIZER,
-                PASSWORD_INITIALIZER
-            ).use { conn ->
+            getDbConnection().use { conn ->
                 conn.createStatement().use { stmt ->
                     // create publishers table
                     stmt.execute(
@@ -422,5 +383,11 @@ class CharacterRepositoryTest {
         fun breakDown() {
             QueryExecutorTest.dropAllTables()
         }
+
+        private fun getDbConnection(): Connection = DriverManager.getConnection(
+            "jdbc:mysql://localhost:3306/$TEST_DATABASE",
+            USERNAME_INITIALIZER,
+            PASSWORD_INITIALIZER
+        )
     }
 }
