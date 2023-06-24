@@ -16,17 +16,17 @@ import javax.inject.Inject
 class CharacterRepository(
     private val targetSchema: String,
     queryExecutorProvider: QueryExecutorComponent = DaggerQueryExecutorComponent.create(),
-    pQueryExecutor: QueryExecutor? = null
+    queryExecutor: QueryExecutor? = null
 ) : Repository {
     // Dependencies
     @Inject
     internal lateinit var queryExecutorSource: QueryExecutorSource
 
-    private val queryExecutor: QueryExecutor
+    private val mQueryExecutor: QueryExecutor
 
     init {
         queryExecutorProvider.inject(this)
-        queryExecutor = pQueryExecutor ?: queryExecutorSource.getQueryExecutor(targetSchema)
+        mQueryExecutor = queryExecutor ?: queryExecutorSource.getQueryExecutor(targetSchema)
     }
 
     // Private Properties
@@ -90,7 +90,7 @@ class CharacterRepository(
                VALUES (?, ?, ?, ?, ?, ?)
             """.trimIndent()
 
-            queryExecutor.executePreparedStatementBatch(sql) { statement: PreparedStatement ->
+            mQueryExecutor.executePreparedStatementBatch(sql) { statement: PreparedStatement ->
                 appearances.forEach { appearance ->
                     statement.setInt(1, appearance.id)
                     statement.setString(2, appearance.appearanceInfo)
@@ -130,7 +130,7 @@ class CharacterRepository(
            VALUE (?, ?, ?)
         """
 
-        queryExecutor.executePreparedStatementBatch(sql, RETURN_GENERATED_KEYS) { s: PreparedStatement ->
+        mQueryExecutor.executePreparedStatementBatch(sql, RETURN_GENERATED_KEYS) { s: PreparedStatement ->
             try {
                 s.setString(1, truncatedName)
                 s.setString(2, alterEgo)
@@ -188,7 +188,7 @@ class CharacterRepository(
             AND mc.alter_ego ${if (alterEgo == null) "IS NULL" else "= ?"}
         """
 
-            queryExecutor.executePreparedStatementBatch(getCharacterSql) { statement ->
+            mQueryExecutor.executePreparedStatementBatch(getCharacterSql) { statement ->
                 statement.setString(1, name)
                 statement.setInt(2, publisherId)
                 if (alterEgo != null) {

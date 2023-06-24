@@ -10,16 +10,17 @@ import javax.inject.Inject
 class CreditRepository(
     private val targetSchema: String,
     queryExecutorProvider: QueryExecutorComponent = DaggerQueryExecutorComponent.create(),
+    queryExecutor: QueryExecutor? = null
 ) : Repository {
     // Dependencies
     @Inject
     internal lateinit var queryExecutorSource: QueryExecutorSource
 
-    private val queryExecutor: QueryExecutor
+    private val mQueryExecutor: QueryExecutor
 
     init {
         queryExecutorProvider.inject(this)
-        queryExecutor = queryExecutorSource.getQueryExecutor(targetSchema)
+        mQueryExecutor = queryExecutor ?: queryExecutorSource.getQueryExecutor(targetSchema)
     }
 
     // Public Methods
@@ -49,8 +50,10 @@ class CreditRepository(
      *
      * @param extractedName the name to check
      * @return the gcd_creator_name_detail id if found, null otherwise
+     * @throws SQLException if an error occurs
      */
-    private fun lookupGcndId(extractedName: String): Int? {
+    @Throws(SQLException::class)
+    internal fun lookupGcndId(extractedName: String): Int? {
         var gcndId: Int? = null
 
         try {
@@ -60,7 +63,7 @@ class CreditRepository(
                WHERE gcnd.name = ?                
             """
 
-            queryExecutor.executePreparedStatement(getGcndSql) { statement ->
+            mQueryExecutor.executePreparedStatement(getGcndSql) { statement ->
                 statement.setString(1, extractedName)
 
                 statement.executeQuery().use { resultSet ->
@@ -71,8 +74,7 @@ class CreditRepository(
             }
         } catch (sqlEx: SQLException) {
             sqlEx.printStackTrace()
-        } catch (e: java.lang.Exception) {
-            e.printStackTrace()
+            throw sqlEx
         }
 
         return gcndId
@@ -87,8 +89,10 @@ class CreditRepository(
      * @param storyId the story id
      * @param roleId the credit_type id
      * @return the story credit id if found, null otherwise
+     * @throws SQLException if an error occurs
      */
-    private fun lookupStoryCreditId(gcndId: Int, storyId: Int, roleId: Int): Int? {
+    @Throws(SQLException::class)
+    internal fun lookupStoryCreditId(gcndId: Int, storyId: Int, roleId: Int): Int? {
         var storyCreditId: Int? = null
 
         try {
@@ -101,7 +105,7 @@ class CreditRepository(
                     AND gsc.credit_type_id = ?
             """
 
-            queryExecutor.executePreparedStatement(getStoryCreditIdSql) { statement ->
+            mQueryExecutor.executePreparedStatement(getStoryCreditIdSql) { statement ->
                 statement.setInt(1, gcndId)
                 statement.setInt(2, storyId)
                 statement.setInt(3, roleId)
@@ -114,8 +118,7 @@ class CreditRepository(
             }
         } catch (sqlEx: SQLException) {
             sqlEx.printStackTrace()
-        } catch (e: java.lang.Exception) {
-            e.printStackTrace()
+            throw sqlEx
         }
 
         if (storyCreditId == null) {
@@ -128,7 +131,7 @@ class CreditRepository(
                     AND gsc.credit_type_id = ?
             """
 
-                queryExecutor.executePreparedStatement(getMStoryCreditIdSql) { statement ->
+                mQueryExecutor.executePreparedStatement(getMStoryCreditIdSql) { statement ->
                     statement.setInt(1, gcndId)
                     statement.setInt(2, storyId)
                     statement.setInt(3, roleId)
@@ -141,8 +144,7 @@ class CreditRepository(
                 }
             } catch (sqlEx: SQLException) {
                 sqlEx.printStackTrace()
-            } catch (e: java.lang.Exception) {
-                e.printStackTrace()
+                throw sqlEx
             }
         }
 
@@ -164,7 +166,7 @@ class CreditRepository(
                 uncertain, signed_as, credited_as, credit_name, creator_id, credit_type_id, story_id, signature_id)
                 VALUE (CURTIME(), CURTIME(), 0, 0, 0, 0, '', '', '', ?, ?, ?, NULL)"""
 
-        queryExecutor.executePreparedStatement(insertStoryCreditSql) { statement ->
+        mQueryExecutor.executePreparedStatement(insertStoryCreditSql) { statement ->
             statement.setInt(1, gcndId)
             statement.setInt(2, roleId)
             statement.setInt(3, storyId)
