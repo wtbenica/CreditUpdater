@@ -1,12 +1,11 @@
 package dev.benica.creditupdater.extractor
 
 import dev.benica.creditupdater.extractor.utils.CharacterParser
-import dev.benica.creditupdater.models.CharacterAppearance
+import dev.benica.creditupdater.models.Character
 import dev.benica.creditupdater.models.Individual
 import dev.benica.creditupdater.models.Team
 import mu.KLogger
 import mu.KotlinLogging
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -67,7 +66,7 @@ class CharacterParserTest {
             Individual("Superman", "Clark Kent", "cameo")
         )
 
-        val actualList: List<CharacterAppearance> = CharacterParser.parseCharacters(characters)
+        val actualList: List<Character> = CharacterParser.parseCharacters(characters)
 
         assertEquals(expectedList[0], actualList[0])
         assertEquals(expectedList[1], actualList[1])
@@ -88,7 +87,7 @@ class CharacterParserTest {
             )
         )
 
-        val actualList: List<CharacterAppearance> = CharacterParser.parseCharacters(characters)
+        val actualList: List<Character> = CharacterParser.parseCharacters(characters)
 
         assertEquals(expectedList[0], actualList[0])
         assertEquals(expectedList[1], actualList[1])
@@ -114,7 +113,7 @@ class CharacterParserTest {
             )
         )
 
-        val actualList: List<CharacterAppearance> = CharacterParser.parseCharacters(characters)
+        val actualList: List<Character> = CharacterParser.parseCharacters(characters)
 
         assertEquals(expectedList[0], actualList[0])
         assertEquals(expectedList[1], actualList[1])
@@ -129,7 +128,7 @@ class CharacterParserTest {
             Individual(name = "Buster Brown", alterEgo = "Major Ray (Major William Ray)", appearanceInfo = "cameo")
         )
 
-        val actualList: List<CharacterAppearance> = CharacterParser.parseCharacters(characters)
+        val actualList: List<Character> = CharacterParser.parseCharacters(characters)
 
         assertEquals(expectedList[0], actualList[0])
     }
@@ -189,7 +188,7 @@ class CharacterParserTest {
             Individual(name = "Starro", alterEgo = null, appearanceInfo = "villain")
         )
 
-        val actualList: List<CharacterAppearance> = CharacterParser.parseCharacters(characters)
+        val actualList: List<Character> = CharacterParser.parseCharacters(characters)
         logger.debug { "${actualList[0].let { it::class.simpleName }} | $expectedList" }
         assertEquals(expectedList[0], actualList[0])
         assertEquals(expectedList[1], actualList[1])

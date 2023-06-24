@@ -225,7 +225,6 @@ class QueryExecutorTest {
         // Setup
         val sqlStmt = "/* comment */"
 
-
         DriverManager.getConnection(
             "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
         ).use { conn ->
@@ -693,6 +692,11 @@ class QueryExecutorTest {
         verify(preparedStatement).addBatch()
     }
 
+    @AfterEach
+    fun tearDown() {
+        dropAllTables()
+    }
+
     companion object {
         private lateinit var queryExecutor: QueryExecutor
 
@@ -701,11 +705,6 @@ class QueryExecutorTest {
         fun setUp() {
             queryExecutor = QueryExecutor("credit_updater_test")
 
-            dropAllTables()
-        }
-
-        @AfterEach
-        fun tearDown() {
             dropAllTables()
         }
 
@@ -718,9 +717,9 @@ class QueryExecutorTest {
 
         private fun removeSqlScriptFiles(): Boolean = File("temp.sql").delete()
 
-        private fun dropAllTables() {
+        internal fun dropAllTables() {
             DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306/credit_updater_test", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
+                "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
             ).use { conn ->
                 val query =
                     "SELECT table_name FROM information_schema.tables WHERE table_schema = 'credit_updater_test'"
