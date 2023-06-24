@@ -102,7 +102,7 @@ class CreditExtractor(
      * @return the name with parentheticals, brackets, and question marks
      *     removed.
      */
-    fun String.prepareName(): String = this
+    private fun String.prepareName(): String = this
         .replace(Regex("\\s*\\([^)]*\\)\\s*"), "")
         .replace(Regex("\\s*\\[[^]]*]\\s*"), "")
         .replace(Regex("\\s*\\?\\s*"), "")

@@ -19,7 +19,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.10")
     implementation("com.beust:jcommander:1.82")
     implementation("com.google.dagger:dagger:2.46.1")
-    implementation("com.google.code.gson:gson:2.8.9")
+    implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.zaxxer:HikariCP:5.0.1")
     implementation("io.github.microutils:kotlin-logging:3.0.5")
     implementation("ch.qos.logback:logback-classic:1.4.7")
@@ -29,11 +29,14 @@ dependencies {
     // mockito
     implementation("org.mockito:mockito-core:5.2.0")
     implementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
+    implementation("io.mockk:mockk:1.13.4")
+
     // junit
     implementation("org.junit.jupiter:junit-jupiter-api:5.9.2")
 
     kapt("com.google.dagger:dagger-compiler:2.46.1")
 
+    testImplementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
     testImplementation("org.junit.jupiter", "junit-jupiter-api", "5.9.2")
     testRuntimeOnly("org.junit.jupiter", "junit-jupiter-engine", "5.9.2")
 }

@@ -6,7 +6,7 @@ import dev.benica.creditupdater.di.DaggerCharacterRepositoryComponent
 import dev.benica.creditupdater.di.RepoSource
 import dev.benica.creditupdater.extractor.utils.CharacterParser
 import dev.benica.creditupdater.models.Appearance
-import dev.benica.creditupdater.models.CharacterAppearance
+import dev.benica.creditupdater.models.Character
 import dev.benica.creditupdater.models.Individual
 import dev.benica.creditupdater.models.Team
 import mu.KLogger
@@ -63,7 +63,8 @@ class CharacterExtractor(
             val characters = resultSet.getString("characters")
             val publisherId = resultSet.getInt("publisher_id")
 
-            val characterList: List<CharacterAppearance> = CharacterParser.parseCharacters(characters)
+            val characterList: List<Character> = CharacterParser.parseCharacters(characters)
+            val appearanceSet = mutableSetOf<Appearance>()
 
             for (character in characterList) {
                 val characterId = when (character) {
@@ -91,8 +92,10 @@ class CharacterExtractor(
                     }
                 }
 
-                appearance?.let { repository.insertCharacterAppearance(it) }
+                appearance?.let { appearanceSet.add(it) }
             }
+
+            repository.insertCharacterAppearances(appearanceSet)
 
             return storyId
         } catch (sqlEx: SQLException) {

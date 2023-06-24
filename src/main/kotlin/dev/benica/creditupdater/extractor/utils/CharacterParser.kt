@@ -1,23 +1,24 @@
 package dev.benica.creditupdater.extractor.utils
 
 import dev.benica.creditupdater.extractor.cleanup
-import dev.benica.creditupdater.models.CharacterAppearance
+import dev.benica.creditupdater.models.Character
 import dev.benica.creditupdater.models.Individual
 import dev.benica.creditupdater.models.Team
 
 class CharacterParser {
     companion object {
         /**
-         * Parses a character string into a list of [CharacterAppearance] objects.
+         * Parses a character string into a list of [Character] objects.
          *
-         * @param characters the character string to parse. a character string is a semicolon-separated list of
-         * character names, with optional bracketed text containing alter egos or team memberships, and optional
-         * parenthetical text containing appearance notes.
-         * @return a list of [CharacterAppearance] objects.
+         * @param characters the character string to parse. a character string is a
+         *     semicolon-separated list of character names, with optional bracketed
+         *     text containing alter egos or team memberships, and optional
+         *     parenthetical text containing appearance notes.
+         * @return a list of [Character] objects.
          */
-        fun parseCharacters(characters: String): List<CharacterAppearance> {
+        fun parseCharacters(characters: String): List<Character> {
             val fixedInput = fixMissingBrackets(characters)
-            val characterList = mutableListOf<CharacterAppearance>()
+            val characterList = mutableListOf<Character>()
             val characterStrings = splitOnOuterSemicolons(fixedInput)
             characterStrings.forEach { characterString ->
                 val (name, bracketedText, appearanceInfo) = splitString(characterString)
@@ -41,8 +42,9 @@ class CharacterParser {
         }
 
         /**
-         * Attempts to fix malformed character strings by adding missing brackets.
-         * It expects a string in the format: "name/team name [alter ego/membership] (appearance notes)"
+         * Attempts to fix malformed character strings by adding missing
+         * brackets. It expects a string in the format: "name/team name
+         * [alter ego/membership] (appearance notes)"
          *
          * @param input the character string to fix.
          * @return the fixed character string
@@ -82,7 +84,6 @@ class CharacterParser {
                 fixedString.append(char)
             }
 
-            // Add any remaining missing closing brackets
             while (stack.isNotEmpty() && stack.last() == '[') {
                 fixedString.append(']')
                 stack.removeAt(stack.size - 1)
@@ -123,11 +124,13 @@ class CharacterParser {
         }
 
         /**
-         * Parses a character string into name/team name, alter ego/membership, and appearance notes.
-         * It expects a string in the format: "name/team name [alter ego/membership] (appearance notes)"
+         * Parses a character string into name/team name, alter ego/membership, and
+         * appearance notes. It expects a string in the format: "name/team name
+         * [alter ego/membership] (appearance notes)"
          *
          * @param input the character string to parse.
-         * @return a triple containing the name/team name, alter ego/membership, and appearance notes.
+         * @return a triple containing the name/team name, alter ego/membership,
+         *     and appearance notes.
          */
         internal fun splitString(input: String): Triple<String, String, String> {
             // a regex to split "name [team name [or membership]] (appearance notes)" to "name", "team name [or membership]", and "appearance notes"

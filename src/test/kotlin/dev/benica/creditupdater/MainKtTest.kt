@@ -1,6 +1,7 @@
 package dev.benica.creditupdater
 
 import dev.benica.creditupdater.cli_parser.CLIParser
+import dev.benica.creditupdater.db.toPercent
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

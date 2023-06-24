@@ -4,7 +4,6 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import dagger.Module
 import dagger.Provides
-import dev.benica.creditupdater.Credentials.Companion.MAX_CONNECTION_POOL_SIZE
 import dev.benica.creditupdater.Credentials.Companion.PASSWORD_INITIALIZER
 import dev.benica.creditupdater.Credentials.Companion.USERNAME_INITIALIZER
 import dev.benica.creditupdater.db.CharacterRepository
@@ -57,6 +56,10 @@ class ConnectionProviderModule {
             connectionTimeout = 5000
         }
     )
+
+    companion object {
+        const val MAX_CONNECTION_POOL_SIZE = 2000
+    }
 }
 
 @Module
