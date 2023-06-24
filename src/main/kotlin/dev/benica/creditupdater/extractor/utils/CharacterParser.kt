@@ -1,24 +1,24 @@
 package dev.benica.creditupdater.extractor.utils
 
 import dev.benica.creditupdater.extractor.cleanup
-import dev.benica.creditupdater.models.CharacterAppearance
+import dev.benica.creditupdater.models.Character
 import dev.benica.creditupdater.models.Individual
 import dev.benica.creditupdater.models.Team
 
 class CharacterParser {
     companion object {
         /**
-         * Parses a character string into a list of [CharacterAppearance] objects.
+         * Parses a character string into a list of [Character] objects.
          *
          * @param characters the character string to parse. a character string is a
          *     semicolon-separated list of character names, with optional bracketed
          *     text containing alter egos or team memberships, and optional
          *     parenthetical text containing appearance notes.
-         * @return a list of [CharacterAppearance] objects.
+         * @return a list of [Character] objects.
          */
-        fun parseCharacters(characters: String): List<CharacterAppearance> {
+        fun parseCharacters(characters: String): List<Character> {
             val fixedInput = fixMissingBrackets(characters)
-            val characterList = mutableListOf<CharacterAppearance>()
+            val characterList = mutableListOf<Character>()
             val characterStrings = splitOnOuterSemicolons(fixedInput)
             characterStrings.forEach { characterString ->
                 val (name, bracketedText, appearanceInfo) = splitString(characterString)

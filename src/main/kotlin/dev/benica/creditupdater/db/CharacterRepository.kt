@@ -10,12 +10,13 @@ import mu.KLogger
 import mu.KotlinLogging
 import java.sql.PreparedStatement
 import java.sql.SQLException
-import java.sql.Statement
+import java.sql.Statement.RETURN_GENERATED_KEYS
 import javax.inject.Inject
 
 class CharacterRepository(
     private val targetSchema: String,
-    queryExecutorProvider: QueryExecutorComponent = DaggerQueryExecutorComponent.create()
+    queryExecutorProvider: QueryExecutorComponent = DaggerQueryExecutorComponent.create(),
+    pQueryExecutor: QueryExecutor? = null
 ) : Repository {
     // Dependencies
     @Inject
@@ -25,7 +26,7 @@ class CharacterRepository(
 
     init {
         queryExecutorProvider.inject(this)
-        queryExecutor = queryExecutorSource.getQueryExecutor(targetSchema)
+        queryExecutor = pQueryExecutor ?: queryExecutorSource.getQueryExecutor(targetSchema)
     }
 
     // Private Properties
@@ -44,25 +45,32 @@ class CharacterRepository(
      * @param publisherId The ID of the publisher of the character.
      * @return The ID of the character, or null if the character could not be
      *     found or inserted.
+     * @throws SQLException if an error occurs
      */
-    internal fun upsertCharacter(
+    @Throws(SQLException::class)
+    fun upsertCharacter(
         name: String,
         alterEgo: String?,
-        publisherId: Int
-    ): Int? = lookupCharacter(
-        name,
-        alterEgo?.truncate(255),
-        publisherId
-    ) ?: insertCharacter(
+        publisherId: Int,
+        checkPrimary: Boolean? = null
+    ): Int? = if (checkPrimary != null) {
+        lookupCharacter(
+            name,
+            alterEgo?.truncate(255),
+            publisherId,
+            checkPrimary
+        )
+    } else {
+        lookupCharacter(
+            name,
+            alterEgo?.truncate(255),
+            publisherId
+        )
+    } ?: insertCharacter(
         name,
         alterEgo?.truncate(255),
         publisherId
     )
-
-    /** Insert character appearance - inserts [appearance] into [targetSchema] */
-    fun insertCharacterAppearance(appearance: Appearance) =
-        insertCharacterAppearances(setOf(appearance))
-
 
     // TODO: Fix this. It's a hack to avoid having to figure out how to deal with teams and teams within teams
     // See "All-Star Squadron #57"
@@ -75,7 +83,7 @@ class CharacterRepository(
     }
 
     /** Insert character appearances - inserts [appearances] into [targetSchema] */
-    private fun insertCharacterAppearances(appearances: Set<Appearance>) {
+    fun insertCharacterAppearances(appearances: Set<Appearance>) {
         try {
             val sql = """
                INSERT IGNORE INTO $targetSchema.m_character_appearance(id, details, character_id, story_id, notes, membership)
@@ -122,7 +130,7 @@ class CharacterRepository(
            VALUE (?, ?, ?)
         """
 
-        queryExecutor.executePreparedStatementBatch(sql, Statement.RETURN_GENERATED_KEYS) { s ->
+        queryExecutor.executePreparedStatementBatch(sql, RETURN_GENERATED_KEYS) { s: PreparedStatement ->
             try {
                 s.setString(1, truncatedName)
                 s.setString(2, alterEgo)
@@ -134,7 +142,6 @@ class CharacterRepository(
                 if (genKeys?.next() == true) {
                     characterId = genKeys.getInt("GENERATED_KEY")
                 }
-
             } catch (e: SQLException) {
                 logger.error("Error inserting character $name", e)
                 throw e
@@ -159,7 +166,7 @@ class CharacterRepository(
      * @throws SQLException if there is an error looking up the character
      */
     @Throws(SQLException::class)
-    private fun lookupCharacter(
+    internal fun lookupCharacter(
         name: String,
         alterEgo: String?,
         publisherId: Int,
