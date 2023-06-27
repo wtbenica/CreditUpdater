@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import dev.benica.creditupdater.Credentials.Companion.PASSWORD_INITIALIZER
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.Credentials.Companion.USERNAME_INITIALIZER
+import dev.benica.creditupdater.cli_parser.CLIParser
 import dev.benica.creditupdater.db.ExtractionProgressTracker.Companion.ProgressInfo
 import dev.benica.creditupdater.di.QueryExecutorSource
 import mu.KLogger
@@ -21,6 +22,8 @@ import java.io.File
 import java.sql.DriverManager
 
 class ExtractionProgressTrackerTest {
+    private lateinit var parser: CLIParser
+
     @Mock
     private lateinit var queryExecutorSourceMock: QueryExecutorSource
 
@@ -40,6 +43,8 @@ class ExtractionProgressTrackerTest {
     @BeforeEach
     fun beforeEach() {
         MockitoAnnotations.openMocks(this)
+
+        parser = CLIParser()
 
         whenever(queryExecutorSourceMock.getQueryExecutor(any())).thenReturn(queryExecutorMock)
 
@@ -298,6 +303,79 @@ class ExtractionProgressTrackerTest {
     @DisplayName("should get last processed item id correctly when file does not exist")
     fun shouldGetLastProcessedItemIdCorrectlyWhenFileDoesNotExist() {
         assertEquals(null, ExtractionProgressTracker.getLastProcessedItemId("Credit", "non-existent-file.json"))
+    }
+
+    @Test
+    fun toPercentShouldFormatFloatToTwoDecimalPlaces() {
+        // Arrange
+        val value = 0.75f
+
+        // Act
+        val result = value.toPercent()
+
+        // Assert
+        assertEquals("75.00%", result)
+    }
+
+    @Test
+    fun toPercentShouldHandleZeroCorrectly() {
+        // Arrange
+        val value = 0f
+
+        // Act
+        val result = value.toPercent()
+
+        // Assert
+        assertEquals("0.00%", result)
+    }
+
+    @Test
+    fun toPercentShouldHandleNegativeValuesCorrectly() {
+        // Arrange
+        val value = -0.5f
+
+        // Act
+        val result = value.toPercent()
+
+        // Assert
+        assertEquals("-50.00%", result)
+    }
+
+    @Test
+    fun toPercentShouldHandleSmallValuesCorrectly() {
+        // Arrange
+        val value = 0.0001f
+
+        // Act
+        val result = value.toPercent()
+
+        // Assert
+        assertEquals("0.01%", result)
+    }
+
+    @Test
+    fun toPercentShouldHandleVerySmallValuesCorrectly() {
+        // Arrange
+        val value = 0.00001f
+
+        // Act
+        val result = value.toPercent()
+
+        // Assert
+        assertEquals("0.00%", result)
+    }
+
+    @Test
+    fun toPercentShouldHandleRoundingVerySmallValuesCorrectly() {
+        // Arrange
+        // this isn't 0.00005 because of floating point precision, 0.00005 rounds down
+        val value = 0.000051f
+
+        // Act
+        val result = value.toPercent()
+
+        // Assert
+        assertEquals("0.01%", result)
     }
 
     companion object {

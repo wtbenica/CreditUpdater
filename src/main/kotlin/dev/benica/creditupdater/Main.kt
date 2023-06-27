@@ -52,8 +52,6 @@ fun main(args: Array<String>) {
             }
             logger.error { msg }
             parsedArgs.usage
-        } finally {
-            parsedArgs.parsedCommand
         }
     }
 }
