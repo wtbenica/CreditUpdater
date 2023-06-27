@@ -16,14 +16,14 @@ repositories {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.10")
+    implementation("ch.qos.logback:logback-classic:1.4.7")
     implementation("com.beust:jcommander:1.82")
-    implementation("com.google.dagger:dagger:2.46.1")
     implementation("com.google.code.gson:gson:2.10.1")
+    implementation("com.google.dagger:dagger:2.46.1")
     implementation("com.zaxxer:HikariCP:5.0.1")
     implementation("io.github.microutils:kotlin-logging:3.0.5")
-    implementation("ch.qos.logback:logback-classic:1.4.7")
     implementation("mysql:mysql-connector-java:8.0.33")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.10")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1")
 
     // mockito

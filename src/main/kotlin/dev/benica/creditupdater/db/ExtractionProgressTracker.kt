@@ -29,7 +29,7 @@ import javax.inject.Named
  *    - Note: This is only used for testing
  */
 class ExtractionProgressTracker(
-    private val extractedType: String,
+    internal val extractedType: String,
     targetSchema: String,
     private val totalItems: Int = 0,
     fileName: String = "progress.json",
@@ -51,7 +51,7 @@ class ExtractionProgressTracker(
 
     internal var progressInfoMap: MutableMap<String, ProgressInfo>
 
-    private val progressFile = File(fileName)
+    internal val progressFile = File(fileName)
 
     init {
         dispatchAndExecuteComponent.inject(this)
@@ -124,11 +124,11 @@ class ExtractionProgressTracker(
     }
 
     /** Prints progress information for the current item being updated. */
-    private fun printProgressInfo() {
+    internal fun printProgressInfo() {
         val pctComplete: Float =
             totalItems.let { (progressInfo.numCompleted.toFloat() / it) }
 
-        val averageTime: Long = progressInfo.totalTimeMillis / progressInfo.numCompleted
+        val averageTime: Long = progressInfo.totalTimeMillis / (progressInfo.numCompleted.takeIf { it > 0 } ?: 1)
         val remainingTime: Long? = getRemainingTime(totalItems, averageTime, progressInfo.numCompleted)
         val remaining = TerminalUtil.millisToPretty(remainingTime)
         val elapsed = TerminalUtil.millisToPretty(progressInfo.totalTimeMillis)
@@ -142,18 +142,19 @@ class ExtractionProgressTracker(
     }
 
     internal fun getProgressBar(pctComplete: Float): String {
+        val pct = 100 * pctComplete
         val progressBar = StringBuilder()
         progressBar.append("[")
         for (i in 0..100) {
-            if (i < pctComplete.toInt()) {
+            if (i < pct.toInt()) {
                 progressBar.append("=")
-            } else if (i == pctComplete.toInt()) {
+            } else if (i == pct.toInt()) {
                 progressBar.append(">")
             } else {
                 progressBar.append(".")
             }
         }
-        progressBar.append("] ${(pctComplete / 100f).toPercent()}")
+        progressBar.append("] ${(pct / 100f).toPercent()}")
         return progressBar.toString()
     }
 
