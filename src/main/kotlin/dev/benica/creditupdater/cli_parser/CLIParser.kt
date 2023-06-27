@@ -70,11 +70,6 @@ class CLIParser {
     val usage: Unit
         get() = commander.usage()
 
-    /** The name of the command after parsing. */
-    val parsedCommand: String?
-        get() = commander.parsedCommand
-
-
     @Throws(ParameterException::class)
     fun parse(args: Array<String>) {
         commander.parse(*args)
@@ -83,9 +78,11 @@ class CLIParser {
 
     private fun validate() {
         if (_mStep != null && prepare != null && _mStep !in 2..4) {
-            throw ParameterException("Parameter 'step' should be between 2 and 4 (inclusive)")
+            _mStep = 1
+            throw ParameterException("Parameter 'step' must be between 2 and 4 (inclusive)")
         }
         if (_mStep != null && prepare == null && migrate == null) {
+            _mStep = 1
             throw ParameterException("Parameter 'step' should only be used with --prepare or --migrate")
         }
     }
