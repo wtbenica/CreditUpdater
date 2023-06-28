@@ -103,6 +103,9 @@ class CLIParserTest {
       Default: false
     -i, --init
       Starting story id
+    -w, --interactive
+      Start in interactive mode
+      Default: false
     -m, --migrate
       Migrate primary database
     -p, --prepare
