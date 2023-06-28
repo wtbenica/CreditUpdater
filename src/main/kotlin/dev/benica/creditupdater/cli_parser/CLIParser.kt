@@ -66,9 +66,21 @@ class CLIParser {
     )
     var startingId: Int? = null
 
+    @Parameter(
+        names = ["-w", "--interactive"],
+        description = "Start in interactive mode",
+    )
+    var interactive: Boolean = false
+
     /** Prints the usage information for the command. */
     val usage: Unit
         get() = commander.usage()
+
+    /**
+     * Whether any flags (other than interactive) were passed.
+     */
+    private val anyFlags: Boolean
+        get() = prepare != null || migrate != null || startingId != null || help
 
     @Throws(ParameterException::class)
     fun parse(args: Array<String>) {
@@ -84,6 +96,11 @@ class CLIParser {
         if (_mStep != null && prepare == null && migrate == null) {
             _mStep = 1
             throw ParameterException("Parameter 'step' should only be used with --prepare or --migrate")
+        }
+
+        // if interactive, nothing else can be set
+        if (interactive && anyFlags) {
+            throw ParameterException("Parameter 'interactive' cannot be used with other parameters")
         }
     }
 
