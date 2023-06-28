@@ -20,29 +20,10 @@ fun main(args: Array<String>) {
             parsedArgs.parse(args)
             initLoggers(parsedArgs)
 
-            if (parsedArgs.help) {
-                parsedArgs.usage
+            if (parsedArgs.interactive) {
+                interactiveStartup()
             } else {
-
-                if (parsedArgs.prepare != null) {
-                    @Suppress("kotlin:S6307")
-                    DBInitializer(
-                        targetSchema = parsedArgs.prepare!!,
-                        startAtStep = parsedArgs.step,
-                        startingId = parsedArgs.startingId
-                    ).prepareDb()
-                }
-
-                if (parsedArgs.migrate != null) {
-                    DBMigrator().migrate()
-                } else if (parsedArgs.prepare == null) {
-                    @Suppress("kotlin:S6307")
-                    DBInitializer(
-                        startAtStep = parsedArgs.step,
-                        startingId = parsedArgs.startingId
-                    ).prepareDb()
-                    DBMigrator().migrate()
-                }
+                useArgsStartup(parsedArgs)
             }
         } catch (e: Exception) {
             val msg = if (e.message?.startsWith("Was passed main parameter '") == true) {
@@ -52,6 +33,50 @@ fun main(args: Array<String>) {
             }
             logger.error { msg }
             parsedArgs.usage
+        }
+    }
+}
+
+private suspend fun useArgsStartup(parsedArgs: CLIParser) {
+    if (parsedArgs.help) {
+        parsedArgs.usage
+    } else {
+        if (parsedArgs.prepare != null) {
+            @Suppress("kotlin:S6307")
+            DBInitializer(
+                targetSchema = parsedArgs.prepare!!,
+                startAtStep = parsedArgs.step,
+                startingId = parsedArgs.startingId
+            ).prepareDb()
+        }
+
+        if (parsedArgs.migrate != null) {
+            DBMigrator().migrate()
+        } else if (parsedArgs.prepare == null) {
+            @Suppress("kotlin:S6307")
+            DBInitializer(
+                startAtStep = parsedArgs.step,
+                startingId = parsedArgs.startingId
+            ).prepareDb()
+            DBMigrator().migrate()
+        }
+    }
+}
+
+private suspend fun interactiveStartup() {
+    val startupArguments: StartupArguments = InteractiveStartup.start()
+    println(startupArguments)
+    when (startupArguments.databaseTask) {
+        DatabaseTask.INITIALIZE -> {
+            DBInitializer(
+                targetSchema = startupArguments.databaseName,
+                startAtStep = startupArguments.extractedType?.stepNumber ?: 0,
+                startingId = startupArguments.startingStoryId
+            ).prepareDb()
+        }
+
+        DatabaseTask.MIGRATE -> {
+            DBMigrator().migrate()
         }
     }
 }
