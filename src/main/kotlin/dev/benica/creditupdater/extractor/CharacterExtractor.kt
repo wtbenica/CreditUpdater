@@ -77,7 +77,7 @@ class CharacterExtractor(
                         is Individual -> Appearance(
                             storyId = storyId,
                             characterId = it,
-                            appearanceInfo = character.appearanceInfo,
+                            details = character.details,
                             notes = null,
                             membership = null
                         )
@@ -85,7 +85,7 @@ class CharacterExtractor(
                         is Team -> Appearance(
                             storyId = storyId,
                             characterId = it,
-                            appearanceInfo = character.appearanceInfo,
+                            details = character.details,
                             notes = null,
                             membership = character.members
                         )
