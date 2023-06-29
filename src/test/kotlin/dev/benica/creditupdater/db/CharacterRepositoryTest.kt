@@ -383,11 +383,11 @@ class CharacterRepositoryTest {
         fun breakDown() {
             QueryExecutorTest.dropAllTables()
         }
-
-        private fun getDbConnection(): Connection = DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE",
-            USERNAME_INITIALIZER,
-            PASSWORD_INITIALIZER
-        )
     }
 }
+
+fun getDbConnection(): Connection = DriverManager.getConnection(
+    "jdbc:mysql://localhost:3306/$TEST_DATABASE",
+    USERNAME_INITIALIZER,
+    PASSWORD_INITIALIZER
+)

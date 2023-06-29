@@ -31,9 +31,9 @@ class CharacterParser {
                 if (name.isNotEmpty()) {
                     characterList.add(
                         if (isTeam) {
-                            Team(name = name, members = bracketedText, appearanceInfo = appearanceInfo)
+                            Team(name = name, members = bracketedText, details = appearanceInfo)
                         } else {
-                            Individual(name = name, alterEgo = alterEgo, appearanceInfo = appearanceInfo)
+                            Individual(name = name, alterEgo = alterEgo, details = appearanceInfo)
                         }
                     )
                 }

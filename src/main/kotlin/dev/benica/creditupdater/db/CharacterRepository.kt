@@ -93,7 +93,7 @@ class CharacterRepository(
             mQueryExecutor.executePreparedStatementBatch(sql) { statement: PreparedStatement ->
                 appearances.forEach { appearance ->
                     statement.setInt(1, appearance.id)
-                    statement.setString(2, appearance.appearanceInfo)
+                    statement.setString(2, appearance.details)
                     statement.setInt(3, appearance.characterId)
                     statement.setInt(4, appearance.storyId)
                     statement.setString(5, appearance.notes)
