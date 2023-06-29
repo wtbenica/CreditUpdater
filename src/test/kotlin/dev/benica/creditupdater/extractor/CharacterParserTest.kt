@@ -79,11 +79,11 @@ class CharacterParserTest {
             "Batman [Bruce Wayne] (cameo); Justice League of America [Superman [Clark Kent]; Batman [Bruce Wayne]; " +
                     "Princess Diana [Wonder Woman];] (cameo)"
         val expectedList = listOf(
-            Individual(name = "Batman", alterEgo = "Bruce Wayne", appearanceInfo = "cameo"),
+            Individual(name = "Batman", alterEgo = "Bruce Wayne", details = "cameo"),
             Team(
                 name = "Justice League of America",
                 members = "Superman [Clark Kent]; Batman [Bruce Wayne]; Princess Diana [Wonder Woman];",
-                appearanceInfo = "cameo"
+                details = "cameo"
             )
         )
 
@@ -102,14 +102,14 @@ class CharacterParserTest {
                     "Tyler]; Starman [Ted Knight]; Dr. Mid-Nite [Charles McNider]; Dr. Fate [Kent Nelson; Nabu]; " +
                     "Sandman [Wesley Dodds]; Johnny Thunder; Thunderbolt] (Earth-2)"
         val expectedList = listOf(
-            Individual(name = "Batman", alterEgo = "Bruce Wayne", appearanceInfo = "cameo"),
+            Individual(name = "Batman", alterEgo = "Bruce Wayne", details = "cameo"),
             Team(
                 name = "Justice Society of America",
                 members = "Superman [Clark Kent; Kal-L (cameo)]; Wonder Woman [Diana Prince Trevor]; Red Tornado [" +
                         "John Smith]; Wildcat [Ted Grant]; Hourman [Rex Tyler]; Starman [Ted Knight]; Dr. Mid-Nite [" +
                         "Charles McNider]; Dr. Fate [Kent Nelson; Nabu]; Sandman [Wesley Dodds]; Johnny Thunder; " +
                         "Thunderbolt",
-                appearanceInfo = "Earth-2"
+                details = "Earth-2"
             )
         )
 
@@ -125,7 +125,7 @@ class CharacterParserTest {
     fun parseCharactersShouldHandleTheCaseWhereThereAreParenthesesInsideTheSquareBrackets() {
         val characters = "Buster Brown [Major Ray (Major William Ray)] (cameo)"
         val expectedList = listOf(
-            Individual(name = "Buster Brown", alterEgo = "Major Ray (Major William Ray)", appearanceInfo = "cameo")
+            Individual(name = "Buster Brown", alterEgo = "Major Ray (Major William Ray)", details = "cameo")
         )
 
         val actualList: List<Character> = CharacterParser.parseCharacters(characters)
@@ -182,10 +182,10 @@ class CharacterParserTest {
             Team(
                 name = "Justice League",
                 members = "Batman; Superman; Martian Manhunter [J'onn J'onnz]",
-                appearanceInfo = ""
+                details = ""
             ),
-            Individual(name = "Despero", alterEgo = null, appearanceInfo = "villain"),
-            Individual(name = "Starro", alterEgo = null, appearanceInfo = "villain")
+            Individual(name = "Despero", alterEgo = null, details = "villain"),
+            Individual(name = "Starro", alterEgo = null, details = "villain")
         )
 
         val actualList: List<Character> = CharacterParser.parseCharacters(characters)
