@@ -408,7 +408,8 @@ class CreditRepositoryTest {
                         ('pencils'),
                         ('inks'),
                         ('colors'),
-                        ('letters')
+                        ('letters'),
+                        ('editing')
                         """.trimIndent()
                     )
                 }
@@ -435,7 +436,9 @@ class CreditRepositoryTest {
                         ('Val Semeiks'),
                         ('Dan Green'),
                         ('Chris Sotomayor'),
-                        ('Richard Starkings')
+                        ('Richard Starkings'),
+                        ('Bob Schreck'),
+                        ('Michael Wright')
                         """.trimIndent()
                     )
                 }
@@ -535,7 +538,7 @@ class CreditRepositoryTest {
         }
 
         private fun getDbConnection(): Connection = DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/${Credentials.TEST_DATABASE}",
+            "jdbc:mysql://localhost:3306/$TEST_DATABASE",
             Credentials.USERNAME_INITIALIZER,
             Credentials.PASSWORD_INITIALIZER
         )

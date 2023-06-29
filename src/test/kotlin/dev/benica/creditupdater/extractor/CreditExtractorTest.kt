@@ -1,104 +1,121 @@
 package dev.benica.creditupdater.extractor
 
+import com.zaxxer.hikari.HikariDataSource
+import dev.benica.creditupdater.Credentials
+import dev.benica.creditupdater.db.CreditRepositoryTest
+import dev.benica.creditupdater.db.QueryExecutorTest
+import dev.benica.creditupdater.db.getDbConnection
+import dev.benica.creditupdater.di.*
+import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
+import java.sql.Connection
+import java.sql.ResultSet
+import java.sql.SQLException
+
 class CreditExtractorTest {
-//    private val conn = mock(Connection::class.java)
-//    private val preparedStatement = mock(PreparedStatement::class.java)
-//
-//
-//    @Test
-//    @DisplayName("Should handle SQLException when getting gcnd")
-//    fun makeCreditWithSQLExceptionOnGetGcnd() {
-//        val creditExtractor = CreditExtractor("test_db", conn)
-//        val extractedName = "John Doe"
-//        val storyId = 1
-//        val roleId = 2
-//
-//        `when`(conn.prepareStatement(anyString())).thenThrow(SQLException::class.java)
-//
-//        assertThrows(SQLException::class.java) {
-//            creditExtractor.makeCredit(extractedName, storyId, roleId)
-//        }
-//
-//        verify(conn, times(1)).prepareStatement(anyString())
-//    }
-//
-//    @Test
-//    @DisplayName("Should handle general Exception when getting gcnd")
-//    fun makeCreditWithGeneralExceptionOnGetGcnd() {
-//        val creditExtractor = CreditExtractor("test_db", conn)
-//        val extractedName = "John Doe"
-//        val storyId = 1
-//        val roleId = 2
-//
-//        `when`(conn.prepareStatement(anyString())).thenThrow(Exception::class.java)
-//
-//        assertThrows(Exception::class.java) {
-//            creditExtractor.makeCredit(extractedName, storyId, roleId)
-//        }
-//
-//        verify(conn, times(1)).prepareStatement(anyString())
-//    }
-//
-//    @Test
-//    @DisplayName("Should not create credits when empty names are provided")
-//    fun makeCreditWithEmptyNames() {
-//        val creditExtractor = CreditExtractor("test_db", conn)
-//        val extractedName = ""
-//        val storyId = 1
-//        val roleId = 2
-//
-//        creditExtractor.makeCredit(extractedName, storyId, roleId)
-//
-//        verify(conn, never()).prepareStatement(anyString())
-//        verify(preparedStatement, never()).setInt(anyInt(), anyInt())
-//        verify(preparedStatement, never()).executeUpdate()
-//    }
-//
-//    @Test
-//    @DisplayName("Should handle SQLException when getting story credit")
-//    fun makeCreditWithSQLExceptionOnGetStoryCredit() {
-//        val creditExtractor = CreditExtractor("test_db", conn)
-//        val extractedName = "John Doe"
-//        val storyId = 1
-//        val roleId = 2
-//
-//        `when`(conn.prepareStatement(anyString())).thenThrow(SQLException::class.java)
-//
-//        assertThrows(SQLException::class.java) {
-//            creditExtractor.makeCredit(extractedName, storyId, roleId)
-//        }
-//
-//        verify(conn, times(1)).prepareStatement(anyString())
-//    }
-//
-//    @Test
-//    @DisplayName("Should create credits for all roles when valid names are provided")
-//    fun makeCreditWithValidNames() {
-//        val creditExtractor = CreditExtractor("test_db", conn)
-//        val extractedName = "John Doe"
-//        val storyId = 1
-//        val roleId = 2
-//        val gcndId = 123
-//
-//        // Mocking the getGcnd method
-//        `when`(creditExtractor.getGcnd(extractedName, conn)).thenReturn(gcndId)
-//
-//        // Mocking the getStoryCredit method
-//        `when`(creditExtractor.getStoryCredit(gcndId, storyId, roleId)).thenReturn(null)
-//
-//        // Mocking the makeStoryCredit method
-//        doNothing().`when`(preparedStatement).setInt(anyInt(), anyInt())
-//        `when`(conn.prepareStatement(anyString())).thenReturn(preparedStatement)
-//        `when`(preparedStatement.executeUpdate()).thenReturn(1)
-//
-//        creditExtractor.makeCredit(extractedName, storyId, roleId)
-//
-//        verify(creditExtractor, times(1)).getGcnd(extractedName, conn)
-//        verify(creditExtractor, times(1)).getStoryCredit(gcndId, storyId, roleId)
-//        verify(preparedStatement, times(1)).setInt(1, gcndId)
-//        verify(preparedStatement, times(1)).setInt(2, roleId)
-//        verify(preparedStatement, times(1)).setInt(3, storyId)
-//        verify(preparedStatement, times(1)).executeUpdate()
-//    }
-//
+    private val database: String = Credentials.TEST_DATABASE
+    private lateinit var connectionSource: ConnectionSource
+    private lateinit var dataSource: HikariDataSource
+    private lateinit var connection: Connection
+    private lateinit var creditExtractor: CreditExtractor
+
+    @BeforeEach
+    fun setUp() {
+        connectionSource = mock<ConnectionSource>()
+        dataSource = mock<HikariDataSource>()
+        connection = mock<Connection>()
+
+        whenever(connectionSource.getConnection(database)).thenReturn(dataSource)
+        whenever(dataSource.connection).thenReturn(connection)
+
+        creditExtractor = CreditExtractor(database)
+
+        getDbConnection().use { conn ->
+            conn.createStatement().use {
+                it.execute("TRUNCATE TABLE m_story_credit")
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("should extract credits and insert them into the database")
+    fun shouldExtractCreditsAndInsertThemIntoTheDatabase() {
+        // Truncate gcd_story_credit
+        getDbConnection().use { conn ->
+            conn.createStatement().use {
+                it.execute("TRUNCATE TABLE gcd_story_credit")
+            }
+        }
+
+        val resultSet = mock<ResultSet>()
+
+        whenever(resultSet.getInt("id")).thenReturn(1)
+        whenever(resultSet.getString("script")).thenReturn("Grant Morrison")
+        whenever(resultSet.getString("pencils")).thenReturn("Frank Quitely; Val Semeiks;")
+        whenever(resultSet.getString("inks")).thenReturn("Frank Quitely; Dan Green;")
+        whenever(resultSet.getString("colors")).thenReturn("Chris Sotomayor; Alex Sinclair;")
+        whenever(resultSet.getString("letters")).thenReturn("Richard Starkings;")
+        whenever(resultSet.getString("editing")).thenReturn("Bob Schreck; Michael Wright;")
+
+        val result = creditExtractor.extractAndInsert(resultSet)
+
+        assertEquals(1, result)
+
+        // verify against database
+        getDbConnection().use { conn ->
+            conn.createStatement().use {
+                val res =
+                    it.executeQuery("SELECT * FROM m_story_credit WHERE story_id = 1 ORDER BY creator_id, credit_type_id")
+                res.next()
+                assertEquals(1, res.getInt("creator_id"))
+                assertEquals(1, res.getInt("credit_type_id"))
+                res.next()
+                assertEquals(2, res.getInt("creator_id"))
+                assertEquals(2, res.getInt("credit_type_id"))
+                res.next()
+                assertEquals(2, res.getInt("creator_id"))
+                assertEquals(3, res.getInt("credit_type_id"))
+                res.next()
+                assertEquals(3, res.getInt("creator_id"))
+                assertEquals(2, res.getInt("credit_type_id"))
+                res.next()
+                assertEquals(4, res.getInt("creator_id"))
+                assertEquals(3, res.getInt("credit_type_id"))
+                res.next()
+                assertEquals(5, res.getInt("creator_id"))
+                assertEquals(4, res.getInt("credit_type_id"))
+                res.next()
+                assertEquals(6, res.getInt("creator_id"))
+                assertEquals(5, res.getInt("credit_type_id"))
+                res.next()
+                assertEquals(7, res.getInt("creator_id"))
+                assertEquals(6, res.getInt("credit_type_id"))
+                res.next()
+                assertEquals(8, res.getInt("creator_id"))
+                assertEquals(6, res.getInt("credit_type_id"))
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("should throw any SQLExceptions and log error")
+    fun shouldThrowAnySQLExceptionsAndLogError() {
+        val resultSet = mock<ResultSet>()
+
+        whenever(resultSet.getInt("id")).thenThrow(SQLException("test exception"))
+
+        assertThrows<SQLException> { creditExtractor.extractAndInsert(resultSet) }
+    }
+
+    companion object {
+        @BeforeAll
+        @JvmStatic
+        fun setUpAll() = CreditRepositoryTest.setup()
+
+        @AfterAll
+        @JvmStatic
+        fun tearDownAll() = QueryExecutorTest.breakDown()
+    }
 }
