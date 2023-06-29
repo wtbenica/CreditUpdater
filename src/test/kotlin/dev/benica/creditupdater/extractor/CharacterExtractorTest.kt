@@ -13,6 +13,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import java.sql.Connection
 import java.sql.ResultSet
+import java.sql.SQLException
 
 class CharacterExtractorTest {
     private val database: String = TEST_DATABASE
@@ -145,11 +146,20 @@ class CharacterExtractorTest {
         }
     }
 
+    @Test
+    @DisplayName("should throw and SQLExceptions and log error")
+    fun shouldThrowAndSQLExceptionsAndLogError() {
+        val resultSet = mock<ResultSet>()
+
+        whenever(resultSet.getInt("id")).thenThrow(SQLException("test exception"))
+
+        assertThrows<SQLException> { characterExtractor.extractAndInsert(resultSet) }
+    }
+
     companion object {
         @BeforeAll
         @JvmStatic
         fun setUpDb() = CharacterRepositoryTest.setUp()
-
 
         @AfterAll
         @JvmStatic

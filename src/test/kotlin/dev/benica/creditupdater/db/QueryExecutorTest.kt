@@ -721,24 +721,38 @@ class QueryExecutorTest {
             DriverManager.getConnection(
                 "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
             ).use { conn ->
-                val query =
-                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'credit_updater_test'"
-                conn.createStatement().use { stmt ->
-                    // Retrieve the names of all tables in the database
-                    stmt.executeQuery(query).use { resultSet ->
-                        val tableNames = mutableListOf<String>()
+                try {
+                    // disable foreign key checks
+                    conn.createStatement().use { stmt ->
+                        stmt.execute("SET FOREIGN_KEY_CHECKS = 0")
+                    }
 
-                        // Store the table names in a list
-                        while (resultSet.next()) {
-                            val tableName = resultSet.getString("table_name")
-                            tableNames.add(tableName)
-                        }
+                    val query =
+                        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'credit_updater_test'"
+                    conn.createStatement().use { stmt ->
+                        // Retrieve the names of all tables in the database
+                        stmt.executeQuery(query).use { resultSet ->
+                            val tableNames = mutableListOf<String>()
 
-                        // Generate and execute DROP TABLE statements for each table
-                        tableNames.forEach { tableName ->
-                            val dropStatement = "DROP TABLE $tableName"
-                            stmt.executeUpdate(dropStatement)
+                            // Store the table names in a list
+                            while (resultSet.next()) {
+                                val tableName = resultSet.getString("table_name")
+                                tableNames.add(tableName)
+                            }
+
+                            // Generate and execute DROP TABLE statements for each table
+                            tableNames.forEach { tableName ->
+                                val dropStatement = "DROP TABLE $tableName"
+                                stmt.executeUpdate(dropStatement)
+                            }
                         }
+                    }
+                } catch (e: SQLException) {
+                    e.printStackTrace()
+                } finally {
+                    // enable foreign key checks
+                    conn.createStatement().use { stmt ->
+                        stmt.execute("SET FOREIGN_KEY_CHECKS = 1")
                     }
                 }
             }
