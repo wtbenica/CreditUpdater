@@ -50,21 +50,8 @@ class InteractiveStartup {
             val password = prompt("Password", Credentials.PASSWORD_INITIALIZER)
 
             val file = File("progress.json")
-            val next = if (file.exists()) {
-                val gson = Gson()
-                val progressInfoMap: MutableMap<String, ExtractionProgressTracker.Companion.ProgressInfo>
-                FileReader(file).use { reader ->
-                    progressInfoMap =
-                        gson.fromJson(
-                            reader,
-                            object :
-                                TypeToken<MutableMap<String, ExtractionProgressTracker.Companion.ProgressInfo>>() {}.type
-                        )
-                }
-                progressInfoMap.getOrDefault(extractedType?.text, null)?.lastProcessedItemId ?: 0
-            } else {
-                0
-            }
+            val progressInfoMap = file.loadProgressInfo()
+            val next = progressInfoMap.getOrDefault(extractedType?.text, null)?.lastProcessedItemId ?: 0
 
             val startingStoryId = prompt("Starting story id", next.toString()).toInt()
 
@@ -110,3 +97,13 @@ enum class ExtractedType(val text: String, val stepNumber: Int) {
     CHARACTERS("Character", 2),
     CREDIT("Credit", 3)
 }
+
+fun File.loadProgressInfo(): MutableMap<String, ExtractionProgressTracker.Companion.ProgressInfo> =
+    if (exists()) {
+        val gson = Gson()
+        FileReader(this).use { reader ->
+            gson.fromJson(reader, object : TypeToken<MutableMap<String, ExtractionProgressTracker.Companion.ProgressInfo>>() {}.type)
+        }
+    } else {
+        mutableMapOf()
+    }
