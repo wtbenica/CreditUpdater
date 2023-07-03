@@ -6,17 +6,13 @@ import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.Credentials.Companion.USERNAME_INITIALIZER
 import dev.benica.creditupdater.cli_parser.CLIParser
 import dev.benica.creditupdater.db.ExtractionProgressTracker.Companion.ProgressInfo
-import dev.benica.creditupdater.di.QueryExecutorSource
 import mu.KLogger
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import org.mockito.InjectMocks
-import org.mockito.Mock
-import org.mockito.MockitoAnnotations
-import org.mockito.Spy
+import org.mockito.*
 import org.mockito.kotlin.*
 import java.io.File
 import java.sql.DriverManager
@@ -24,21 +20,9 @@ import java.sql.DriverManager
 class ExtractionProgressTrackerTest {
     private lateinit var parser: CLIParser
 
-    @Mock
-    private lateinit var queryExecutorSourceMock: QueryExecutorSource
-
-    @Mock
-    private lateinit var queryExecutorMock: QueryExecutor
-
-    @Mock
-    private lateinit var progressFileMock: File
-
     private val loggerMock: KLogger = mock<KLogger>()
 
-    @Spy
-    @InjectMocks
-    private var mockEpt: ExtractionProgressTracker =
-        ExtractionProgressTracker("Credit", TEST_DATABASE, 10, TEST_PROGRESS_FILE, logger = loggerMock)
+    private lateinit var mockEpt: ExtractionProgressTracker
 
     @BeforeEach
     fun beforeEach() {
@@ -46,14 +30,11 @@ class ExtractionProgressTrackerTest {
 
         parser = CLIParser()
 
-        whenever(queryExecutorSourceMock.getQueryExecutor(any())).thenReturn(queryExecutorMock)
-
         // Create a test_progress.json file
         val file = File(TEST_PROGRESS_FILE)
         file.writer().use {
-            it.write(DEFAULT_PROGRESS_FILE.filter { c -> !c.isWhitespace() })
+            it.write(DEFAULT_PROGRESS_MAP.filter { c -> !c.isWhitespace() })
         }
-        //file.writeText(DEFAULT_PROGRESS_FILE.filter { !it.isWhitespace() })
 
         DriverManager.getConnection(
             "jdbc:mysql://localhost:3306/$TEST_DATABASE",
@@ -70,71 +51,73 @@ class ExtractionProgressTrackerTest {
                 }
             }
         }
+
+        @Spy
+        mockEpt = spy(
+            ExtractionProgressTracker(
+                extractedType = "Credit",
+                targetSchema = TEST_DATABASE,
+                totalItems = 10,
+                progressInfoMap = ProgressInfoMap(TEST_PROGRESS_FILE),
+                logger = loggerMock
+            )
+        )
+
+        whenever(mockEpt.getItemsCompleted()).thenReturn(ITEMS_COMPLETED)
     }
 
     // loadProgressInfo
     @Test
     @DisplayName("should load progress info correctly when there is an existing progress file")
     fun shouldLoadProgressInfoCorrectly() {
-        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE, 10, TEST_PROGRESS_FILE)
+        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE, 10, ProgressInfoMap(TEST_PROGRESS_FILE))
 
-        val progressInfoMap = ept.loadProgressInfo()
-        assertEquals(2, progressInfoMap["Credit"]?.lastProcessedItemId)
-        assertEquals(2000, progressInfoMap["Credit"]?.totalTimeMillis)
-        assertEquals(0, progressInfoMap["Credit"]?.numCompleted)
-        assertEquals(3, progressInfoMap["Character"]?.lastProcessedItemId)
-        assertEquals(3000, progressInfoMap["Character"]?.totalTimeMillis)
-        assertEquals(0, progressInfoMap["Character"]?.numCompleted)
+        val progressInfoMap = ept.progressInfoMap
+        assertEquals(2, progressInfoMap.get("Credit").lastProcessedItemId)
+        assertEquals(2000, progressInfoMap.get("Credit").totalTimeMillis)
+        assertEquals(0, progressInfoMap.get("Credit").numCompleted)
+        assertEquals(3, progressInfoMap.get("Character").lastProcessedItemId)
+        assertEquals(3000, progressInfoMap.get("Character").totalTimeMillis)
+        assertEquals(0, progressInfoMap.get("Character").numCompleted)
 
-        assertEquals(2, ept.getItemsCompleted())
+        assertEquals(2, mockEpt.getItemsCompleted())
     }
 
     @Test
     @DisplayName("should load progress info correctly when there is no existing progress file")
     fun shouldLoadProgressInfoCorrectlyWhenThereIsNoExistingProgressFile() {
-        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE, 10, "nonexistent_progress.json")
+        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE, 10, ProgressInfoMap("nonexistent_progress.json"))
         val progressInfoMap = ept.progressInfoMap
-        assertEquals(null, progressInfoMap["Credit"]?.lastProcessedItemId)
-        assertEquals(null, progressInfoMap["Credit"]?.totalTimeMillis)
-        assertEquals(null, progressInfoMap["Credit"]?.numCompleted)
-        assertEquals(null, progressInfoMap["Character"]?.lastProcessedItemId)
-        assertEquals(null, progressInfoMap["Character"]?.totalTimeMillis)
-        assertEquals(null, progressInfoMap["Character"]?.numCompleted)
+        assertEquals(0, progressInfoMap.get("Credit").lastProcessedItemId)
+        assertEquals(0, progressInfoMap.get("Credit").totalTimeMillis)
+        assertEquals(0, progressInfoMap.get("Credit").numCompleted)
+        assertEquals(0, progressInfoMap.get("Character").lastProcessedItemId)
+        assertEquals(0, progressInfoMap.get("Character").totalTimeMillis)
+        assertEquals(0, progressInfoMap.get("Character").numCompleted)
 
         val progressInfo = ept.progressInfo
         assertEquals(0, progressInfo.lastProcessedItemId)
         assertEquals(0, progressInfo.totalTimeMillis)
         assertEquals(0, progressInfo.numCompleted)
 
-        assertEquals(mutableMapOf<String, ProgressInfo>(), ept.loadProgressInfo())
+        assertEquals(mutableMapOf<String, ProgressInfo>(), ept.progressInfoMap.mProgressInfoMap)
     }
 
     // updateProgressInfo
     @Test
     @DisplayName("should update progress info correctly")
     fun shouldUpdateProgressInfoCorrectly() {
-        whenever(mockEpt.loadProgressInfo()).thenReturn(mockProgressInfoMap)
         whenever(mockEpt.getItemsCompleted()).thenReturn(2)
 
-        // verify progressInfoMap
-        assertEquals(2, mockEpt.progressInfoMap["Credit"]?.lastProcessedItemId)
-        assertEquals(2000, mockEpt.progressInfoMap["Credit"]?.totalTimeMillis)
-        assertEquals(2, mockEpt.progressInfoMap["Credit"]?.numCompleted)
-        assertEquals(3, mockEpt.progressInfoMap["Character"]?.lastProcessedItemId)
-        assertEquals(3000, mockEpt.progressInfoMap["Character"]?.totalTimeMillis)
-        assertEquals(0, mockEpt.progressInfoMap["Character"]?.numCompleted)
+        // verify progressInfo
+        var progressInfo = mockEpt.progressInfo
+        assertEquals(2, progressInfo.lastProcessedItemId)
+        assertEquals(2000, progressInfo.totalTimeMillis)
+        assertEquals(2, progressInfo.numCompleted)
 
         mockEpt.updateProgressInfo(8, 1000)
 
-        val progressInfoMap = mockEpt.progressInfoMap
-        assertEquals(8, progressInfoMap["Credit"]?.lastProcessedItemId)
-        assertEquals(1000, progressInfoMap["Credit"]?.totalTimeMillis)
-        assertEquals(3, progressInfoMap["Credit"]?.numCompleted)
-        assertEquals(3, progressInfoMap["Character"]?.lastProcessedItemId)
-        assertEquals(3000, progressInfoMap["Character"]?.totalTimeMillis)
-        assertEquals(0, progressInfoMap["Character"]?.numCompleted)
-
-        val progressInfo = mockEpt.progressInfo
+        progressInfo = mockEpt.progressInfo
         assertEquals(8, progressInfo.lastProcessedItemId)
         assertEquals(1000, progressInfo.totalTimeMillis)
         assertEquals(3, progressInfo.numCompleted)
@@ -164,15 +147,15 @@ class ExtractionProgressTrackerTest {
     @Test
     @DisplayName("should reset progress info correctly")
     fun shouldResetProgressInfoCorrectly() {
-        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE, 10, TEST_PROGRESS_FILE)
+        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE, 10, ProgressInfoMap(TEST_PROGRESS_FILE))
         ept.resetProgressInfo()
         val progressInfoMap = ept.progressInfoMap
-        assertEquals(0, progressInfoMap["Credit"]?.lastProcessedItemId)
-        assertEquals(0, progressInfoMap["Credit"]?.totalTimeMillis)
-        assertEquals(0, progressInfoMap["Credit"]?.numCompleted)
-        assertEquals(3, progressInfoMap["Character"]?.lastProcessedItemId)
-        assertEquals(3000, progressInfoMap["Character"]?.totalTimeMillis)
-        assertEquals(0, progressInfoMap["Character"]?.numCompleted)
+        assertEquals(0, progressInfoMap.get("Credit").lastProcessedItemId)
+        assertEquals(0, progressInfoMap.get("Credit").totalTimeMillis)
+        assertEquals(0, progressInfoMap.get("Credit").numCompleted)
+        assertEquals(3, progressInfoMap.get("Character").lastProcessedItemId)
+        assertEquals(3000, progressInfoMap.get("Character").totalTimeMillis)
+        assertEquals(0, progressInfoMap.get("Character").numCompleted)
 
         val progressInfo = ept.progressInfo
         assertEquals(0, progressInfo.lastProcessedItemId)
@@ -206,22 +189,16 @@ class ExtractionProgressTrackerTest {
     fun shouldSaveProgressInfoCorrectly() {
         doReturn("Credit").whenever(mockEpt).extractedType
 
-        val mockItemsCompleted = 2
-
-        whenever(mockEpt.loadProgressInfo()).thenReturn(mockProgressInfoMap)
-        whenever(mockEpt.getItemsCompleted()).thenReturn(mockItemsCompleted)
-        whenever(queryExecutorSourceMock.getQueryExecutor(any())).thenReturn(queryExecutorMock)
-
         mockEpt.resetProgressInfo()
 
         // Verify the progress info is reset correctly
         val progressInfoMap = mockEpt.progressInfoMap
-        assertEquals(0, progressInfoMap["Credit"]?.lastProcessedItemId)
-        assertEquals(0, progressInfoMap["Credit"]?.totalTimeMillis)
-        assertEquals(0, progressInfoMap["Credit"]?.numCompleted)
-        assertEquals(3, progressInfoMap["Character"]?.lastProcessedItemId)
-        assertEquals(3000, progressInfoMap["Character"]?.totalTimeMillis)
-        assertEquals(0, progressInfoMap["Character"]?.numCompleted)
+        assertEquals(0, progressInfoMap.get("Credit").lastProcessedItemId)
+        assertEquals(0, progressInfoMap.get("Credit").totalTimeMillis)
+        assertEquals(0, progressInfoMap.get("Credit").numCompleted)
+        assertEquals(3, progressInfoMap.get("Character").lastProcessedItemId)
+        assertEquals(3000, progressInfoMap.get("Character").totalTimeMillis)
+        assertEquals(0, progressInfoMap.get("Character").numCompleted)
 
         val progressInfo = mockEpt.progressInfo
         assertEquals(0, progressInfo.lastProcessedItemId)
@@ -233,21 +210,14 @@ class ExtractionProgressTrackerTest {
     @Test
     @DisplayName("should print progress info correctly")
     fun shouldPrintProgressInfoCorrectly() {
-        val eptMock = spy(
-            ExtractionProgressTracker("Credit", TEST_DATABASE, 10, TEST_PROGRESS_FILE, logger = loggerMock)
-        )
-        whenever(eptMock.progressFile).thenReturn(progressFileMock)
-        whenever(eptMock.loadProgressInfo()).thenReturn(mockProgressInfoMap)
-        whenever(eptMock.getItemsCompleted()).thenReturn(2)
-
-        doNothing().whenever(loggerMock).debug(any<() -> Any?>())
+        whenever(mockEpt.getItemsCompleted()).thenReturn(2)
 
         // verify progressInfo
-        assertEquals(2, eptMock.progressInfo.lastProcessedItemId)
-        assertEquals(2000, eptMock.progressInfo.totalTimeMillis)
-        assertEquals(2, eptMock.progressInfo.numCompleted)
+        assertEquals(2, mockEpt.progressInfo.lastProcessedItemId)
+        assertEquals(2000, mockEpt.progressInfo.totalTimeMillis)
+        assertEquals(2, mockEpt.progressInfo.numCompleted)
 
-        eptMock.printProgressInfo()
+        mockEpt.printProgressInfo()
 
         verify(loggerMock).info("Extract Credit | StoryId: 2")
         verify(loggerMock).info("Complete: 2/10 20.00%")
@@ -260,8 +230,7 @@ class ExtractionProgressTrackerTest {
     @Test
     @DisplayName("should get progress bar correctly A (24.6)")
     fun shouldGetProgressBarCorrectlyA() {
-        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE, 10, TEST_PROGRESS_FILE)
-        val progressBar = ept.getProgressBar(0.246f)
+        val progressBar = mockEpt.getProgressBar(0.246f)
         assertEquals(
             "[========================>............................................................................] 24.60%",
             progressBar
@@ -271,8 +240,7 @@ class ExtractionProgressTrackerTest {
     @Test
     @DisplayName("should get progress bar correctly B (100)")
     fun shouldGetProgressBarCorrectlyB() {
-        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE, 10, TEST_PROGRESS_FILE)
-        val progressBar = ept.getProgressBar(1.00f)
+        val progressBar = mockEpt.getProgressBar(1.00f)
         assertEquals(
             "[====================================================================================================>] 100.00%",
             progressBar
@@ -379,8 +347,9 @@ class ExtractionProgressTrackerTest {
     }
 
     companion object {
+        private const val ITEMS_COMPLETED = 2
         private const val TEST_PROGRESS_FILE = "test_progress.json"
-        private const val DEFAULT_PROGRESS_FILE = """{
+        private const val DEFAULT_PROGRESS_MAP = """{
             "Credit": {
                 "lastProcessedItemId": 2,
                 "totalTimeMillis": 2000,
@@ -392,15 +361,6 @@ class ExtractionProgressTrackerTest {
                 "numCompleted": 0
             }
         }"""
-
-        val mockProgressInfoMap = mutableMapOf(
-            "Credit" to ProgressInfo(
-                lastProcessedItemId = 2, totalTimeMillis = 1, numCompleted = 0
-            ),
-            "Character" to ProgressInfo(
-                lastProcessedItemId = 3, totalTimeMillis = 2, numCompleted = 0
-            )
-        )
 
 
         @BeforeAll
