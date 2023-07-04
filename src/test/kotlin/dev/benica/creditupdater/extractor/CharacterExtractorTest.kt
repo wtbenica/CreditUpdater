@@ -4,7 +4,7 @@ import com.zaxxer.hikari.HikariDataSource
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.db.CharacterRepositoryTest
 import dev.benica.creditupdater.db.QueryExecutorTest
-import dev.benica.creditupdater.db.getDbConnection
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import dev.benica.creditupdater.di.ConnectionSource
 import dev.benica.creditupdater.extractor.CharacterExtractor.*
 import org.junit.jupiter.api.*
