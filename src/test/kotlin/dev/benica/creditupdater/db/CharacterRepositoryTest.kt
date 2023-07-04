@@ -1,16 +1,13 @@
 package dev.benica.creditupdater.db
 
-import dev.benica.creditupdater.Credentials.Companion.PASSWORD_INITIALIZER
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
-import dev.benica.creditupdater.Credentials.Companion.USERNAME_INITIALIZER
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import dev.benica.creditupdater.models.Appearance
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
-import java.sql.Connection
-import java.sql.DriverManager
 import java.sql.PreparedStatement
 import java.sql.SQLException
 
@@ -385,9 +382,3 @@ class CharacterRepositoryTest {
         }
     }
 }
-
-fun getDbConnection(): Connection = DriverManager.getConnection(
-    "jdbc:mysql://localhost:3306/$TEST_DATABASE",
-    USERNAME_INITIALIZER,
-    PASSWORD_INITIALIZER
-)

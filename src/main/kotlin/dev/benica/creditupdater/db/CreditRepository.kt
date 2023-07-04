@@ -162,9 +162,8 @@ class CreditRepository(
      */
     private fun insertStoryCredit(gcndId: Int, roleId: Int, storyId: Int) {
         val insertStoryCreditSql =
-            """INSERT IGNORE INTO $targetSchema.m_story_credit(created, modified, deleted, is_credited, is_signed, 
-                uncertain, signed_as, credited_as, credit_name, creator_id, credit_type_id, story_id, signature_id)
-                VALUE (CURTIME(), CURTIME(), 0, 0, 0, 0, '', '', '', ?, ?, ?, NULL)"""
+            """INSERT IGNORE INTO $targetSchema.m_story_credit(creator_id, credit_type_id, story_id)
+                VALUE (?, ?, ?)"""
 
         mQueryExecutor.executePreparedStatement(insertStoryCreditSql) { statement ->
             statement.setInt(1, gcndId)

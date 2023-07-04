@@ -2,9 +2,9 @@ package dev.benica.creditupdater.extractor
 
 import com.zaxxer.hikari.HikariDataSource
 import dev.benica.creditupdater.Credentials
-import dev.benica.creditupdater.db.CreditRepositoryTest
 import dev.benica.creditupdater.db.QueryExecutorTest
-import dev.benica.creditupdater.db.getDbConnection
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.setup
 import dev.benica.creditupdater.di.*
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -112,7 +112,7 @@ class CreditExtractorTest {
     companion object {
         @BeforeAll
         @JvmStatic
-        fun setUpAll() = CreditRepositoryTest.setup()
+        fun setUpAll() = setup()
 
         @AfterAll
         @JvmStatic
