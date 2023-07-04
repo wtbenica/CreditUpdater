@@ -43,37 +43,25 @@ class QueryExecutor(
      * @param sqlStmt the SQL statement to execute
      * @param connection the [Connection] to use, or null to use a new
      *     connection
-     *    - Note: If a connection is provided, it will not be closed
-     *    - Note: If a connection is provided, it will not be committed
+     * @throws SQLException if an error occurs
+     * @notes If a non-null [connection] is provided, the function respects its
+     *     [autoCommit] setting. If [autoCommit] is true, each statement is
+     *     automatically committed. If false, the caller is responsible for
+     *     handling the commit or rollback of the connection if needed.
      *
-     *    @throws SQLException if an error occurs
+     *     If [connection] is null, the default [autoCommit] value [true] is
+     *     used. Any statement is committed and the connection is closed.
      */
     @Throws(SQLException::class)
     fun executeSqlStatement(sqlStmt: String, connection: Connection? = null) {
         val conn = connection ?: connectionSource.getConnection(database).connection
+
         try {
             conn.createStatement().use { stmt ->
                 when {
-                    sqlStmt.startsWithAny(
-                        listOf(
-                            "CREATE",
-                            "ALTER",
-                            "DROP",
-                            "TRUNCATE",
-                            "SET",
-                            "PREPARE",
-                            "EXECUTE"
-                        )
-                    ) -> {
-                        val autoCommit = stmt.connection.autoCommit
-                        stmt.connection.autoCommit = true
-                        stmt.execute(sqlStmt)
-                        stmt.connection.autoCommit = autoCommit
-                    }
-
                     sqlStmt.startsWithAny(listOf("INSERT", "UPDATE", "DELETE")) -> stmt.executeUpdate(sqlStmt)
                     sqlStmt.startsWithAny(listOf("SELECT")) -> throw SQLException("Use executeQueryAndDo for SELECT statements")
-                    else -> Unit
+                    else -> stmt.execute(sqlStmt)
                 }
             }
         } catch (sqlEx: SQLException) {
