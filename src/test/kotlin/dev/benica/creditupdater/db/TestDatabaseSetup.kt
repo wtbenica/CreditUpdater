@@ -10,10 +10,10 @@ class TestDatabaseSetup {
         @JvmStatic
         fun setup(populate: DatabaseState = DatabaseState.PREPARED) {
             // create publishers table
-            getDbConnection().use { connection ->
+            getTestDbConnection().use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
-                        """CREATE TABLE IF NOT EXISTS gcd_publishers (
+                        """CREATE TABLE IF NOT EXISTS gcd_publisher (
                             id INT PRIMARY KEY AUTO_INCREMENT,
                             name VARCHAR(255) NOT NULL,
                             country_id INTEGER NOT NULL,
@@ -22,7 +22,7 @@ class TestDatabaseSetup {
                     )
 
                     statement.execute(
-                        """INSERT INTO gcd_publishers (name, country_id, year_began)
+                        """INSERT INTO gcd_publisher (name, country_id, year_began)
                             VALUES 
                                 ('Marvel', 225, 1939),
                                 ('DC', 225, 1935)""".trimIndent()
@@ -31,7 +31,7 @@ class TestDatabaseSetup {
             }
 
             // create series table
-            getDbConnection().use { connection ->
+            getTestDbConnection().use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """CREATE TABLE IF NOT EXISTS gcd_series (
@@ -40,7 +40,7 @@ class TestDatabaseSetup {
                             publisher_id INT NOT NULL,
                             country_id INTEGER NOT NULL,
                             language_id INTEGER NOT NULL,
-                            FOREIGN KEY (publisher_id) REFERENCES gcd_publishers(id)
+                            FOREIGN KEY (publisher_id) REFERENCES gcd_publisher(id)
                         )""".trimIndent()
                     )
 
@@ -54,7 +54,7 @@ class TestDatabaseSetup {
             }
 
             // create issue table
-            getDbConnection().use { connection ->
+            getTestDbConnection().use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """CREATE TABLE IF NOT EXISTS gcd_issue (
@@ -75,7 +75,7 @@ class TestDatabaseSetup {
             }
 
             // create story table
-            getDbConnection().use { connection ->
+            getTestDbConnection().use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """CREATE TABLE IF NOT EXISTS `gcd_story` (
@@ -101,7 +101,7 @@ class TestDatabaseSetup {
             }
 
             // create credit_type table
-            getDbConnection().use { connection ->
+            getTestDbConnection().use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """ CREATE TABLE IF NOT EXISTS gcd_credit_type(
@@ -124,7 +124,7 @@ class TestDatabaseSetup {
             }
 
             // create gcd_creator_name_detail table
-            getDbConnection().use { connection ->
+            getTestDbConnection().use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """ CREATE TABLE IF NOT EXISTS gcd_creator_name_detail(
@@ -150,7 +150,7 @@ class TestDatabaseSetup {
             }
 
             // create gcd_story_credit table
-            getDbConnection().use { connection ->
+            getTestDbConnection().use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """ CREATE TABLE IF NOT EXISTS `gcd_story_credit`(
@@ -179,8 +179,16 @@ class TestDatabaseSetup {
                 }
             }
 
+            when (populate) {
+                DatabaseState.EMPTY -> {}
+                DatabaseState.RAW -> addRecordsToBeRemoved()
+                DatabaseState.PREPARED -> addExtractedTables()
+            }
+        }
+
+        private fun addExtractedTables() {
             // create m_story_credit table
-            getDbConnection().use { connection ->
+            getTestDbConnection().use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """CREATE TABLE IF NOT EXISTS `m_story_credit` (
@@ -203,20 +211,14 @@ class TestDatabaseSetup {
                     )
                 }
             }
-
-            when (populate) {
-                DatabaseState.EMPTY -> {}
-                DatabaseState.RAW -> addRecordsToBeRemoved()
-                DatabaseState.PREPARED -> {}
-            }
         }
 
         private fun addRecordsToBeRemoved() {
-            getDbConnection().use { conn ->
+            getTestDbConnection().use { conn ->
                 conn.createStatement().use { statement ->
                     // insert publisher
                     statement.execute(
-                        """INSERT INTO gcd_publishers (name, country_id, year_began))
+                        """INSERT INTO gcd_publisher (name, country_id, year_began)
                             VALUES 
                                 ('Editori Laterza', 106, 1901),
                                 ('HarperCollins', 225, 1817)""".trimIndent()
@@ -274,8 +276,10 @@ class TestDatabaseSetup {
         @AfterAll
         fun teardown() {
             // remove all tables
-            getDbConnection().use { connection ->
+            getTestDbConnection().use { connection ->
                 connection.createStatement().use { statement ->
+                    statement.execute("DROP TABLE IF EXISTS m_character_appearance")
+                    statement.execute("DROP TABLE IF EXISTS m_character")
                     statement.execute("DROP TABLE IF EXISTS m_story_credit")
                     statement.execute("DROP TABLE IF EXISTS gcd_story_credit")
                     statement.execute("DROP TABLE IF EXISTS gcd_creator_name_detail")
@@ -283,12 +287,12 @@ class TestDatabaseSetup {
                     statement.execute("DROP TABLE IF EXISTS gcd_story")
                     statement.execute("DROP TABLE IF EXISTS gcd_issue")
                     statement.execute("DROP TABLE IF EXISTS gcd_series")
-                    statement.execute("DROP TABLE IF EXISTS gcd_publishers")
+                    statement.execute("DROP TABLE IF EXISTS gcd_publisher")
                 }
             }
         }
 
-        fun getDbConnection(): Connection = DriverManager.getConnection(
+        fun getTestDbConnection(): Connection = DriverManager.getConnection(
             "jdbc:mysql://localhost:3306/${Credentials.TEST_DATABASE}",
             Credentials.USERNAME_INITIALIZER,
             Credentials.PASSWORD_INITIALIZER

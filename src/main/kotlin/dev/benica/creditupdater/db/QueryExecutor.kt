@@ -57,10 +57,11 @@ class QueryExecutor(
         val conn = connection ?: connectionSource.getConnection(database).connection
 
         try {
+            @Suppress("kotlin:S6314")
             conn.createStatement().use { stmt ->
                 when {
                     sqlStmt.startsWithAny(listOf("INSERT", "UPDATE", "DELETE")) -> stmt.executeUpdate(sqlStmt)
-                    sqlStmt.startsWithAny(listOf("SELECT")) -> throw SQLException("Use executeQueryAndDo for SELECT statements")
+                    //sqlStmt.startsWithAny(listOf("SELECT")) -> throw SQLException("Use executeQueryAndDo for SELECT statements")
                     else -> stmt.execute(sqlStmt)
                 }
             }
@@ -95,7 +96,7 @@ class QueryExecutor(
     /**
      * Runs an SQL script.
      *
-     * Statements must be separated by a semicolon (;). If the script is run as
+     * Statements must be separated by a semicolon \(;). If the script is run as
      * a transaction, the script will be rolled back if an exception is thrown.
      * - Note: This function does not handle semicolons in strings.
      * - Note: Comments must be followed by a semicolon. If not, the following
@@ -140,7 +141,7 @@ class QueryExecutor(
      *
      * @param statements the list of statements
      */
-    private fun executeStatements(statements: List<String>, conn: Connection? = null) {
+    internal fun executeStatements(statements: List<String>, conn: Connection? = null) {
         logger.info { "executeStatements: ${statements.size} statements" }
         statements.filter { it.isNotBlank() }.forEach { sqlStmt ->
             logger.info { "${sqlStmt.replace("\\s{2,}".toRegex(), "\n")}\n" }

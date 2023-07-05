@@ -1,7 +1,7 @@
 package dev.benica.creditupdater.db
 
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import dev.benica.creditupdater.models.Appearance
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
@@ -19,7 +19,7 @@ class CharacterRepositoryTest {
     fun shouldInsertNewCharacter() {
         val tableName = "m_character"
 
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("DELETE FROM $tableName")
             }
@@ -48,7 +48,7 @@ class CharacterRepositoryTest {
     fun shouldReturnExistingCharacter() {
         val tableName = "m_character"
 
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("INSERT INTO $tableName (name, alter_ego, publisher_id) VALUES ('Test Character', NULL, 1)")
             }
@@ -65,7 +65,7 @@ class CharacterRepositoryTest {
     fun shouldTruncateAlterEgo() {
         val tableName = "m_character"
 
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("DELETE FROM $tableName")
             }
@@ -94,7 +94,7 @@ class CharacterRepositoryTest {
     fun shouldTruncateName() {
         val tableName = "m_character"
 
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("DELETE FROM $tableName")
             }
@@ -124,7 +124,7 @@ class CharacterRepositoryTest {
     fun lookupCharacterShouldReturnNull() {
         val tableName = "m_character"
 
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("DELETE FROM $tableName")
             }
@@ -140,7 +140,7 @@ class CharacterRepositoryTest {
     fun lookupCharacterShouldReturnId() {
         val tableName = "m_character"
 
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("INSERT INTO $tableName (name, alter_ego, publisher_id) VALUES ('Test Character', NULL, 1)")
             }
@@ -176,7 +176,7 @@ class CharacterRepositoryTest {
     fun shouldInsertASetOfNewAppearancesWithAppearances() {
         val tableName = "m_character_appearance"
 
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("DELETE FROM $tableName")
             }
@@ -308,7 +308,7 @@ class CharacterRepositoryTest {
     // Setup and teardown
     @BeforeEach
     fun initEach() {
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("TRUNCATE TABLE m_character")
             }
@@ -317,7 +317,7 @@ class CharacterRepositoryTest {
 
     @AfterEach
     fun tearDown() {
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("TRUNCATE TABLE m_character")
             }
@@ -328,7 +328,7 @@ class CharacterRepositoryTest {
         @BeforeAll
         @JvmStatic
         fun setUp() {
-            getDbConnection().use { conn ->
+            getTestDbConnection().use { conn ->
                 conn.createStatement().use { stmt ->
                     // create publishers table
                     stmt.execute(
