@@ -2,6 +2,7 @@ package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.Credentials.Companion.ISSUE_SERIES_PATH
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
+import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.di.DaggerDispatchersComponent
 import dev.benica.creditupdater.di.DispatchersComponent
 import kotlinx.coroutines.*
@@ -64,7 +65,10 @@ class DBInitializer(
                 if (startAtStep == 1) {
                     logger.info { "Starting Table Updates..." }
                     dropIsSourcedAndSourcedByColumns()
-                    addAndModifyTables()
+                    DBInitAddTables(
+                        queryExecutor = QueryExecutor(targetSchema),
+                        database = targetSchema,
+                    ).addTablesAndConstraints()
                     removeUnnecessaryRecords()
                 }
 
@@ -104,6 +108,8 @@ class DBInitializer(
     /**
      * Drop is sourced and sourced by columns - this function drops the
      * 'is_sourced' and 'sourced_by' columns from the 'gcd_story_credit' table.
+     * These columns have been added to the GCD, but are not needed by Infinite
+     * Longbox.
      *
      * @throws SQLException
      */
@@ -117,17 +123,6 @@ class DBInitializer(
                 """.trimIndent()
         )
     }
-
-    /**
-     * Add tables - this function adds the 'm_character',
-     * 'm_character_appearance', 'm_story_credit', and 'm_story_credit_type'
-     * tables to the database schema. It also adds the 'issue' and 'series'
-     * columns to the 'gcd_story_credit' and 'm_character_appearance' tables.
-     *
-     * @throws SQLException
-     */
-    @Throws(SQLException::class)
-    private fun addAndModifyTables() = dbTask.runSqlScript(sqlScriptPath = INIT_TABLES_PATH)
 
     /**
      * Shrink database - this function shrinks the database by removing a bunch
@@ -156,13 +151,6 @@ class DBInitializer(
         dbTask.runSqlScript(sqlScriptPath = ISSUE_SERIES_PATH, runAsTransaction = true)
 
     companion object {
-        /**
-         * This SQL query adds issue and series columns to the gcd_story_credit
-         * table. It creates the m_character and m_character_appearance tables if
-         * they don't already exist.
-         */
-        const val INIT_TABLES_PATH = "src/main/resources/sql/init_add_tables.sql"
-
         /**
          * This script creates several views that filter out records from the
          * database based on certain criteria. These views are then used to delete
