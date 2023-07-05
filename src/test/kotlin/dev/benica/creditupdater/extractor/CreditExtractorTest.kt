@@ -3,7 +3,7 @@ package dev.benica.creditupdater.extractor
 import com.zaxxer.hikari.HikariDataSource
 import dev.benica.creditupdater.Credentials
 import dev.benica.creditupdater.db.QueryExecutorTest
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.setup
 import dev.benica.creditupdater.di.*
 import org.junit.jupiter.api.*
@@ -32,7 +32,7 @@ class CreditExtractorTest {
 
         creditExtractor = CreditExtractor(database)
 
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use {
                 it.execute("TRUNCATE TABLE m_story_credit")
             }
@@ -43,7 +43,7 @@ class CreditExtractorTest {
     @DisplayName("should extract credits and insert them into the database")
     fun shouldExtractCreditsAndInsertThemIntoTheDatabase() {
         // Truncate gcd_story_credit
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use {
                 it.execute("TRUNCATE TABLE gcd_story_credit")
             }
@@ -64,7 +64,7 @@ class CreditExtractorTest {
         assertEquals(1, result)
 
         // verify against database
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use {
                 val res =
                     it.executeQuery("SELECT * FROM m_story_credit WHERE story_id = 1 ORDER BY creator_id, credit_type_id")

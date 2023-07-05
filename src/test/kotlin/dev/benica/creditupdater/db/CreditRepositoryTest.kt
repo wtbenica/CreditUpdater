@@ -1,7 +1,7 @@
 package dev.benica.creditupdater.db
 
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.setup
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.teardown
 import org.junit.jupiter.api.*
@@ -22,7 +22,7 @@ class CreditRepositoryTest {
         val roleId = 1
 
         // verify that the story credit does not exist
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.prepareStatement(
                 """
                 SELECT * 
@@ -50,7 +50,7 @@ class CreditRepositoryTest {
         creditRepository.createOrUpdateStoryCredit(extractedName, storyId, roleId)
 
         // Assert that the story credit was inserted
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.prepareStatement(
                 """
                 SELECT * 
@@ -85,7 +85,7 @@ class CreditRepositoryTest {
         val storyId = 1
 
         // verify that the story credit exists in gcd_story_credit
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.prepareStatement(
                 """
                 SELECT * 
@@ -113,7 +113,7 @@ class CreditRepositoryTest {
         creditRepository.createOrUpdateStoryCredit(extractedName, storyId, roleId)
 
         // Assert that the story credit was updated
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.prepareStatement(
                 """
                 SELECT * 
@@ -148,7 +148,7 @@ class CreditRepositoryTest {
         val storyId = 2
 
         // verify that the story credit exists in gcd_story_credit
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.prepareStatement(
                 """
                 SELECT * 
@@ -176,7 +176,7 @@ class CreditRepositoryTest {
         creditRepository.createOrUpdateStoryCredit(extractedName, storyId, roleId)
 
         // Assert that the story credit was updated
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.prepareStatement(
                 """
                 SELECT * 

@@ -52,7 +52,6 @@ class ExtractionProgressTrackerTest {
             }
         }
 
-        @Spy
         mockEpt = spy(
             ExtractionProgressTracker(
                 extractedType = "Credit",
