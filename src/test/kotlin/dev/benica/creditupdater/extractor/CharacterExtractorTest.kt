@@ -4,7 +4,7 @@ import com.zaxxer.hikari.HikariDataSource
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.db.CharacterRepositoryTest
 import dev.benica.creditupdater.db.QueryExecutorTest
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import dev.benica.creditupdater.di.ConnectionSource
 import dev.benica.creditupdater.extractor.CharacterExtractor.*
 import org.junit.jupiter.api.*
@@ -34,7 +34,7 @@ class CharacterExtractorTest {
 
         characterExtractor = CharacterExtractor(database)
 
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use {
                 it.execute("TRUNCATE TABLE m_character_appearance")
                 it.execute("TRUNCATE TABLE m_character")
@@ -55,7 +55,7 @@ class CharacterExtractorTest {
         assertEquals(1, result)
 
         // verify against database
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use {
                 val rs = it.executeQuery("SELECT * FROM m_character_appearance WHERE story_id = 1")
                 rs.next()
@@ -110,7 +110,7 @@ class CharacterExtractorTest {
         assertEquals(1, result)
 
         // verify against database
-        getDbConnection().use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use {
                 val rs = it.executeQuery("SELECT * FROM m_character_appearance WHERE story_id = 1")
                 rs.next()
