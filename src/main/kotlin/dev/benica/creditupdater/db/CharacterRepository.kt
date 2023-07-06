@@ -22,7 +22,7 @@ import javax.inject.Inject
  */
 class CharacterRepository(
     private val targetSchema: String,
-    databaseComponent: DatabaseComponent = DaggerDatabaseComponent.create(),
+    databaseComponent: DatabaseComponent? = DaggerDatabaseComponent.create(),
     private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
 ) : Repository, AutoCloseable {
     // Dependencies
@@ -30,11 +30,13 @@ class CharacterRepository(
     internal lateinit var connectionSource: ConnectionSource
 
     // Private Properties
-    private val conn: Connection
+    internal lateinit var conn: Connection
 
     init {
-        databaseComponent.inject(this)
-        conn = connectionSource.getConnection(targetSchema).connection
+        if (databaseComponent != null) {
+            databaseComponent.inject(this)
+            conn = connectionSource.getConnection(targetSchema).connection
+        }
     }
 
     // Private Properties
