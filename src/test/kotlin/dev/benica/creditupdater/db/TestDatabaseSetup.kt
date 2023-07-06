@@ -1,6 +1,7 @@
 package dev.benica.creditupdater.db
 
 import dev.benica.creditupdater.Credentials
+import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import org.junit.jupiter.api.AfterAll
 import java.sql.Connection
 import java.sql.DriverManager
@@ -37,6 +38,7 @@ class TestDatabaseSetup {
                         """CREATE TABLE IF NOT EXISTS gcd_series (
                             id INT PRIMARY KEY AUTO_INCREMENT,
                             name VARCHAR(255) NOT NULL,
+                            year_began INTEGER NOT NULL,
                             publisher_id INT NOT NULL,
                             country_id INTEGER NOT NULL,
                             language_id INTEGER NOT NULL,
@@ -45,10 +47,11 @@ class TestDatabaseSetup {
                     )
 
                     statement.execute(
-                        """INSERT INTO gcd_series (name, publisher_id, country_id, language_id)
+                        """INSERT INTO gcd_series (name, year_began, publisher_id, country_id, language_id)
                             VALUES
-                                ('Doom Patrol', 2, 225, 25),
-                                ('New X-Men', 1, 225, 25)""".trimIndent()
+                                ('Doom Patrol', 1988, 2, 225, 25),
+                                ('New X-Men', 2001, 1, 225, 25)
+                                """.trimIndent()
                     )
                 }
             }
@@ -179,6 +182,48 @@ class TestDatabaseSetup {
                 }
             }
 
+            // create gcd_indicia_publisher table, with fk to gcd_publisher
+            getTestDbConnection().use { connection ->
+                connection.createStatement().use { statement ->
+                    statement.execute(
+                        """CREATE TABLE IF NOT EXISTS gcd_indicia_publisher (
+                            id INT PRIMARY KEY AUTO_INCREMENT,
+                            name VARCHAR (255) NOT NULL,
+                            parent_id INT NOT NULL REFERENCES gcd_publisher(id)
+                        )""".trimIndent()
+                    )
+
+                    // insert gcd_indicia_publisher
+                    statement.execute(
+                        """INSERT INTO gcd_indicia_publisher (name, parent_id)
+                            VALUES
+                            ('Wildstorm Comics', 1),
+                            ('Marvel Comics', 2)""".trimIndent()
+                    )
+                }
+            }
+
+            // create gcd_brand_group table with fk parent_id to gcd_publisher
+            getTestDbConnection().use { connection ->
+                connection.createStatement().use { statement ->
+                    statement.execute(
+                        """CREATE TABLE IF NOT EXISTS gcd_brand_group (
+                            id INT PRIMARY KEY AUTO_INCREMENT,
+                            name VARCHAR (255) NOT NULL,
+                            parent_id INT NOT NULL REFERENCES gcd_publisher(id)
+                        )""".trimIndent()
+                    )
+
+                    // insert gcd_brand_group
+                    statement.execute(
+                        """INSERT INTO gcd_brand_group (name, parent_id)
+                            VALUES
+                            ('Vertigo', 1),
+                            ('Marvel Knights', 2)""".trimIndent()
+                    )
+                }
+            }
+
             when (populate) {
                 DatabaseState.EMPTY -> {}
                 DatabaseState.RAW -> addRecordsToBeRemoved()
@@ -217,6 +262,10 @@ class TestDatabaseSetup {
             getTestDbConnection().use { conn ->
                 conn.createStatement().use { statement ->
                     // insert publisher
+                    /*
+                    - Editori Laterza - IT-IT (bad - non-US)
+                    - HarperCollins - US-EN (bad - no 20+th century series)
+                     */
                     statement.execute(
                         """INSERT INTO gcd_publisher (name, country_id, year_began)
                             VALUES 
@@ -227,17 +276,19 @@ class TestDatabaseSetup {
                     // insert series
                     /*
                     - I fumetti di Mao - IT-IT (bad - foreign publisher)
-                    - Simposons Comics Extravaganze - US-EN (bad - old publisher)
+                    - Simpsons Comics Extravaganze - US-EN (bad - publisher has no 20th/21st century series)
                     - Batman: Une Lecture de Bon Conseil - US-FR (bad - foreign language)
                     - Wolverine: Son of Canada - US-EN (bad - foreign country)
+                    - Little Red Riding Hood - US-EN (bad - publisher has post-20th century series, but this series isn't one of them)
                      */
                     statement.execute(
-                        """INSERT INTO gcd_series (name, publisher_id, country_id, language_id)
+                        """INSERT INTO gcd_series (name, year_began, publisher_id, country_id, language_id)
                             VALUES
-                                ('I fumetti di Mao', 3, 106, 51),
-                                ('Simpsons Comics Extravaganze', 4, 225, 25),
-                                ('Batman: Une Lecture de Bon Conseil', 2, 225, 34),
-                                ('Wolverine: Son of Canada', 1, 36, 25)
+                                ('I fumetti di Mao', 1990, 3, 106, 51),
+                                ('Simpsons Comics Extravaganze', 1899, 4, 225, 25),
+                                ('Batman: Une Lecture de Bon Conseil', 2010, 2, 225, 34),
+                                ('Wolverine: Son of Canada', 1983, 1, 36, 25),
+                                ('Little Red Riding Hood', 1890, 2, 225, 25)
                                 """.trimMargin()
                     )
 
@@ -268,6 +319,22 @@ class TestDatabaseSetup {
                                 ('Wolverine: Son of Canada', 6, 'A', 'B', 'C', 'D', 'E', 'F', 'Wolverine')
                                 """.trimIndent()
                     )
+
+                    // insert gcd_indicia_publishers with links to bad gcd_publishers
+                    statement.execute(
+                        """INSERT INTO gcd_indicia_publisher (name, parent_id)
+                            VALUES
+                                ('Editori Laterza', 3),
+                                ('HarperCollins', 4)""".trimIndent()
+                    )
+
+                    // insert gcd_brand_groups with links to bad gcd_publishers
+                    statement.execute(
+                        """INSERT INTO gcd_brand_group (name, parent_id)
+                            VALUES
+                                ('Viva Italia', 3),
+                                ('Etch', 4)""".trimIndent()
+                    )
                 }
             }
         }
@@ -287,13 +354,17 @@ class TestDatabaseSetup {
                     statement.execute("DROP TABLE IF EXISTS gcd_story")
                     statement.execute("DROP TABLE IF EXISTS gcd_issue")
                     statement.execute("DROP TABLE IF EXISTS gcd_series")
+                    statement.execute("DROP TABLE IF EXISTS gcd_indicia_publisher")
+                    statement.execute("DROP TABLE IF EXISTS gcd_brand_group")
                     statement.execute("DROP TABLE IF EXISTS gcd_publisher")
                 }
             }
         }
 
-        fun getTestDbConnection(): Connection = DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/${Credentials.TEST_DATABASE}",
+        fun getTestDbConnection(): Connection = getDbConnection(TEST_DATABASE)
+
+        fun getDbConnection(schemaName: String): Connection = DriverManager.getConnection(
+            "jdbc:mysql://localhost:3306/$schemaName",
             Credentials.USERNAME_INITIALIZER,
             Credentials.PASSWORD_INITIALIZER
         )

@@ -5,7 +5,7 @@ import dev.benica.creditupdater.db.QueryExecutor
 @Suppress("kotlin:S1192")
 class DBInitAddTables(
     private val queryExecutor: QueryExecutor,
-    private val database: String
+    private val targetSchema: String
 ) {
     // Public Methods
     /**
@@ -46,7 +46,7 @@ class DBInitAddTables(
         val query = """SELECT COUNT(*)
                         INTO @exist
                         FROM information_schema.columns
-                        WHERE table_schema = '$database'
+                        WHERE table_schema = '$targetSchema'
                         AND column_name = 'issue_id'
                         AND table_name = 'gcd_story_credit'
                         LIMIT 1;
@@ -54,7 +54,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $database.gcd_story_credit ADD COLUMN issue_id INT DEFAULT NULL""",
+            """ALTER TABLE $targetSchema.gcd_story_credit ADD COLUMN issue_id INT DEFAULT NULL""",
             """select 'Column Exists' status"""
         )
 
@@ -69,7 +69,7 @@ class DBInitAddTables(
         val query = """SELECT COUNT(*)
                         INTO @exist
                         FROM information_schema.key_column_usage
-                        WHERE table_schema = '$database'
+                        WHERE table_schema = '$targetSchema'
                         AND table_name = 'gcd_story_credit'
                         AND column_name = 'issue_id'
                         AND referenced_table_name = 'gcd_issue'
@@ -78,7 +78,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $database.gcd_story_credit ADD FOREIGN KEY (issue_id) REFERENCES gcd_issue (id)""",
+            """ALTER TABLE $targetSchema.gcd_story_credit ADD FOREIGN KEY (issue_id) REFERENCES gcd_issue (id)""",
             """select 'Column Exists' status"""
         )
 
@@ -93,7 +93,7 @@ class DBInitAddTables(
         val query = """SELECT COUNT(*)
                         INTO @exist
                         FROM information_schema.columns
-                        WHERE table_schema = '$database'
+                        WHERE table_schema = '$targetSchema'
                         AND column_name = 'series_id'
                         AND table_name = 'gcd_story_credit'
                         LIMIT 1;
@@ -101,7 +101,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $database.gcd_story_credit ADD COLUMN series_id INT DEFAULT NULL""",
+            """ALTER TABLE $targetSchema.gcd_story_credit ADD COLUMN series_id INT DEFAULT NULL""",
             """select 'Column Exists' status"""
         )
 
@@ -116,7 +116,7 @@ class DBInitAddTables(
         val query = """SELECT COUNT(*)
                         INTO @exist
                         FROM information_schema.key_column_usage
-                        WHERE table_schema = '$database'
+                        WHERE table_schema = '$targetSchema'
                         AND table_name = 'gcd_story_credit'
                         AND column_name = 'series_id'
                         AND referenced_table_name = 'gcd_series'
@@ -125,7 +125,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $database.gcd_story_credit ADD FOREIGN KEY (series_id) REFERENCES gcd_series (id)""",
+            """ALTER TABLE $targetSchema.gcd_story_credit ADD FOREIGN KEY (series_id) REFERENCES gcd_series (id)""",
             """select 'Column Exists' status"""
         )
 
@@ -134,7 +134,7 @@ class DBInitAddTables(
 
     /** Add the 'm_characters' table if it does not exist. */
     internal fun createExtractedCharactersTableIfNotExists() {
-        val statement = """CREATE TABLE IF NOT EXISTS $database.m_character (
+        val statement = """CREATE TABLE IF NOT EXISTS $targetSchema.m_character (
             id           INTEGER PRIMARY KEY AUTO_INCREMENT,
             name         VARCHAR(255) NOT NULL,
             alter_ego    VARCHAR(255),
@@ -149,7 +149,7 @@ class DBInitAddTables(
 
     /** Add the 'm_character_appearance' table if it does not exist. */
     internal fun createCharacterAppearancesTableIfNotExists() {
-        val statement = """CREATE TABLE IF NOT EXISTS $database.m_character_appearance (
+        val statement = """CREATE TABLE IF NOT EXISTS $targetSchema.m_character_appearance (
             id           INTEGER PRIMARY KEY AUTO_INCREMENT,
             details      VARCHAR(255),
             character_id    INTEGER NOT NULL,
@@ -172,7 +172,7 @@ class DBInitAddTables(
 
     /** Add the 'm_story_credit' table if it does not exist. */
     internal fun createExtractedStoryCreditsTableIfNotExists() {
-        val statement = """CREATE TABLE IF NOT EXISTS $database.m_story_credit LIKE gcd_story_credit;""".trimIndent()
+        val statement = """CREATE TABLE IF NOT EXISTS $targetSchema.m_story_credit LIKE gcd_story_credit;""".trimIndent()
 
         queryExecutor.executeSqlStatement(statement)
     }
@@ -185,14 +185,14 @@ class DBInitAddTables(
         val query = """SELECT COUNT(*)
                         INTO @exist
                         FROM information_schema.key_column_usage
-                        WHERE table_schema = '$database'
+                        WHERE table_schema = '$targetSchema'
                         AND table_name = 'm_story_credit'
                         AND constraint_name = 'PRIMARY';
                         """.trimIndent()
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $database.m_story_credit MODIFY COLUMN id INT PRIMARY KEY AUTO_INCREMENT""",
+            """ALTER TABLE $targetSchema.m_story_credit MODIFY COLUMN id INT PRIMARY KEY AUTO_INCREMENT""",
             """select 'Constraint Exists' status"""
         )
 
@@ -207,7 +207,7 @@ class DBInitAddTables(
         val query = """SELECT COUNT(*)
                         INTO @exist
                         FROM information_schema.key_column_usage
-                        WHERE table_schema = '$database'
+                        WHERE table_schema = '$targetSchema'
                         AND table_name = 'm_story_credit'
                         AND column_name = 'creator_id'
                         AND referenced_table_name = 'gcd_creator_name_detail'
@@ -216,7 +216,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $database.m_story_credit ADD FOREIGN KEY (creator_id) REFERENCES gcd_creator_name_detail (id)""",
+            """ALTER TABLE $targetSchema.m_story_credit ADD FOREIGN KEY (creator_id) REFERENCES gcd_creator_name_detail (id)""",
             """select 'Constraint Exists' status"""
         )
 
@@ -231,7 +231,7 @@ class DBInitAddTables(
         val query = """SELECT COUNT(*)
                         INTO @exist
                         FROM information_schema.key_column_usage
-                        WHERE table_schema = '$database'
+                        WHERE table_schema = '$targetSchema'
                         AND table_name = 'm_story_credit'
                         AND column_name = 'credit_type_id'
                         AND referenced_table_name = 'gcd_credit_type'
@@ -240,7 +240,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $database.m_story_credit ADD FOREIGN KEY (credit_type_id) REFERENCES gcd_credit_type (id)""",
+            """ALTER TABLE $targetSchema.m_story_credit ADD FOREIGN KEY (credit_type_id) REFERENCES gcd_credit_type (id)""",
             """select 'Constraint Exists' status"""
         )
 
@@ -255,7 +255,7 @@ class DBInitAddTables(
         val query = """SELECT COUNT(*)
                         INTO @exist
                         FROM information_schema.key_column_usage
-                        WHERE table_schema = '$database'
+                        WHERE table_schema = '$targetSchema'
                         AND table_name = 'm_story_credit'
                         AND column_name = 'story_id'
                         AND referenced_table_name = 'gcd_story'
@@ -264,7 +264,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $database.m_story_credit ADD FOREIGN KEY (story_id) REFERENCES gcd_story (id)""",
+            """ALTER TABLE $targetSchema.m_story_credit ADD FOREIGN KEY (story_id) REFERENCES gcd_story (id)""",
             """select 'Constraint Exists' status"""
         )
 
@@ -279,7 +279,7 @@ class DBInitAddTables(
         val query = """SELECT COUNT(*)
                         INTO @exist
                         FROM information_schema.key_column_usage
-                        WHERE table_schema = '$database'
+                        WHERE table_schema = '$targetSchema'
                         AND table_name = 'm_story_credit'
                         AND column_name = 'issue_id'
                         AND referenced_table_name = 'gcd_issue'
@@ -288,7 +288,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $database.m_story_credit ADD FOREIGN KEY (issue_id) REFERENCES gcd_issue (id)""",
+            """ALTER TABLE $targetSchema.m_story_credit ADD FOREIGN KEY (issue_id) REFERENCES gcd_issue (id)""",
             """select 'Constraint Exists' status"""
         )
 
@@ -303,7 +303,7 @@ class DBInitAddTables(
         val query = """SELECT COUNT(*)
                         INTO @exist
                         FROM information_schema.key_column_usage
-                        WHERE table_schema = '$database'
+                        WHERE table_schema = '$targetSchema'
                         AND table_name = 'm_story_credit'
                         AND column_name = 'series_id'
                         AND referenced_table_name = 'gcd_series'
@@ -312,7 +312,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $database.m_story_credit ADD FOREIGN KEY (series_id) REFERENCES gcd_series (id)""",
+            """ALTER TABLE $targetSchema.m_story_credit ADD FOREIGN KEY (series_id) REFERENCES gcd_series (id)""",
             """select 'Constraint Exists' status"""
         )
 
