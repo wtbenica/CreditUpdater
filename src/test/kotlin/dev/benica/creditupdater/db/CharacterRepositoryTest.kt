@@ -1,14 +1,13 @@
 package dev.benica.creditupdater.db
 
+import com.zaxxer.hikari.HikariDataSource
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
+import dev.benica.creditupdater.di.ConnectionSource
 import dev.benica.creditupdater.models.Appearance
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
-import org.mockito.kotlin.any
-import org.mockito.kotlin.anyOrNull
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
+import org.mockito.kotlin.*
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.SQLException
@@ -323,6 +322,32 @@ class CharacterRepositoryTest {
                 publisherId = 3
             )
         }
+    }
+
+    @Test
+    @DisplayName("should call close() and conn.close() when used in try-with-resources")
+    fun shouldCallCloseAndConnCloseWhenUsedInTryWithResources() {
+        // Create the repository
+        val repoMock = spy(CharacterRepository("mock", null))
+        val connectionSourceMock = mock<ConnectionSource>()
+        val hikariDataSourceMock = mock<HikariDataSource>()
+        val connectionMock = mock<Connection>()
+
+        repoMock.connectionSource = connectionSourceMock
+        repoMock.conn = connectionMock
+
+        whenever(repoMock.connectionSource).thenReturn(connectionSourceMock)
+        whenever(connectionSourceMock.getConnection(any())).thenReturn(hikariDataSourceMock)
+        whenever(hikariDataSourceMock.connection).thenReturn(connectionMock)
+        doCallRealMethod().whenever(repoMock).close()
+        doNothing().whenever(connectionMock).close()
+
+        // Use in try-with-resources
+        repoMock.use { }
+
+        // Verify that close() and conn.close() were called
+        verify(repoMock, times(1)).close()
+        verify(connectionMock, times(1)).close()
     }
 
     // Setup and teardown
