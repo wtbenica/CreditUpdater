@@ -4,7 +4,7 @@ import com.zaxxer.hikari.HikariDataSource
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.db.CharacterRepositoryTest
 import dev.benica.creditupdater.db.QueryExecutorTest
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import dev.benica.creditupdater.di.ConnectionSource
 import dev.benica.creditupdater.extractor.CharacterExtractor.*
 import org.junit.jupiter.api.*
@@ -16,7 +16,6 @@ import java.sql.ResultSet
 import java.sql.SQLException
 
 class CharacterExtractorTest {
-    private val database: String = TEST_DATABASE
     private lateinit var connectionSource: ConnectionSource
     private lateinit var dataSource: HikariDataSource
     private lateinit var connection: Connection
@@ -28,17 +27,15 @@ class CharacterExtractorTest {
         dataSource = mock<HikariDataSource>()
         connection = mock<Connection>()
 
-        whenever(connectionSource.getConnection(database)).thenReturn(dataSource)
+        whenever(connectionSource.getConnection(TEST_DATABASE_CHAR_EXTRACTOR)).thenReturn(dataSource)
         whenever(dataSource.connection).thenReturn(connection)
 
 
-        characterExtractor = CharacterExtractor(database)
+        characterExtractor = CharacterExtractor(TEST_DATABASE_CHAR_EXTRACTOR)
 
-        getTestDbConnection().use { conn ->
-            conn.createStatement().use {
-                it.execute("TRUNCATE TABLE m_character_appearance")
-                it.execute("TRUNCATE TABLE m_character")
-            }
+        conn.createStatement().use {
+            it.execute("TRUNCATE TABLE m_character_appearance")
+            it.execute("TRUNCATE TABLE m_character")
         }
     }
 
@@ -55,45 +52,43 @@ class CharacterExtractorTest {
         assertEquals(1, result)
 
         // verify against database
-        getTestDbConnection().use { conn ->
-            conn.createStatement().use {
-                val rs = it.executeQuery("SELECT * FROM m_character_appearance WHERE story_id = 1")
-                rs.next()
-                assertEquals(1, rs.getInt("story_id"))
-                assertEquals(1, rs.getInt("character_id"))
-                assertEquals("cameo", rs.getString("details"))
-                assertNull(rs.getString("notes"))
-                assertNull(rs.getString("membership"))
-                rs.next()
-                assertEquals(1, rs.getInt("story_id"))
-                assertEquals(2, rs.getInt("character_id"))
-                assertEquals("", rs.getString("details"))
-                assertNull(rs.getString("notes"))
-                assertNull(rs.getString("membership"))
-                rs.next()
-                assertEquals(1, rs.getInt("story_id"))
-                assertEquals(3, rs.getInt("character_id"))
-                assertEquals("", rs.getString("details"))
-                assertNull(rs.getString("notes"))
-                assertNull(rs.getString("membership"))
+        conn.createStatement().use {
+            val rs = it.executeQuery("SELECT * FROM m_character_appearance WHERE story_id = 1")
+            rs.next()
+            assertEquals(1, rs.getInt("story_id"))
+            assertEquals(1, rs.getInt("character_id"))
+            assertEquals("cameo", rs.getString("details"))
+            assertNull(rs.getString("notes"))
+            assertNull(rs.getString("membership"))
+            rs.next()
+            assertEquals(1, rs.getInt("story_id"))
+            assertEquals(2, rs.getInt("character_id"))
+            assertEquals("", rs.getString("details"))
+            assertNull(rs.getString("notes"))
+            assertNull(rs.getString("membership"))
+            rs.next()
+            assertEquals(1, rs.getInt("story_id"))
+            assertEquals(3, rs.getInt("character_id"))
+            assertEquals("", rs.getString("details"))
+            assertNull(rs.getString("notes"))
+            assertNull(rs.getString("membership"))
 
-                val rs2 = it.executeQuery("SELECT * FROM m_character")
-                rs2.next()
-                assertEquals(1, rs2.getInt("id"))
-                assertEquals("Batman", rs2.getString("name"))
-                assertEquals("Bruce Wayne", rs2.getString("alter_ego"))
-                assertEquals(2, rs2.getInt("publisher_id"))
-                rs2.next()
-                assertEquals(2, rs2.getInt("id"))
-                assertEquals("Robin", rs2.getString("name"))
-                assertNull(rs2.getString("alter_ego"))
-                assertEquals(2, rs2.getInt("publisher_id"))
-                rs2.next()
-                assertEquals(3, rs2.getInt("id"))
-                assertEquals("Joker", rs2.getString("name"))
-                assertNull(rs2.getString("alter_ego"))
-                assertEquals(2, rs2.getInt("publisher_id"))
-            }
+            val rs2 = it.executeQuery("SELECT * FROM m_character")
+            rs2.next()
+            assertEquals(1, rs2.getInt("id"))
+            assertEquals("Batman", rs2.getString("name"))
+            assertEquals("Bruce Wayne", rs2.getString("alter_ego"))
+            assertEquals(2, rs2.getInt("publisher_id"))
+            rs2.next()
+            assertEquals(2, rs2.getInt("id"))
+            assertEquals("Robin", rs2.getString("name"))
+            assertNull(rs2.getString("alter_ego"))
+            assertEquals(2, rs2.getInt("publisher_id"))
+            rs2.next()
+            assertEquals(3, rs2.getInt("id"))
+            assertEquals("Joker", rs2.getString("name"))
+            assertNull(rs2.getString("alter_ego"))
+            assertEquals(2, rs2.getInt("publisher_id"))
         }
     }
 
@@ -110,39 +105,37 @@ class CharacterExtractorTest {
         assertEquals(1, result)
 
         // verify against database
-        getTestDbConnection().use { conn ->
-            conn.createStatement().use {
-                val rs = it.executeQuery("SELECT * FROM m_character_appearance WHERE story_id = 1")
-                rs.next()
-                assertEquals(1, rs.getInt("story_id"))
-                assertEquals(1, rs.getInt("character_id"))
-                assertEquals("", rs.getString("details"))
-                assertNull(rs.getString("notes"))
-                assertNull(rs.getString("membership"))
-                rs.next()
-                assertEquals(1, rs.getInt("story_id"))
-                assertEquals(2, rs.getInt("character_id"))
-                assertEquals("", rs.getString("details"))
-                assertNull(rs.getString("notes"))
-                assertEquals(
-                    "Superman [Clark Kent]; Green Lantern [Hal Jordan]; The Flash [Barry Allen]; Aquaman [Arthur Curry]; Martian Manhunter [J'onn J'onzz]",
-                    rs.getString("membership")
-                )
-                assertFalse(rs.next())
+        conn.createStatement().use {
+            val rs = it.executeQuery("SELECT * FROM m_character_appearance WHERE story_id = 1")
+            rs.next()
+            assertEquals(1, rs.getInt("story_id"))
+            assertEquals(1, rs.getInt("character_id"))
+            assertEquals("", rs.getString("details"))
+            assertNull(rs.getString("notes"))
+            assertNull(rs.getString("membership"))
+            rs.next()
+            assertEquals(1, rs.getInt("story_id"))
+            assertEquals(2, rs.getInt("character_id"))
+            assertEquals("", rs.getString("details"))
+            assertNull(rs.getString("notes"))
+            assertEquals(
+                "Superman [Clark Kent]; Green Lantern [Hal Jordan]; The Flash [Barry Allen]; Aquaman [Arthur Curry]; Martian Manhunter [J'onn J'onzz]",
+                rs.getString("membership")
+            )
+            assertFalse(rs.next())
 
-                val rs2 = it.executeQuery("SELECT * FROM m_character")
-                rs2.next()
-                assertEquals(1, rs2.getInt("id"))
-                assertEquals("Batman", rs2.getString("name"))
-                assertEquals("Bruce Wayne", rs2.getString("alter_ego"))
-                assertEquals(2, rs2.getInt("publisher_id"))
-                rs2.next()
-                assertEquals(2, rs2.getInt("id"))
-                assertEquals("Justice League of America", rs2.getString("name"))
-                assertNull(rs2.getString("alter_ego"))
-                assertEquals(2, rs2.getInt("publisher_id"))
-                assertFalse(rs2.next())
-            }
+            val rs2 = it.executeQuery("SELECT * FROM m_character")
+            rs2.next()
+            assertEquals(1, rs2.getInt("id"))
+            assertEquals("Batman", rs2.getString("name"))
+            assertEquals("Bruce Wayne", rs2.getString("alter_ego"))
+            assertEquals(2, rs2.getInt("publisher_id"))
+            rs2.next()
+            assertEquals(2, rs2.getInt("id"))
+            assertEquals("Justice League of America", rs2.getString("name"))
+            assertNull(rs2.getString("alter_ego"))
+            assertEquals(2, rs2.getInt("publisher_id"))
+            assertFalse(rs2.next())
         }
     }
 
@@ -157,14 +150,23 @@ class CharacterExtractorTest {
     }
 
     companion object {
+        internal const val TEST_DATABASE_CHAR_EXTRACTOR = "credit_updater_test_char_extractor"
+        internal lateinit var conn: Connection
+
         @BeforeAll
         @JvmStatic
-        fun setUpDb() = CharacterRepositoryTest.setUp()
+        fun setUpDb() {
+            conn = getDbConnection(TEST_DATABASE_CHAR_EXTRACTOR)
+            conn.autoCommit = false
+            CharacterRepositoryTest.setUpDatabase(conn)
+        }
 
         @AfterAll
         @JvmStatic
         fun breakDown() {
-            QueryExecutorTest.dropAllTables()
+            QueryExecutorTest.dropAllTables(conn)
+            conn.rollback()
+            conn.close()
         }
     }
 }

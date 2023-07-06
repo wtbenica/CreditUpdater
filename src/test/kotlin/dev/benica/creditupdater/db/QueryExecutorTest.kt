@@ -1,9 +1,9 @@
 package dev.benica.creditupdater.db
 
 import com.zaxxer.hikari.HikariDataSource
-import dev.benica.creditupdater.Credentials.Companion.PASSWORD_INITIALIZER
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
-import dev.benica.creditupdater.Credentials.Companion.USERNAME_INITIALIZER
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import dev.benica.creditupdater.di.ConnectionSource
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
@@ -53,9 +53,7 @@ class QueryExecutorTest {
 
         queryExecutor.executeSqlStatement(sqlStmt)
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
-        ).use { conn ->
+        getTestDbConnection().use { conn ->
             val metadata = conn.metaData
             val table = metadata.getTables(null, null, tableName, null)
 
@@ -70,9 +68,7 @@ class QueryExecutorTest {
         val columnName = "test_column"
         val sqlStmt = "ALTER TABLE $tableName ADD COLUMN $columnName VARCHAR(255);"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
-        ).use { conn ->
+        getTestDbConnection().use { conn ->
             // Create test table
             val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
             conn.createStatement().use { stmt ->
@@ -86,6 +82,12 @@ class QueryExecutorTest {
             val metadata = conn.metaData
             val table = metadata.getColumns(null, null, tableName, columnName)
             assertTrue(table.next(), "Column $columnName should exist in table $tableName")
+
+            // cleanup
+            val dropTableStmt = "DROP TABLE $tableName;"
+            conn.createStatement().use { stmt ->
+                stmt.execute(dropTableStmt)
+            }
         }
     }
 
@@ -95,9 +97,7 @@ class QueryExecutorTest {
         val tableName = "test_table_insert_into"
         val sqlStmt = "INSERT INTO $tableName VALUES (1);"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
-        ).use { conn ->
+        getTestDbConnection().use { conn ->
             // Create test table
             val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
             conn.createStatement().use { stmt ->
@@ -113,6 +113,12 @@ class QueryExecutorTest {
                 val resultSet = stmt.executeQuery(selectStmt)
                 assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
             }
+
+            // cleanup
+            val dropTableStmt = "DROP TABLE $tableName;"
+            conn.createStatement().use { stmt ->
+                stmt.execute(dropTableStmt)
+            }
         }
     }
 
@@ -122,9 +128,7 @@ class QueryExecutorTest {
         val tableName = "test_table_update"
         val sqlStmt = "UPDATE $tableName SET id = 2 WHERE id = 1;"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
-        ).use { conn ->
+        getTestDbConnection().use { conn ->
             // Create test table
             val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
             conn.createStatement().use { stmt ->
@@ -146,6 +150,12 @@ class QueryExecutorTest {
                 val resultSet = stmt.executeQuery(selectStmt)
                 assertTrue(resultSet.next(), "Row with id 2 should exist in table $tableName")
             }
+
+            // cleanup
+            val dropTableStmt = "DROP TABLE $tableName;"
+            conn.createStatement().use { stmt ->
+                stmt.execute(dropTableStmt)
+            }
         }
     }
 
@@ -155,9 +165,7 @@ class QueryExecutorTest {
         val tableName = "test_table_delete"
         val sqlStmt = "DELETE FROM $tableName WHERE id = 1;"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
-        ).use { conn ->
+        getTestDbConnection().use { conn ->
             // Create test table
             val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
             conn.createStatement().use { stmt ->
@@ -179,6 +187,12 @@ class QueryExecutorTest {
                 val resultSet = stmt.executeQuery(selectStmt)
                 assertTrue(!resultSet.next(), "Row with id 1 should not exist in table $tableName")
             }
+
+            // cleanup
+            val dropTableStmt = "DROP TABLE $tableName;"
+            conn.createStatement().use { stmt ->
+                stmt.execute(dropTableStmt)
+            }
         }
     }
 
@@ -188,9 +202,7 @@ class QueryExecutorTest {
         val tableName = "test_table_drop"
         val sqlStmt = "DROP TABLE $tableName;"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
-        ).use { conn ->
+        getTestDbConnection().use { conn ->
             // Create test table
             val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
             conn.createStatement().use { stmt ->
@@ -204,6 +216,12 @@ class QueryExecutorTest {
             val metadata = conn.metaData
             val table = metadata.getTables(null, null, tableName, null)
             assertTrue(!table.next(), "Table $tableName should not exist")
+
+            // cleanup
+            val dropTableStmt = "DROP TABLE $tableName;"
+            conn.createStatement().use { stmt ->
+                stmt.execute(dropTableStmt)
+            }
         }
     }
 
@@ -225,9 +243,7 @@ class QueryExecutorTest {
         // Setup
         val sqlStmt = "/* comment */"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
-        ).use { conn ->
+        getTestDbConnection().use { conn ->
             val databaseBefore = conn.catalog
 
             // Execute
@@ -246,9 +262,7 @@ class QueryExecutorTest {
         val tableName = "test_table_query"
         val sqlStmt = "SELECT * FROM $tableName;"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
-        ).use { conn ->
+        getTestDbConnection().use { conn ->
             // Create test table
             val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
             conn.createStatement().use { stmt ->
@@ -267,6 +281,12 @@ class QueryExecutorTest {
                 assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
                 assertFalse(resultSet.next(), "There should be only one row in table $tableName")
             }
+
+            // cleanup
+            val dropTableStmt = "DROP TABLE $tableName;"
+            conn.createStatement().use { stmt ->
+                stmt.execute(dropTableStmt)
+            }
         }
     }
 
@@ -276,9 +296,7 @@ class QueryExecutorTest {
         val tableName = "test_table_query_multiple_rows"
         val sqlStmt = "SELECT * FROM $tableName;"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
-        ).use { conn ->
+        getTestDbConnection().use { conn ->
             // Create test table
             val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
             conn.createStatement().use { stmt ->
@@ -299,6 +317,12 @@ class QueryExecutorTest {
                 assertTrue(resultSet.getInt("id") == 2, "Row with id 2 should exist in table $tableName")
                 assertFalse(resultSet.next(), "There should be only two rows in table $tableName")
             }
+
+            // cleanup
+            val dropTableStmt = "DROP TABLE $tableName;"
+            conn.createStatement().use { stmt ->
+                stmt.execute(dropTableStmt)
+            }
         }
     }
 
@@ -308,9 +332,7 @@ class QueryExecutorTest {
         val tableName = "test_table_query_multiple_columns"
         val sqlStmt = "SELECT * FROM $tableName;"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
-        ).use { conn ->
+        getTestDbConnection().use { conn ->
             // Create test table
             val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY, name VARCHAR(255));"
             conn.createStatement().use { stmt ->
@@ -330,6 +352,12 @@ class QueryExecutorTest {
                 assertTrue(resultSet.getString("name") == "test", "Row with id 1 should exist in table $tableName")
                 assertFalse(resultSet.next(), "There should be only one row in table $tableName")
             }
+
+            // cleanup
+            val dropTableStmt = "DROP TABLE $tableName;"
+            conn.createStatement().use { stmt ->
+                stmt.execute(dropTableStmt)
+            }
         }
     }
 
@@ -339,9 +367,7 @@ class QueryExecutorTest {
         val tableName = "test_table_query_multiple_rows_and_columns"
         val sqlStmt = "SELECT * FROM $tableName;"
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
-        ).use { conn ->
+        getTestDbConnection().use { conn ->
             // Create test table
             val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY, name VARCHAR(255));"
             conn.createStatement().use { stmt ->
@@ -364,6 +390,12 @@ class QueryExecutorTest {
                 assertTrue(resultSet.getString("name") == "test2", "Row with id 2 should exist in table $tableName")
                 assertFalse(resultSet.next(), "There should be only two rows in table $tableName")
             }
+
+            // cleanup
+            val dropTableStmt = "DROP TABLE $tableName;"
+            conn.createStatement().use { stmt ->
+                stmt.execute(dropTableStmt)
+            }
         }
     }
 
@@ -379,9 +411,7 @@ class QueryExecutorTest {
             )
         }
 
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
-        ).use { conn ->
+        getTestDbConnection().use { conn ->
             queryExecutor.executeSqlScript(sqlScript)
 
             // Check if table exists
@@ -406,6 +436,12 @@ class QueryExecutorTest {
                     assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
                     assertFalse(resultSet.next(), "There should be only one row in table $tableName")
                 }
+            }
+
+            // cleanup
+            val dropTableStmt = "DROP TABLE $tableName;"
+            conn.createStatement().use { stmt ->
+                stmt.execute(dropTableStmt)
             }
         }
     }
@@ -507,9 +543,7 @@ class QueryExecutorTest {
     fun shouldReturnTheNumberOfItemsInTheSpecifiedTable() {
         val tableName = "test_table1"
         // create table
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
-        ).use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.executeUpdate("CREATE TABLE $tableName (id INT);")
             }
@@ -527,6 +561,12 @@ class QueryExecutorTest {
             val itemCount = queryExecutor.getItemCount(tableName)
 
             assertEquals(3, itemCount, "There should be 3 items in table $tableName")
+
+            // cleanup
+            val dropTableStmt = "DROP TABLE $tableName;"
+            conn.createStatement().use { stmt ->
+                stmt.execute(dropTableStmt)
+            }
         }
     }
 
@@ -535,9 +575,7 @@ class QueryExecutorTest {
     fun shouldReturnZeroWhenTheSpecifiedTableIsEmpty() {
         val tableName = "test_table2"
         // create table
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
-        ).use { conn ->
+        getTestDbConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.executeUpdate("CREATE TABLE $tableName (id INT);")
             }
@@ -545,6 +583,12 @@ class QueryExecutorTest {
             val itemCount = queryExecutor.getItemCount(tableName)
 
             assertEquals(0, itemCount, "There should be 0 items in table $tableName")
+
+            // cleanup
+            val dropTableStmt = "DROP TABLE $tableName;"
+            conn.createStatement().use { stmt ->
+                stmt.execute(dropTableStmt)
+            }
         }
     }
 
@@ -694,66 +738,95 @@ class QueryExecutorTest {
 
     @AfterEach
     fun tearDown() {
-        dropAllTables()
+        dropAllTables(conn)
     }
 
     companion object {
         private lateinit var queryExecutor: QueryExecutor
+        internal const val TEST_DATABASE_QUERY_EXECUTOR = "credit_updater_test_qe"
+        private lateinit var conn: Connection
 
         @BeforeAll
         @JvmStatic
         fun setUp() {
-            queryExecutor = QueryExecutor("credit_updater_test")
+            conn = getDbConnection(TEST_DATABASE_QUERY_EXECUTOR)
+            conn.autoCommit = false
+            queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
 
-            dropAllTables()
+            dropAllTables(conn)
         }
 
         @AfterAll
         @JvmStatic
         fun breakDown() {
-            dropAllTables()
+            dropAllTables(conn)
+            conn.rollback()
+            conn.close()
             removeSqlScriptFiles()
         }
 
         private fun removeSqlScriptFiles(): Boolean = File("temp.sql").delete()
 
-        internal fun dropAllTables() {
-            DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306/$TEST_DATABASE", USERNAME_INITIALIZER, PASSWORD_INITIALIZER
-            ).use { conn ->
-                try {
-                    // disable foreign key checks
-                    conn.createStatement().use { stmt ->
-                        stmt.execute("SET FOREIGN_KEY_CHECKS = 0")
-                    }
+        internal fun dropAllTables(conn: Connection) {
+            try {
+                // disable foreign key checks
+                conn.createStatement().use { stmt ->
+                    stmt.execute("SET FOREIGN_KEY_CHECKS = 0")
+                }
 
-                    val query =
-                        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'credit_updater_test'"
-                    conn.createStatement().use { stmt ->
-                        // Retrieve the names of all tables in the database
-                        stmt.executeQuery(query).use { resultSet ->
-                            val tableNames = mutableListOf<String>()
+                val tablesQuery =
+                    """SELECT table_name 
+                            |FROM information_schema.tables 
+                            |WHERE table_schema = '$TEST_DATABASE_QUERY_EXECUTOR' 
+                            |AND table_type = 'BASE TABLE'""".trimMargin()
 
-                            // Store the table names in a list
-                            while (resultSet.next()) {
-                                val tableName = resultSet.getString("table_name")
-                                tableNames.add(tableName)
-                            }
+                val viewsQuery =
+                    """SELECT table_name 
+                            |FROM information_schema.tables 
+                            |WHERE table_schema = '$TEST_DATABASE_QUERY_EXECUTOR' 
+                            |AND table_type = 'VIEW'""".trimMargin()
 
-                            // Generate and execute DROP TABLE statements for each table
-                            tableNames.forEach { tableName ->
-                                val dropStatement = "DROP TABLE $tableName"
-                                stmt.executeUpdate(dropStatement)
-                            }
+                conn.createStatement().use { stmt ->
+                    // Retrieve the names of all tables in the database
+                    stmt.executeQuery(tablesQuery).use { resultSet ->
+                        val tableNames = mutableListOf<String>()
+
+                        // Store the table names in a list
+                        while (resultSet.next()) {
+                            val tableName = resultSet.getString("table_name")
+                            tableNames.add(tableName)
+                        }
+
+                        // Generate and execute DROP TABLE statements for each table
+                        tableNames.forEach { tableName ->
+                            val dropStatement = "DROP TABLE $tableName"
+                            stmt.executeUpdate(dropStatement)
                         }
                     }
-                } catch (e: SQLException) {
-                    e.printStackTrace()
-                } finally {
-                    // enable foreign key checks
-                    conn.createStatement().use { stmt ->
-                        stmt.execute("SET FOREIGN_KEY_CHECKS = 1")
+
+                    // Retrieve the names of all views in the database
+                    stmt.executeQuery(viewsQuery).use { resultSet ->
+                        val viewNames = mutableListOf<String>()
+
+                        // Store the view names in a list
+                        while (resultSet.next()) {
+                            val viewName = resultSet.getString("table_name")
+                            viewNames.add(viewName)
+                        }
+
+                        // Generate and execute DROP VIEW statements for each view
+                        viewNames.forEach { viewName ->
+                            val dropStatement = "DROP VIEW $viewName"
+                            stmt.executeUpdate(dropStatement)
+                        }
                     }
+                }
+            } catch (e: SQLException) {
+                e.printStackTrace()
+            } finally {
+                // enable foreign key checks
+                conn.createStatement().use { stmt ->
+                    stmt.execute("SET FOREIGN_KEY_CHECKS = 1")
                 }
             }
         }
