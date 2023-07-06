@@ -16,18 +16,20 @@ import javax.inject.Inject
  */
 class CreditRepository(
     private val targetSchema: String,
-    databaseComponent: DatabaseComponent = DaggerDatabaseComponent.create(),
+    databaseComponent: DatabaseComponent? = DaggerDatabaseComponent.create(),
     private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
 ) : Repository, AutoCloseable {
     // Dependencies
     @Inject
     internal lateinit var connectionSource: ConnectionSource
 
-    private val conn: Connection
+    internal lateinit var conn: Connection
 
     init {
-        databaseComponent.inject(this)
-        conn = connectionSource.getConnection(targetSchema).connection
+        if (databaseComponent != null) {
+            databaseComponent.inject(this)
+            conn = connectionSource.getConnection(targetSchema).connection
+        }
     }
 
     // Public Methods
