@@ -5,13 +5,20 @@ import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import org.junit.jupiter.api.AfterAll
 import java.sql.Connection
 import java.sql.DriverManager
+import java.sql.SQLException
 
 class TestDatabaseSetup {
     companion object {
+        /**
+         * Creates a base database
+         *
+         * @param populate adds records or tables to the database
+         * @param schema the name of the database to create
+         */
         @JvmStatic
-        fun setup(populate: DatabaseState = DatabaseState.PREPARED) {
+        fun setup(populate: DatabaseState = DatabaseState.PREPARED, schema: String = TEST_DATABASE) {
             // create publishers table
-            getTestDbConnection().use { connection ->
+            getDbConnection(schema).use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """CREATE TABLE IF NOT EXISTS gcd_publisher (
@@ -32,7 +39,7 @@ class TestDatabaseSetup {
             }
 
             // create series table
-            getTestDbConnection().use { connection ->
+            getDbConnection(schema).use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """CREATE TABLE IF NOT EXISTS gcd_series (
@@ -57,7 +64,7 @@ class TestDatabaseSetup {
             }
 
             // create issue table
-            getTestDbConnection().use { connection ->
+            getDbConnection(schema).use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """CREATE TABLE IF NOT EXISTS gcd_issue (
@@ -78,7 +85,7 @@ class TestDatabaseSetup {
             }
 
             // create story table
-            getTestDbConnection().use { connection ->
+            getDbConnection(schema).use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """CREATE TABLE IF NOT EXISTS `gcd_story` (
@@ -104,7 +111,7 @@ class TestDatabaseSetup {
             }
 
             // create credit_type table
-            getTestDbConnection().use { connection ->
+            getDbConnection(schema).use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """ CREATE TABLE IF NOT EXISTS gcd_credit_type(
@@ -127,7 +134,7 @@ class TestDatabaseSetup {
             }
 
             // create gcd_creator_name_detail table
-            getTestDbConnection().use { connection ->
+            getDbConnection(schema).use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """ CREATE TABLE IF NOT EXISTS gcd_creator_name_detail(
@@ -153,7 +160,7 @@ class TestDatabaseSetup {
             }
 
             // create gcd_story_credit table
-            getTestDbConnection().use { connection ->
+            getDbConnection(schema).use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """ CREATE TABLE IF NOT EXISTS `gcd_story_credit`(
@@ -183,7 +190,7 @@ class TestDatabaseSetup {
             }
 
             // create gcd_indicia_publisher table, with fk to gcd_publisher
-            getTestDbConnection().use { connection ->
+            getDbConnection(schema).use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """CREATE TABLE IF NOT EXISTS gcd_indicia_publisher (
@@ -204,7 +211,7 @@ class TestDatabaseSetup {
             }
 
             // create gcd_brand_group table with fk parent_id to gcd_publisher
-            getTestDbConnection().use { connection ->
+            getDbConnection(schema).use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """CREATE TABLE IF NOT EXISTS gcd_brand_group (
@@ -226,14 +233,14 @@ class TestDatabaseSetup {
 
             when (populate) {
                 DatabaseState.EMPTY -> {}
-                DatabaseState.RAW -> addRecordsToBeRemoved()
-                DatabaseState.PREPARED -> addExtractedTables()
+                DatabaseState.RAW -> addRecordsToBeRemoved(schema)
+                DatabaseState.PREPARED -> addExtractedTables(schema)
             }
         }
 
-        private fun addExtractedTables() {
+        private fun addExtractedTables(schema: String = TEST_DATABASE) {
             // create m_story_credit table
-            getTestDbConnection().use { connection ->
+            getDbConnection(schema).use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
                         """CREATE TABLE IF NOT EXISTS `m_story_credit` (
@@ -258,8 +265,8 @@ class TestDatabaseSetup {
             }
         }
 
-        private fun addRecordsToBeRemoved() {
-            getTestDbConnection().use { conn ->
+        private fun addRecordsToBeRemoved(schema: String = TEST_DATABASE) {
+            getDbConnection(schema).use { conn ->
                 conn.createStatement().use { statement ->
                     // insert publisher
                     /*
@@ -343,7 +350,7 @@ class TestDatabaseSetup {
         @AfterAll
         fun teardown() {
             // remove all tables
-            getTestDbConnection().use { connection ->
+            getDbConnection(TEST_DATABASE).use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute("DROP TABLE IF EXISTS m_character_appearance")
                     statement.execute("DROP TABLE IF EXISTS m_character")
@@ -368,6 +375,70 @@ class TestDatabaseSetup {
             Credentials.USERNAME_INITIALIZER,
             Credentials.PASSWORD_INITIALIZER
         )
+
+        internal fun dropAllTables(conn: Connection, schema: String) {
+            try {
+                // disable foreign key checks
+                conn.createStatement().use { stmt ->
+                    stmt.execute("SET FOREIGN_KEY_CHECKS = 0")
+                }
+
+                val tablesQuery =
+                    """SELECT table_name 
+                            |FROM information_schema.tables 
+                            |WHERE table_schema = '$schema' 
+                            |AND table_type = 'BASE TABLE'""".trimMargin()
+
+                val viewsQuery =
+                    """SELECT table_name 
+                            |FROM information_schema.tables 
+                            |WHERE table_schema = '$schema' 
+                            |AND table_type = 'VIEW'""".trimMargin()
+
+                conn.createStatement().use { stmt ->
+                    // Retrieve the names of all tables in the database
+                    stmt.executeQuery(tablesQuery).use { resultSet ->
+                        val tableNames = mutableListOf<String>()
+
+                        // Store the table names in a list
+                        while (resultSet.next()) {
+                            val tableName = resultSet.getString("table_name")
+                            tableNames.add(tableName)
+                        }
+
+                        // Generate and execute DROP TABLE statements for each table
+                        tableNames.forEach { tableName ->
+                            val dropStatement = "DROP TABLE $tableName"
+                            stmt.executeUpdate(dropStatement)
+                        }
+                    }
+
+                    // Retrieve the names of all views in the database
+                    stmt.executeQuery(viewsQuery).use { resultSet ->
+                        val viewNames = mutableListOf<String>()
+
+                        // Store the view names in a list
+                        while (resultSet.next()) {
+                            val viewName = resultSet.getString("table_name")
+                            viewNames.add(viewName)
+                        }
+
+                        // Generate and execute DROP VIEW statements for each view
+                        viewNames.forEach { viewName ->
+                            val dropStatement = "DROP VIEW $viewName"
+                            stmt.executeUpdate(dropStatement)
+                        }
+                    }
+                }
+            } catch (e: SQLException) {
+                e.printStackTrace()
+            } finally {
+                // enable foreign key checks
+                conn.createStatement().use { stmt ->
+                    stmt.execute("SET FOREIGN_KEY_CHECKS = 1")
+                }
+            }
+        }
     }
 }
 

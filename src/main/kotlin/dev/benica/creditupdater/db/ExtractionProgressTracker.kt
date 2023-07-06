@@ -11,11 +11,14 @@ import mu.KotlinLogging
 import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
+import java.sql.Connection
 import javax.inject.Inject
 import javax.inject.Named
 
 /**
  * A class that tracks the progress of an extraction.
+ *
+ * @note The caller is responsible for closing the tracker.
  *
  * @param extractedType the type of data being extracted
  * @param targetSchema the schema to extract data from
@@ -35,15 +38,16 @@ class ExtractionProgressTracker(
     internal val progressInfoMap: ProgressInfoMap = ProgressInfoMap(),
     dispatchAndExecuteComponent: DispatchAndExecuteComponent = DaggerDispatchAndExecuteComponent.create(),
     private val logger: KLogger = KotlinLogging.logger(this::class.java.simpleName)
-) {
+): AutoCloseable {
     @Volatile
     var progressInfo: ProgressInfo
         private set
 
     @Inject
-    internal lateinit var queryExecutorSource: QueryExecutorSource
+    internal lateinit var connectionSource: ConnectionSource
 
-    private val queryExecutor: QueryExecutor
+    private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
+    private val conn: Connection
 
     @Inject
     @Named("IO")
@@ -51,7 +55,7 @@ class ExtractionProgressTracker(
 
     init {
         dispatchAndExecuteComponent.inject(this)
-        queryExecutor = queryExecutorSource.getQueryExecutor(targetSchema)
+        conn = connectionSource.getConnection(targetSchema).connection
 
         logger.debug { "Progress tracker initialized for $extractedType" }
         progressInfo = progressInfoMap.get(extractedType)
@@ -123,7 +127,15 @@ class ExtractionProgressTracker(
     }
 
     internal fun getItemsCompleted(): Int =
-        queryExecutor.getItemCount("gcd_story", "id <= ${progressInfo.lastProcessedItemId}")
+        queryExecutor.getItemCount(
+            tableName = "gcd_story",
+            condition = "id <= ${progressInfo.lastProcessedItemId}",
+            conn = conn
+        )
+
+    override fun close() {
+        conn.close()
+    }
 
     companion object {
         /**

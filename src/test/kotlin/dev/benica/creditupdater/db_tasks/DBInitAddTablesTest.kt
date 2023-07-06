@@ -8,6 +8,7 @@ import org.junit.jupiter.api.*
 
 import org.junit.jupiter.api.Assertions.*
 import org.mockito.kotlin.*
+import java.sql.Connection
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class DBInitAddTablesTest {
@@ -17,13 +18,13 @@ class DBInitAddTablesTest {
 
     @BeforeEach
     fun setUp() {
-        dbInit = DBInitAddTables(queryExecutor, TEST_DATABASE)
+        dbInit = DBInitAddTables(queryExecutor, TEST_DATABASE, conn)
     }
 
     @Test
     @DisplayName("should call each function once when addTablesAndConstraints is called")
     fun callEachFunctionOnce() {
-        val dbInitAddTablesMock = spy(DBInitAddTables(queryExecutor, TEST_DATABASE))
+        val dbInitAddTablesMock = spy(DBInitAddTables(queryExecutor, TEST_DATABASE, conn))
 
         // Mock the functions in addTablesAndConstraints
         doNothing().whenever(dbInitAddTablesMock).addIssueColumnIfNotExists()
@@ -73,7 +74,7 @@ class DBInitAddTablesTest {
             |AND column_name = 'issue_id' 
             |AND table_schema = '$TEST_DATABASE'""".trimMargin()
 
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertFalse(it.next())
         }
 
@@ -81,7 +82,7 @@ class DBInitAddTablesTest {
         dbInit.addIssueColumnIfNotExists()
 
         // verify the column was added
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             it.next()
             assertEquals("issue_id", it.getString("column_name"))
         }
@@ -90,7 +91,7 @@ class DBInitAddTablesTest {
         dbInit.addIssueColumnIfNotExists()
 
         // verify the column was not added again
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             it.next()
             assertEquals("issue_id", it.getString("column_name"))
             assertFalse(it.next())
@@ -110,7 +111,7 @@ class DBInitAddTablesTest {
                 |AND column_name = 'issue_id'
                 |AND referenced_table_name = 'gcd_issue'
                 |AND referenced_column_name = 'id'""".trimMargin()
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertFalse(it.next())
         }
 
@@ -118,7 +119,7 @@ class DBInitAddTablesTest {
         dbInit.addIssueIdForeignKeyIfNotExists()
 
         // verify the foreign key was added
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
@@ -127,7 +128,7 @@ class DBInitAddTablesTest {
         dbInit.addIssueIdForeignKeyIfNotExists()
 
         // verify the foreign key was not added again
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
@@ -140,7 +141,7 @@ class DBInitAddTablesTest {
         // verify there is no series_id column
         val query =
             "SELECT column_name FROM information_schema.columns WHERE table_name = 'gcd_story_credit' AND column_name = 'series_id' AND table_schema = '$TEST_DATABASE'"
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertFalse(it.next())
         }
 
@@ -148,7 +149,7 @@ class DBInitAddTablesTest {
         dbInit.addSeriesColumnIfNotExists()
 
         // verify the column was added
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             it.next()
             assertEquals("series_id", it.getString("column_name"))
         }
@@ -157,7 +158,7 @@ class DBInitAddTablesTest {
         dbInit.addSeriesColumnIfNotExists()
 
         // verify the column was not added again
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             it.next()
             assertEquals("series_id", it.getString("column_name"))
             assertFalse(it.next())
@@ -177,7 +178,7 @@ class DBInitAddTablesTest {
                 |AND column_name = 'series_id'
                 |AND referenced_table_name = 'gcd_series'
                 |AND referenced_column_name = 'id'""".trimMargin()
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertFalse(it.next())
         }
 
@@ -185,7 +186,7 @@ class DBInitAddTablesTest {
         dbInit.addSeriesIdForeignKeyIfNotExists()
 
         // verify the foreign key was added
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
@@ -194,7 +195,7 @@ class DBInitAddTablesTest {
         dbInit.addSeriesIdForeignKeyIfNotExists()
 
         // verify the foreign key was not added again
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
@@ -211,7 +212,7 @@ class DBInitAddTablesTest {
                 |WHERE table_name = 'm_character' 
                 |AND table_schema = '$TEST_DATABASE'""".trimMargin()
 
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertFalse(it.next())
         }
 
@@ -219,7 +220,7 @@ class DBInitAddTablesTest {
         dbInit.createExtractedCharactersTableIfNotExists()
 
         // verify the table was added
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             it.next()
             assertEquals("m_character", it.getString("table_name"))
         }
@@ -228,7 +229,7 @@ class DBInitAddTablesTest {
         dbInit.createExtractedCharactersTableIfNotExists()
 
         // verify the table was not added again
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             it.next()
             assertEquals("m_character", it.getString("table_name"))
             assertFalse(it.next())
@@ -243,7 +244,7 @@ class DBInitAddTablesTest {
         val query =
             "SELECT table_name FROM information_schema.tables WHERE table_name = 'm_character_appearance' AND table_schema = '$TEST_DATABASE'"
 
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertFalse(it.next())
         }
 
@@ -251,7 +252,7 @@ class DBInitAddTablesTest {
         dbInit.createCharacterAppearancesTableIfNotExists()
 
         // verify the table was added
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             it.next()
             assertEquals("m_character_appearance", it.getString("table_name"))
         }
@@ -260,7 +261,7 @@ class DBInitAddTablesTest {
         dbInit.createCharacterAppearancesTableIfNotExists()
 
         // verify the table was not added again
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             it.next()
             assertEquals("m_character_appearance", it.getString("table_name"))
             assertFalse(it.next())
@@ -274,7 +275,7 @@ class DBInitAddTablesTest {
         // verify there is no m_story_credit table
         val query =
             "SELECT table_name FROM information_schema.tables WHERE table_name = 'm_story_credit' AND table_schema = '$TEST_DATABASE'"
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertFalse(it.next())
         }
 
@@ -282,7 +283,7 @@ class DBInitAddTablesTest {
         dbInit.createExtractedStoryCreditsTableIfNotExists()
 
         // verify the table was added
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             it.next()
             assertEquals("m_story_credit", it.getString("table_name"))
         }
@@ -291,7 +292,7 @@ class DBInitAddTablesTest {
         dbInit.createExtractedStoryCreditsTableIfNotExists()
 
         // verify the table was not added again
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             it.next()
             assertEquals("m_story_credit", it.getString("table_name"))
             assertFalse(it.next())
@@ -310,7 +311,7 @@ class DBInitAddTablesTest {
             |AND table_schema = '$TEST_DATABASE'""".trimMargin()
 
         // check that there is one or less primary key constraints
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             it.next()
             assertFalse(it.next())
         }
@@ -319,7 +320,7 @@ class DBInitAddTablesTest {
         dbInit.addExtractedStoryCreditsPrimaryKeyConstraintIfNotExists()
 
         // verify the constraint was added
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
@@ -328,7 +329,7 @@ class DBInitAddTablesTest {
         dbInit.addExtractedStoryCreditsPrimaryKeyConstraintIfNotExists()
 
         // verify the constraint was not added again
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
@@ -347,7 +348,7 @@ class DBInitAddTablesTest {
             |AND referenced_column_name = 'id'
             |AND table_schema = '$TEST_DATABASE'""".trimMargin()
 
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertFalse(it.next())
         }
 
@@ -355,7 +356,7 @@ class DBInitAddTablesTest {
         dbInit.addExtractedStoryCreditsCreatorIdFKeyConstraintIfNotExists()
 
         // verify the constraint was added
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
@@ -364,7 +365,7 @@ class DBInitAddTablesTest {
         dbInit.addExtractedStoryCreditsCreatorIdFKeyConstraintIfNotExists()
 
         // verify the constraint was not added again
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
@@ -383,7 +384,7 @@ class DBInitAddTablesTest {
             |AND referenced_column_name = 'id'
             |AND table_schema = '$TEST_DATABASE'""".trimMargin()
 
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertFalse(it.next())
         }
 
@@ -391,7 +392,7 @@ class DBInitAddTablesTest {
         dbInit.addExtractedStoryCreditsRoleIdFKeyConstraintIfNotExists()
 
         // verify the constraint was added
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
@@ -400,7 +401,7 @@ class DBInitAddTablesTest {
         dbInit.addExtractedStoryCreditsRoleIdFKeyConstraintIfNotExists()
 
         // verify the constraint was not added again
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
@@ -419,7 +420,7 @@ class DBInitAddTablesTest {
             |AND referenced_column_name = 'id'
             |AND table_schema = '$TEST_DATABASE'""".trimMargin()
 
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertFalse(it.next())
         }
 
@@ -427,7 +428,7 @@ class DBInitAddTablesTest {
         dbInit.addExtractedStoryCreditsStoryIdFKeyConstraintIfNotExists()
 
         // verify the constraint was added
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
@@ -436,7 +437,7 @@ class DBInitAddTablesTest {
         dbInit.addExtractedStoryCreditsStoryIdFKeyConstraintIfNotExists()
 
         // verify the constraint was not added again
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
@@ -455,7 +456,7 @@ class DBInitAddTablesTest {
             |AND referenced_column_name = 'id'
             |AND table_schema = '$TEST_DATABASE'""".trimMargin()
 
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertFalse(it.next())
         }
 
@@ -463,7 +464,7 @@ class DBInitAddTablesTest {
         dbInit.addExtractedStoryCreditsIssueIdFKeyConstraintIfNotExists()
 
         // verify the constraint was added
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
@@ -472,7 +473,7 @@ class DBInitAddTablesTest {
         dbInit.addExtractedStoryCreditsIssueIdFKeyConstraintIfNotExists()
 
         // verify the constraint was not added again
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
@@ -491,7 +492,7 @@ class DBInitAddTablesTest {
             |AND referenced_column_name = 'id'
             |AND table_schema = '$TEST_DATABASE'""".trimMargin()
 
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertFalse(it.next())
         }
 
@@ -499,7 +500,7 @@ class DBInitAddTablesTest {
         dbInit.addExtractedStoryCreditsSeriesIdFKeyConstraintIfNotExists()
 
         // verify the constraint was added
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
@@ -508,19 +509,27 @@ class DBInitAddTablesTest {
         dbInit.addExtractedStoryCreditsSeriesIdFKeyConstraintIfNotExists()
 
         // verify the constraint was not added again
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertFalse(it.next())
         }
     }
 
     companion object {
+        private lateinit var conn: Connection
+
         @BeforeAll
         @JvmStatic
-        fun setupAll() = TestDatabaseSetup.setup(populate = DatabaseState.RAW)
+        fun setupAll() {
+            conn = TestDatabaseSetup.getDbConnection(TEST_DATABASE)
+            TestDatabaseSetup.setup(populate = DatabaseState.RAW)
+        }
 
         @AfterAll
         @JvmStatic
-        fun teardownAll() = TestDatabaseSetup.teardown()
+        fun teardownAll() {
+            conn.close()
+            TestDatabaseSetup.teardown()
+        }
     }
 }

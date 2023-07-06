@@ -8,7 +8,6 @@ import dev.benica.creditupdater.Credentials.Companion.PASSWORD_INITIALIZER
 import dev.benica.creditupdater.Credentials.Companion.USERNAME_INITIALIZER
 import dev.benica.creditupdater.db.CharacterRepository
 import dev.benica.creditupdater.db.CreditRepository
-import dev.benica.creditupdater.db.QueryExecutor
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import javax.inject.Named
@@ -22,10 +21,6 @@ interface Repository
 
 abstract class RepoSource<T : Repository> {
     abstract fun getRepo(db: String): T
-}
-
-abstract class QueryExecutorSource {
-    abstract fun getQueryExecutor(targetSchema: String): QueryExecutor
 }
 
 @Module
@@ -59,15 +54,6 @@ class ConnectionProviderModule {
 
     companion object {
         const val MAX_CONNECTION_POOL_SIZE = 2000
-    }
-}
-
-@Module
-class QueryExecutorProviderModule {
-    @Provides
-    @Singleton
-    fun provideQueryExecutor(): QueryExecutorSource = object : QueryExecutorSource() {
-        override fun getQueryExecutor(targetSchema: String): QueryExecutor = QueryExecutor(targetSchema)
     }
 }
 

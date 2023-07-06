@@ -3,11 +3,11 @@ package dev.benica.creditupdater.db_tasks
 import dev.benica.creditupdater.Credentials.Companion.ISSUE_SERIES_PATH
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
 import dev.benica.creditupdater.db.QueryExecutor
-import dev.benica.creditupdater.di.DaggerDispatchersComponent
-import dev.benica.creditupdater.di.DispatchersComponent
+import dev.benica.creditupdater.di.*
 import kotlinx.coroutines.*
 import mu.KLogger
 import mu.KotlinLogging
+import java.sql.Connection
 import java.sql.SQLException
 import javax.inject.Inject
 import javax.inject.Named
@@ -31,22 +31,29 @@ class DBInitializer(
     private val targetSchema: String = PRIMARY_DATABASE,
     private val startAtStep: Int,
     private val startingId: Int? = null,
-    dispatcherComponent: DispatchersComponent = DaggerDispatchersComponent.create(),
+    dispatcherComponent: DispatchAndExecuteComponent = DaggerDispatchAndExecuteComponent.create(),
 ) {
-    init {
-        dispatcherComponent.inject(this)
-    }
-
     // Dependencies
     @Inject
     @Named("IO")
     internal lateinit var ioDispatcher: CoroutineDispatcher
+
+    @Inject
+    internal lateinit var connectionSource: ConnectionSource
 
     // Private properties
     private val logger: KLogger
         get() = KotlinLogging.logger(this::class.java.simpleName)
 
     private val dbTask: DBTask = DBTask(targetSchema)
+
+    private val conn: Connection
+
+    init {
+        dispatcherComponent.inject(this)
+        conn = connectionSource.getConnection(targetSchema).connection
+    }
+
 
     /**
      * Prepare database - this is the main entry point for the
@@ -68,11 +75,13 @@ class DBInitializer(
                     DBInitAddTables(
                         queryExecutor = QueryExecutor(targetSchema),
                         targetSchema = targetSchema,
+                        conn = conn
                     ).addTablesAndConstraints()
 
                     DBInitCreateDeleteViews(
                         queryExecutor = QueryExecutor(targetSchema),
                         targetSchema = targetSchema,
+                        conn = conn
                     ).createDeleteViews()
 
                     removeUnnecessaryRecords()

@@ -1,9 +1,8 @@
 package dev.benica.creditupdater.extractor
 
 import com.zaxxer.hikari.HikariDataSource
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.db.CharacterRepositoryTest
-import dev.benica.creditupdater.db.QueryExecutorTest
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import dev.benica.creditupdater.di.ConnectionSource
 import dev.benica.creditupdater.extractor.CharacterExtractor.*
@@ -157,15 +156,13 @@ class CharacterExtractorTest {
         @JvmStatic
         fun setUpDb() {
             conn = getDbConnection(TEST_DATABASE_CHAR_EXTRACTOR)
-            conn.autoCommit = false
             CharacterRepositoryTest.setUpDatabase(conn)
         }
 
         @AfterAll
         @JvmStatic
         fun breakDown() {
-            QueryExecutorTest.dropAllTables(conn)
-            conn.rollback()
+            dropAllTables(conn, TEST_DATABASE_CHAR_EXTRACTOR)
             conn.close()
         }
     }

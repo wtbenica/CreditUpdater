@@ -2,6 +2,7 @@ package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.db.TestDatabaseSetup
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -33,6 +34,6 @@ class DBInitializerTest {
 
         @AfterAll
         @JvmStatic
-        fun teardownALL() = TestDatabaseSetup.teardown()
+        fun teardownALL() = TestDatabaseSetup.dropAllTables(getDbConnection(TEST_DATABASE), TEST_DATABASE)
     }
 }

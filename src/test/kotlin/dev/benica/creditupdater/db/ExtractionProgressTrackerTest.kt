@@ -2,16 +2,13 @@ package dev.benica.creditupdater.db
 
 import com.google.gson.Gson
 import dev.benica.creditupdater.Credentials.Companion.PASSWORD_INITIALIZER
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.Credentials.Companion.USERNAME_INITIALIZER
 import dev.benica.creditupdater.cli_parser.CLIParser
 import dev.benica.creditupdater.db.ExtractionProgressTracker.Companion.ProgressInfo
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import mu.KLogger
+import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Test
 import org.mockito.*
 import org.mockito.kotlin.*
 import java.io.File
@@ -37,7 +34,7 @@ class ExtractionProgressTrackerTest {
         }
 
         DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE",
+            "jdbc:mysql://localhost:3306/$TEST_DATABASE_EPT",
             USERNAME_INITIALIZER,
             PASSWORD_INITIALIZER
         ).use { conn ->
@@ -55,7 +52,7 @@ class ExtractionProgressTrackerTest {
         mockEpt = spy(
             ExtractionProgressTracker(
                 extractedType = "Credit",
-                targetSchema = TEST_DATABASE,
+                targetSchema = TEST_DATABASE_EPT,
                 totalItems = 10,
                 progressInfoMap = ProgressInfoMap(TEST_PROGRESS_FILE),
                 logger = loggerMock
@@ -69,7 +66,7 @@ class ExtractionProgressTrackerTest {
     @Test
     @DisplayName("should load progress info correctly when there is an existing progress file")
     fun shouldLoadProgressInfoCorrectly() {
-        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE, 10, ProgressInfoMap(TEST_PROGRESS_FILE))
+        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE_EPT, 10, ProgressInfoMap(TEST_PROGRESS_FILE))
 
         val progressInfoMap = ept.progressInfoMap
         assertEquals(2, progressInfoMap.get("Credit").lastProcessedItemId)
@@ -85,7 +82,7 @@ class ExtractionProgressTrackerTest {
     @Test
     @DisplayName("should load progress info correctly when there is no existing progress file")
     fun shouldLoadProgressInfoCorrectlyWhenThereIsNoExistingProgressFile() {
-        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE, 10, ProgressInfoMap("nonexistent_progress.json"))
+        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE_EPT, 10, ProgressInfoMap("nonexistent_progress.json"))
         val progressInfoMap = ept.progressInfoMap
         assertEquals(0, progressInfoMap.get("Credit").lastProcessedItemId)
         assertEquals(0, progressInfoMap.get("Credit").totalTimeMillis)
@@ -146,7 +143,7 @@ class ExtractionProgressTrackerTest {
     @Test
     @DisplayName("should reset progress info correctly")
     fun shouldResetProgressInfoCorrectly() {
-        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE, 10, ProgressInfoMap(TEST_PROGRESS_FILE))
+        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE_EPT, 10, ProgressInfoMap(TEST_PROGRESS_FILE))
         ept.resetProgressInfo()
         val progressInfoMap = ept.progressInfoMap
         assertEquals(0, progressInfoMap.get("Credit").lastProcessedItemId)
@@ -346,6 +343,7 @@ class ExtractionProgressTrackerTest {
     }
 
     companion object {
+        private const val TEST_DATABASE_EPT = "credit_updater_test_ept"
         private const val ITEMS_COMPLETED = 2
         private const val TEST_PROGRESS_FILE = "test_progress.json"
         private const val DEFAULT_PROGRESS_MAP = """{
@@ -361,18 +359,24 @@ class ExtractionProgressTrackerTest {
             }
         }"""
 
-
         @BeforeAll
         @JvmStatic
         fun setup() {
             // Create a database table 'gcd_story' with a single column 'id'
-            DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306/$TEST_DATABASE",
-                USERNAME_INITIALIZER,
-                PASSWORD_INITIALIZER
-            ).use { conn ->
+            getDbConnection(TEST_DATABASE_EPT).use { conn ->
                 conn.createStatement().use { stmt ->
                     stmt.execute("CREATE TABLE IF NOT EXISTS gcd_story (id INT)")
+                }
+            }
+        }
+
+        @AfterAll
+        @JvmStatic
+        fun teardownAll() {
+            // Delete the database table 'gcd_story'
+            getDbConnection(TEST_DATABASE_EPT).use { conn ->
+                conn.createStatement().use { stmt ->
+                    stmt.execute("DROP TABLE IF EXISTS gcd_story")
                 }
             }
         }

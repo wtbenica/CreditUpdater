@@ -1,6 +1,7 @@
 package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.db.QueryExecutor
+import java.sql.Connection
 
 /**
  * Class to create the delete views.
@@ -14,7 +15,8 @@ import dev.benica.creditupdater.db.QueryExecutor
  */
 class DBInitCreateDeleteViews(
     private val queryExecutor: QueryExecutor,
-    private val targetSchema: String
+    private val targetSchema: String,
+    private val conn: Connection
 ) {
 
     /**
@@ -52,7 +54,7 @@ class DBInitCreateDeleteViews(
                 )
             );""".trimIndent()
 
-        queryExecutor.executeSqlStatement(query)
+        queryExecutor.executeSqlStatement(query, conn)
     }
 
     /**
@@ -71,7 +73,7 @@ class DBInitCreateDeleteViews(
                 OR gs.year_began < 1900
                 OR gs.publisher_id IN (SELECT id FROM bad_publishers));""".trimIndent()
 
-        queryExecutor.executeSqlStatement(query)
+        queryExecutor.executeSqlStatement(query, conn)
     }
 
     /**
@@ -87,7 +89,7 @@ class DBInitCreateDeleteViews(
                 FROM gcd_issue gi
                 WHERE gi.series_id IN (SELECT id FROM bad_series));""".trimIndent()
 
-        queryExecutor.executeSqlStatement(query)
+        queryExecutor.executeSqlStatement(query, conn)
     }
 
     /**
@@ -103,7 +105,7 @@ class DBInitCreateDeleteViews(
                 FROM gcd_story gs
                 WHERE gs.issue_id IN (SELECT id FROM bad_issues));""".trimIndent()
 
-        queryExecutor.executeSqlStatement(query)
+        queryExecutor.executeSqlStatement(query, conn)
     }
 
     /**
@@ -119,7 +121,7 @@ class DBInitCreateDeleteViews(
                 FROM gcd_indicia_publisher gip
                 WHERE gip.parent_id IN (SELECT id FROM bad_publishers));""".trimIndent()
 
-        queryExecutor.executeSqlStatement(query)
+        queryExecutor.executeSqlStatement(query, conn)
     }
 
     /**
@@ -135,6 +137,6 @@ class DBInitCreateDeleteViews(
                 FROM gcd_brand_group gbg
                 WHERE gbg.parent_id IN (SELECT id FROM bad_publishers));""".trimIndent()
 
-        queryExecutor.executeSqlStatement(query)
+        queryExecutor.executeSqlStatement(query, conn)
     }
 }

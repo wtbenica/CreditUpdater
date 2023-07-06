@@ -1,9 +1,8 @@
 package dev.benica.creditupdater.db
 
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.setup
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.teardown
 import org.junit.jupiter.api.*
 import org.mockito.kotlin.*
 import java.sql.*
@@ -16,15 +15,14 @@ class CreditRepositoryTest {
     @DisplayName("should insert new story credit if one does not exist")
     fun shouldInsertNewStoryCreditIfOneDoesNotExist() {
         // Arrange
-        val creditRepository = CreditRepository(TEST_DATABASE)
+        val creditRepository = CreditRepository(TEST_DATABASE_CREDIT_REPO)
         val extractedName = "Grant Morrison"
         val storyId = 1
         val roleId = 1
 
         // verify that the story credit does not exist
-        getTestDbConnection().use { conn ->
-            conn.prepareStatement(
-                """
+        conn.prepareStatement(
+            """
                 SELECT * 
                 FROM gcd_story_credit sc
                 WHERE sc.creator_id = (
@@ -35,14 +33,13 @@ class CreditRepositoryTest {
                 AND sc.story_id = ?
                 AND sc.credit_type_id = ?
                 """.trimIndent()
-            ).use { statement ->
-                statement.setString(1, extractedName)
-                statement.setInt(2, storyId)
-                statement.setInt(3, roleId)
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
 
-                statement.executeQuery().use { resultSet ->
-                    assert(!resultSet.next())
-                }
+            statement.executeQuery().use { resultSet ->
+                assert(!resultSet.next())
             }
         }
 
@@ -50,9 +47,8 @@ class CreditRepositoryTest {
         creditRepository.createOrUpdateStoryCredit(extractedName, storyId, roleId)
 
         // Assert that the story credit was inserted
-        getTestDbConnection().use { conn ->
-            conn.prepareStatement(
-                """
+        conn.prepareStatement(
+            """
                 SELECT * 
                 FROM m_story_credit sc
                 WHERE sc.creator_id = (
@@ -63,14 +59,13 @@ class CreditRepositoryTest {
                 AND sc.story_id = ?
                 AND sc.credit_type_id = ?
                 """.trimIndent()
-            ).use { statement ->
-                statement.setString(1, extractedName)
-                statement.setInt(2, storyId)
-                statement.setInt(3, roleId)
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
 
-                statement.executeQuery().use { resultSet ->
-                    assert(resultSet.next())
-                }
+            statement.executeQuery().use { resultSet ->
+                assert(resultSet.next())
             }
         }
     }
@@ -79,15 +74,14 @@ class CreditRepositoryTest {
     @DisplayName("createOrUpdateStoryCredit() should update existing story credit if one exists in gcd_story_credit")
     fun shouldUpdateExistingStoryCreditInGcdStoryCredit() {
         // Arrange
-        val creditRepository = CreditRepository(TEST_DATABASE)
+        val creditRepository = CreditRepository(TEST_DATABASE_CREDIT_REPO)
         val extractedName = "Frank Quitely"
         val roleId = 2
         val storyId = 1
 
         // verify that the story credit exists in gcd_story_credit
-        getTestDbConnection().use { conn ->
-            conn.prepareStatement(
-                """
+        conn.prepareStatement(
+            """
                 SELECT * 
                 FROM gcd_story_credit sc
                 WHERE sc.creator_id = (
@@ -98,14 +92,13 @@ class CreditRepositoryTest {
                 AND sc.story_id = ?
                 AND sc.credit_type_id = ?
                 """.trimIndent()
-            ).use { statement ->
-                statement.setString(1, extractedName)
-                statement.setInt(2, storyId)
-                statement.setInt(3, roleId)
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
 
-                statement.executeQuery().use { resultSet ->
-                    assert(resultSet.next())
-                }
+            statement.executeQuery().use { resultSet ->
+                assert(resultSet.next())
             }
         }
 
@@ -113,9 +106,8 @@ class CreditRepositoryTest {
         creditRepository.createOrUpdateStoryCredit(extractedName, storyId, roleId)
 
         // Assert that the story credit was updated
-        getTestDbConnection().use { conn ->
-            conn.prepareStatement(
-                """
+        conn.prepareStatement(
+            """
                 SELECT * 
                 FROM gcd_story_credit sc
                 WHERE sc.creator_id = (
@@ -126,14 +118,13 @@ class CreditRepositoryTest {
                 AND sc.story_id = ?
                 AND sc.credit_type_id = ?
                 """.trimIndent()
-            ).use { statement ->
-                statement.setString(1, extractedName)
-                statement.setInt(2, storyId)
-                statement.setInt(3, roleId)
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
 
-                statement.executeQuery().use { resultSet ->
-                    assert(resultSet.next())
-                }
+            statement.executeQuery().use { resultSet ->
+                assert(resultSet.next())
             }
         }
     }
@@ -142,15 +133,14 @@ class CreditRepositoryTest {
     @DisplayName("createOrUpdateStoryCredit() should update existing story credit if one exists in m_story_credit")
     fun shouldUpdateExistingStoryCreditInMStoryCredit() {
         // Arrange
-        val creditRepository = CreditRepository(TEST_DATABASE)
+        val creditRepository = CreditRepository(TEST_DATABASE_CREDIT_REPO)
         val extractedName = "Frank Quitely"
         val roleId = 2
         val storyId = 2
 
         // verify that the story credit exists in gcd_story_credit
-        getTestDbConnection().use { conn ->
-            conn.prepareStatement(
-                """
+        conn.prepareStatement(
+            """
                 SELECT * 
                 FROM m_story_credit sc
                 WHERE sc.creator_id = (
@@ -161,14 +151,13 @@ class CreditRepositoryTest {
                 AND sc.story_id = ?
                 AND sc.credit_type_id = ?
                 """.trimIndent()
-            ).use { statement ->
-                statement.setString(1, extractedName)
-                statement.setInt(2, storyId)
-                statement.setInt(3, roleId)
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
 
-                statement.executeQuery().use { resultSet ->
-                    assert(resultSet.next())
-                }
+            statement.executeQuery().use { resultSet ->
+                assert(resultSet.next())
             }
         }
 
@@ -176,9 +165,8 @@ class CreditRepositoryTest {
         creditRepository.createOrUpdateStoryCredit(extractedName, storyId, roleId)
 
         // Assert that the story credit was updated
-        getTestDbConnection().use { conn ->
-            conn.prepareStatement(
-                """
+        conn.prepareStatement(
+            """
                 SELECT * 
                 FROM m_story_credit sc
                 WHERE sc.creator_id = (
@@ -189,14 +177,13 @@ class CreditRepositoryTest {
                 AND sc.story_id = ?
                 AND sc.credit_type_id = ?
                 """.trimIndent()
-            ).use { statement ->
-                statement.setString(1, extractedName)
-                statement.setInt(2, storyId)
-                statement.setInt(3, roleId)
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
 
-                statement.executeQuery().use { resultSet ->
-                    assert(resultSet.next())
-                }
+            statement.executeQuery().use { resultSet ->
+                assert(resultSet.next())
             }
         }
     }
@@ -206,7 +193,7 @@ class CreditRepositoryTest {
     @DisplayName("should return the gcd_creator_name_detail id if found, null otherwise")
     fun shouldReturnTheGcdCreatorNameDetailIdIfFoundNullOtherwise() {
         // Arrange
-        val creditRepository = CreditRepository(TEST_DATABASE)
+        val creditRepository = CreditRepository(TEST_DATABASE_CREDIT_REPO)
         val extractedName = "Grant Morrison"
 
         // Act
@@ -220,7 +207,7 @@ class CreditRepositoryTest {
     @DisplayName("should return null if the gcd_creator_name_detail id is not found")
     fun shouldReturnNullIfTheGcdCreatorNameDetailIdIsNotFound() {
         // Arrange
-        val creditRepository = CreditRepository(TEST_DATABASE)
+        val creditRepository = CreditRepository(TEST_DATABASE_CREDIT_REPO)
         val extractedName = "Bob"
 
         // Act
@@ -236,11 +223,14 @@ class CreditRepositoryTest {
         // Mock queryExecutor
         val queryExecutorMock = mock<QueryExecutor>()
         whenever(
-            queryExecutorMock.executePreparedStatement(any(), any())
+            queryExecutorMock.executePreparedStatement(any(), any(), any())
         ).thenAnswer { throw SQLException("Test Exception") }
 
         // Arrange
-        val creditRepository = CreditRepository(TEST_DATABASE, queryExecutor = queryExecutorMock)
+        val creditRepository = CreditRepository(
+            targetSchema = TEST_DATABASE_CREDIT_REPO,
+            queryExecutor = queryExecutorMock
+        )
         val extractedName = "Grant Morrison"
 
         // Assert
@@ -254,11 +244,15 @@ class CreditRepositoryTest {
         // Mock queryExecutor
         val queryExecutorMock = mock<QueryExecutor>()
         whenever(
-            queryExecutorMock.executePreparedStatement(any(), any())
+            queryExecutorMock.executePreparedStatement(any(), any(), any())
         ).thenAnswer { throw SQLException("Test Exception") }
 
         // Arrange
-        val creditRepository = CreditRepository(TEST_DATABASE, queryExecutor = queryExecutorMock)
+        val creditRepository = CreditRepository(
+            targetSchema = TEST_DATABASE_CREDIT_REPO,
+            queryExecutor = queryExecutorMock
+        )
+
         val extractedName = 1
         val storyId = 1
         val roleId = 1
@@ -273,11 +267,11 @@ class CreditRepositoryTest {
         // Mock queryExecutor
         val queryExecutorMock = mock<QueryExecutor>()
         whenever(
-            queryExecutorMock.executePreparedStatement(any(), any())
+            queryExecutorMock.executePreparedStatement(any(), any(), any())
         ).thenAnswer { }.thenAnswer { throw SQLException("Test Exception") }
 
         // Arrange
-        val creditRepository = CreditRepository(TEST_DATABASE, queryExecutor = queryExecutorMock)
+        val creditRepository = CreditRepository(TEST_DATABASE_CREDIT_REPO, queryExecutor = queryExecutorMock)
         val extractedName = 1
         val storyId = 1
         val roleId = 1
@@ -287,12 +281,21 @@ class CreditRepositoryTest {
     }
 
     companion object {
+        private const val TEST_DATABASE_CREDIT_REPO = "credit_updater_test_credit_repo"
+        private lateinit var conn: Connection
+
         @BeforeAll
         @JvmStatic
-        fun setupAll() = setup()
+        internal fun setupAll() {
+            setup(schema = TEST_DATABASE_CREDIT_REPO)
+            conn = getDbConnection(TEST_DATABASE_CREDIT_REPO)
+        }
 
         @AfterAll
         @JvmStatic
-        fun teardownAll() = teardown()
+        internal fun teardownAll() {
+            dropAllTables(conn, TEST_DATABASE_CREDIT_REPO)
+            conn.close()
+        }
     }
 }
