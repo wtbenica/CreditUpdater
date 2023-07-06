@@ -8,10 +8,10 @@ import java.sql.ResultSet
  * Appearances.
  *
  * @constructor Create empty Extractor
- * @property database The database to use.
+ * @property schema The schema to use.
  */
 abstract class Extractor(
-    protected val database: String,
+    protected val schema: String,
 ) {
     // The table from which data will be extracted
     abstract val extractTable: String

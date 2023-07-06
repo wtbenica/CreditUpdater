@@ -21,13 +21,13 @@ import javax.inject.Inject
  * and creates linked entries for them in the 'm_character' and
  * 'm_character_appearance' tables.
  *
- * @param database the database to which to write the extracted character
+ * @param schema the database to which to write the extracted character
  *     and appearance data.
  */
 class CharacterExtractor(
-    database: String,
+    schema: String,
     repositoryComponent: CharacterRepositoryComponent = DaggerCharacterRepositoryComponent.create()
-) : Extractor(database) {
+) : Extractor(schema) {
     override val extractTable: String = "gcd_story"
     override val extractedItem: String = "Character"
     override val fromValue: String = "StoryId"
@@ -39,7 +39,7 @@ class CharacterExtractor(
 
     init {
         repositoryComponent.inject(this)
-        repository = repoSource.getRepo(database)
+        repository = repoSource.getRepo(schema)
     }
 
     private val logger: KLogger
