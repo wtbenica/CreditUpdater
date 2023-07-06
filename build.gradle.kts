@@ -35,7 +35,9 @@ dependencies {
     implementation("org.junit.jupiter:junit-jupiter-api:5.9.2")
 
     kapt("com.google.dagger:dagger-compiler:2.46.1")
+    kaptTest("com.google.dagger:dagger-compiler:2.46.1")
 
+    testImplementation("com.google.dagger:dagger:2.46.1")
     testImplementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
     testImplementation("org.junit.jupiter", "junit-jupiter-api", "5.9.2")
     testRuntimeOnly("org.junit.jupiter", "junit-jupiter-engine", "5.9.2")

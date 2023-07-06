@@ -3,15 +3,14 @@ package dev.benica.creditupdater.db_tasks
 import dev.benica.creditupdater.Credentials
 import dev.benica.creditupdater.db.ExtractionProgressTracker
 import dev.benica.creditupdater.db.QueryExecutor
-import dev.benica.creditupdater.di.DaggerQueryExecutorComponent
-import dev.benica.creditupdater.di.QueryExecutorComponent
-import dev.benica.creditupdater.di.QueryExecutorSource
+import dev.benica.creditupdater.di.*
 import dev.benica.creditupdater.extractor.CharacterExtractor
 import dev.benica.creditupdater.extractor.CreditExtractor
 import dev.benica.creditupdater.extractor.Extractor
 import mu.KLogger
 import mu.KotlinLogging
 import java.io.File
+import java.sql.Connection
 import java.sql.SQLException
 import javax.inject.Inject
 import kotlin.system.measureTimeMillis
@@ -22,7 +21,7 @@ import kotlin.system.measureTimeMillis
  */
 class DBTask(
     private val targetSchema: String,
-    queryExecutorProvider: QueryExecutorComponent = DaggerQueryExecutorComponent.create()
+    databaseComponent: DatabaseComponent = DaggerDatabaseComponent.create()
 ) {
     // Constants
     companion object {
@@ -31,13 +30,14 @@ class DBTask(
 
     // Dependencies
     @Inject
-    internal lateinit var queryExecutorSource: QueryExecutorSource
+    internal lateinit var connecitonSource: ConnectionSource
 
-    private val queryExecutor: QueryExecutor
+    private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
+    protected val conn: Connection
 
     init {
-        queryExecutorProvider.inject(this)
-        queryExecutor = queryExecutorSource.getQueryExecutor(targetSchema)
+        databaseComponent.inject(this)
+        conn = connecitonSource.getConnection(targetSchema).connection
     }
 
     // Private Properties
@@ -151,7 +151,10 @@ class DBTask(
         val progressTracker = ExtractionProgressTracker(
             extractedType = extractor.extractedItem,
             targetSchema = targetSchema,
-            totalItems = queryExecutor.getItemCount(extractor.extractTable),
+            totalItems = queryExecutor.getItemCount(
+                tableName = extractor.extractTable,
+                conn = conn
+            ),
         )
         logger.debug { "Progress tracker: $progressTracker" }
 
@@ -168,7 +171,10 @@ class DBTask(
 
                 logger.debug { "Query: $queryWithLimitAndOffset" }
 
-                queryExecutor.executeQueryAndDo(queryWithLimitAndOffset) { resultSet ->
+                queryExecutor.executeQueryAndDo(
+                    query = queryWithLimitAndOffset,
+                    conn = conn
+                ) { resultSet ->
                     if (!resultSet.next()) {
                         logger.info { "No more items to update" }
                         done = true
@@ -197,10 +203,16 @@ class DBTask(
     fun runSqlScript(
         sqlScriptPath: String,
         runAsTransaction: Boolean = false
-    ) = queryExecutor.executeSqlScript(File(sqlScriptPath), runAsTransaction)
+    ) = queryExecutor.executeSqlScript(
+        sqlScript = File(sqlScriptPath), runAsTransaction = runAsTransaction,
+        conn = conn
+    )
 
     @Throws(SQLException::class)
     fun executeSqlStatement(
         sqlStmt: String
-    ) = queryExecutor.executeSqlStatement(sqlStmt)
+    ) = queryExecutor.executeSqlStatement(
+        sqlStmt = sqlStmt,
+        connection = conn
+    )
 }

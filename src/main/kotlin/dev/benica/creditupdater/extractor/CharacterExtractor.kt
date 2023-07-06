@@ -23,11 +23,12 @@ import javax.inject.Inject
  *
  * @param schema the database to which to write the extracted character
  *     and appearance data.
+ * @note The caller is responsible for closing the extractor.
  */
 class CharacterExtractor(
     schema: String,
     repositoryComponent: CharacterRepositoryComponent = DaggerCharacterRepositoryComponent.create()
-) : Extractor(schema) {
+) : Extractor(schema), AutoCloseable {
     override val extractTable: String = "gcd_story"
     override val extractedItem: String = "Character"
     override val fromValue: String = "StoryId"
@@ -102,5 +103,9 @@ class CharacterExtractor(
             logger.error("Error in extract and insert characters", sqlEx)
             throw sqlEx
         }
+    }
+
+    override fun close() {
+        repository.close()
     }
 }

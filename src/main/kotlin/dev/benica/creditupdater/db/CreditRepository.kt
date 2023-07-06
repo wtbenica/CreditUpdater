@@ -1,26 +1,33 @@
 package dev.benica.creditupdater.db
 
-import dev.benica.creditupdater.di.DaggerQueryExecutorComponent
-import dev.benica.creditupdater.di.QueryExecutorComponent
-import dev.benica.creditupdater.di.QueryExecutorSource
-import dev.benica.creditupdater.di.Repository
+import dev.benica.creditupdater.di.*
+import java.sql.Connection
 import java.sql.SQLException
 import javax.inject.Inject
 
+/**
+ * Credit Repository - handles all database interactions for the 'm_credit'
+ * table.
+ *
+ * @param targetSchema the database to which to write the extracted credit
+ *     data.
+ * @param databaseComponent the database component to use
+ * @note The caller is responsible for closing the repository.
+ */
 class CreditRepository(
     private val targetSchema: String,
-    queryExecutorProvider: QueryExecutorComponent = DaggerQueryExecutorComponent.create(),
-    queryExecutor: QueryExecutor? = null
-) : Repository {
+    databaseComponent: DatabaseComponent = DaggerDatabaseComponent.create(),
+    private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
+) : Repository, AutoCloseable {
     // Dependencies
     @Inject
-    internal lateinit var queryExecutorSource: QueryExecutorSource
+    internal lateinit var connectionSource: ConnectionSource
 
-    private val mQueryExecutor: QueryExecutor
+    private val conn: Connection
 
     init {
-        queryExecutorProvider.inject(this)
-        mQueryExecutor = queryExecutor ?: queryExecutorSource.getQueryExecutor(targetSchema)
+        databaseComponent.inject(this)
+        conn = connectionSource.getConnection(targetSchema).connection
     }
 
     // Public Methods
@@ -63,7 +70,7 @@ class CreditRepository(
                WHERE gcnd.name = ?                
             """
 
-            mQueryExecutor.executePreparedStatement(getGcndSql) { statement ->
+            queryExecutor.executePreparedStatement(getGcndSql, conn = conn) { statement ->
                 statement.setString(1, extractedName)
 
                 statement.executeQuery().use { resultSet ->
@@ -105,7 +112,7 @@ class CreditRepository(
                     AND gsc.credit_type_id = ?
             """
 
-            mQueryExecutor.executePreparedStatement(getStoryCreditIdSql) { statement ->
+            queryExecutor.executePreparedStatement(getStoryCreditIdSql, conn = conn) { statement ->
                 statement.setInt(1, gcndId)
                 statement.setInt(2, storyId)
                 statement.setInt(3, roleId)
@@ -131,7 +138,7 @@ class CreditRepository(
                     AND gsc.credit_type_id = ?
             """
 
-                mQueryExecutor.executePreparedStatement(getMStoryCreditIdSql) { statement ->
+                queryExecutor.executePreparedStatement(getMStoryCreditIdSql, conn = conn) { statement ->
                     statement.setInt(1, gcndId)
                     statement.setInt(2, storyId)
                     statement.setInt(3, roleId)
@@ -165,12 +172,19 @@ class CreditRepository(
             """INSERT IGNORE INTO $targetSchema.m_story_credit(creator_id, credit_type_id, story_id)
                 VALUE (?, ?, ?)"""
 
-        mQueryExecutor.executePreparedStatement(insertStoryCreditSql) { statement ->
+        queryExecutor.executePreparedStatement(
+            sql = insertStoryCreditSql,
+            conn = conn
+        ) { statement ->
             statement.setInt(1, gcndId)
             statement.setInt(2, roleId)
             statement.setInt(3, storyId)
 
             statement.executeUpdate()
         }
+    }
+
+    override fun close() {
+        conn.close()
     }
 }

@@ -1,32 +1,40 @@
 package dev.benica.creditupdater.db
 
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
-import dev.benica.creditupdater.di.DaggerQueryExecutorComponent
-import dev.benica.creditupdater.di.QueryExecutorComponent
-import dev.benica.creditupdater.di.QueryExecutorSource
-import dev.benica.creditupdater.di.Repository
+import dev.benica.creditupdater.di.*
 import dev.benica.creditupdater.models.Appearance
 import mu.KLogger
 import mu.KotlinLogging
+import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.SQLException
 import java.sql.Statement.RETURN_GENERATED_KEYS
 import javax.inject.Inject
 
+/**
+ * Character repository - provides methods for inserting and looking up
+ * characters and character appearances in the 'm_character' and
+ * 'm_character_appearance' tables.
+ *
+ * @param targetSchema the database to which to write the extracted character
+ *     and appearance data.
+ * @note The caller is responsible for closing the repository.
+ */
 class CharacterRepository(
     private val targetSchema: String,
-    queryExecutorProvider: QueryExecutorComponent = DaggerQueryExecutorComponent.create(),
-    queryExecutor: QueryExecutor? = null
-) : Repository {
+    databaseComponent: DatabaseComponent = DaggerDatabaseComponent.create(),
+    private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
+) : Repository, AutoCloseable {
     // Dependencies
     @Inject
-    internal lateinit var queryExecutorSource: QueryExecutorSource
+    internal lateinit var connectionSource: ConnectionSource
 
-    private val mQueryExecutor: QueryExecutor
+    // Private Properties
+    private val conn: Connection
 
     init {
-        queryExecutorProvider.inject(this)
-        mQueryExecutor = queryExecutor ?: queryExecutorSource.getQueryExecutor(targetSchema)
+        databaseComponent.inject(this)
+        conn = connectionSource.getConnection(targetSchema).connection
     }
 
     // Private Properties
@@ -90,7 +98,7 @@ class CharacterRepository(
                VALUES (?, ?, ?, ?, ?, ?)
             """.trimIndent()
 
-            mQueryExecutor.executePreparedStatementBatch(sql) { statement: PreparedStatement ->
+            queryExecutor.executePreparedStatementBatch(sql, conn = conn) { statement: PreparedStatement ->
                 appearances.forEach { appearance ->
                     statement.setInt(1, appearance.id)
                     statement.setString(2, appearance.details)
@@ -130,7 +138,7 @@ class CharacterRepository(
            VALUE (?, ?, ?)
         """
 
-        mQueryExecutor.executePreparedStatementBatch(sql, RETURN_GENERATED_KEYS) { s: PreparedStatement ->
+        queryExecutor.executePreparedStatementBatch(sql, RETURN_GENERATED_KEYS, conn = conn) { s: PreparedStatement ->
             try {
                 s.setString(1, truncatedName)
                 s.setString(2, alterEgo)
@@ -188,7 +196,7 @@ class CharacterRepository(
             AND mc.alter_ego ${if (alterEgo == null) "IS NULL" else "= ?"}
         """
 
-            mQueryExecutor.executePreparedStatementBatch(getCharacterSql) { statement ->
+            queryExecutor.executePreparedStatementBatch(getCharacterSql, conn = conn) { statement ->
                 statement.setString(1, name)
                 statement.setInt(2, publisherId)
                 if (alterEgo != null) {
@@ -217,5 +225,9 @@ class CharacterRepository(
             throw sqlEx
         }
         return characterId
+    }
+
+    override fun close() {
+        conn.close()
     }
 }

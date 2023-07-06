@@ -4,6 +4,7 @@ import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.db.DatabaseState
 import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.db.TestDatabaseSetup
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
@@ -11,21 +12,24 @@ import org.mockito.kotlin.doNothing
 import org.mockito.kotlin.spy
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.sql.Connection
 
+@TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class DBInitCreateDeleteViewsTest {
 
-    private lateinit var dbInitCreateDeleteViews: DBInitCreateDeleteViews
     private val queryExecutor = QueryExecutor(TEST_DATABASE)
+    private var dbInitCreateDeleteViews: DBInitCreateDeleteViews =
+        DBInitCreateDeleteViews(queryExecutor, TEST_DATABASE, conn)
 
     @BeforeEach
     fun setup() {
-        dbInitCreateDeleteViews = DBInitCreateDeleteViews(queryExecutor, TEST_DATABASE)
+        dbInitCreateDeleteViews = DBInitCreateDeleteViews(queryExecutor, TEST_DATABASE, conn)
     }
 
     @Test
     @DisplayName("should call each function once when createDeleteViews is called")
     fun callEachFunctionOnce() {
-        val dbInitCreateDeleteViewsMock = spy(DBInitCreateDeleteViews(queryExecutor, TEST_DATABASE))
+        val dbInitCreateDeleteViewsMock = spy(DBInitCreateDeleteViews(queryExecutor, TEST_DATABASE, conn))
 
         // Mock the functions in createDeleteViews
         doNothing().whenever(dbInitCreateDeleteViewsMock).createBadPublishersView()
@@ -47,6 +51,7 @@ class DBInitCreateDeleteViewsTest {
     }
 
     @Test
+    @Order(1)
     @DisplayName("should create bad_publishers view")
     fun createBadPublishersView() {
         dbInitCreateDeleteViews.createBadPublishersView()
@@ -60,7 +65,7 @@ class DBInitCreateDeleteViewsTest {
             );
         """.trimIndent()
 
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertTrue(it.getBoolean(1))
             assertFalse(it.next())
@@ -73,7 +78,7 @@ class DBInitCreateDeleteViewsTest {
             ORDER BY id;
         """.trimIndent()
 
-        queryExecutor.executeQueryAndDo(query2) {
+        queryExecutor.executeQueryAndDo(query2, conn) {
             assertTrue(it.next())
             assertEquals(3, it.getInt(1))
             assertTrue(it.next())
@@ -83,6 +88,7 @@ class DBInitCreateDeleteViewsTest {
     }
 
     @Test
+    @Order(2)
     @DisplayName("should create bad_series view")
     fun createBadSeriesView() {
         dbInitCreateDeleteViews.createBadSeriesView()
@@ -96,7 +102,7 @@ class DBInitCreateDeleteViewsTest {
             );
         """.trimIndent()
 
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertTrue(it.getBoolean(1))
             assertFalse(it.next())
@@ -109,7 +115,7 @@ class DBInitCreateDeleteViewsTest {
             ORDER BY id;
         """.trimIndent()
 
-        queryExecutor.executeQueryAndDo(query2) {
+        queryExecutor.executeQueryAndDo(query2, conn) {
             assertTrue(it.next())
             assertEquals(3, it.getInt(1))
             assertTrue(it.next())
@@ -125,6 +131,7 @@ class DBInitCreateDeleteViewsTest {
     }
 
     @Test
+    @Order(3)
     @DisplayName("should create bad_issues view")
     fun createBadIssuesView() {
         dbInitCreateDeleteViews.createBadIssuesView()
@@ -138,7 +145,7 @@ class DBInitCreateDeleteViewsTest {
             );
         """.trimIndent()
 
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertTrue(it.getBoolean(1))
             assertFalse(it.next())
@@ -151,7 +158,7 @@ class DBInitCreateDeleteViewsTest {
             ORDER BY id;
         """.trimIndent()
 
-        queryExecutor.executeQueryAndDo(query2) {
+        queryExecutor.executeQueryAndDo(query2, conn) {
             assertTrue(it.next())
             assertEquals(3, it.getInt(1))
             assertTrue(it.next())
@@ -165,6 +172,7 @@ class DBInitCreateDeleteViewsTest {
     }
 
     @Test
+    @Order(4)
     @DisplayName("should create bad_stories view")
     fun createBadStoriesView() {
         dbInitCreateDeleteViews.createBadStoriesView()
@@ -178,7 +186,7 @@ class DBInitCreateDeleteViewsTest {
             );
         """.trimIndent()
 
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertTrue(it.getBoolean(1))
             assertFalse(it.next())
@@ -191,7 +199,7 @@ class DBInitCreateDeleteViewsTest {
             ORDER BY id;
         """.trimIndent()
 
-        queryExecutor.executeQueryAndDo(query2) {
+        queryExecutor.executeQueryAndDo(query2, conn) {
             assertTrue(it.next())
             assertEquals(3, it.getInt(1))
             assertTrue(it.next())
@@ -205,6 +213,7 @@ class DBInitCreateDeleteViewsTest {
     }
 
     @Test
+    @Order(2)
     @DisplayName("should create bad_indicia_publishers view")
     fun createBadIndiciaPublishersView() {
         dbInitCreateDeleteViews.createBadIndiciaPublishersView()
@@ -218,7 +227,7 @@ class DBInitCreateDeleteViewsTest {
             );
         """.trimIndent()
 
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertTrue(it.getBoolean(1))
             assertFalse(it.next())
@@ -231,7 +240,7 @@ class DBInitCreateDeleteViewsTest {
             ORDER BY id;
         """.trimIndent()
 
-        queryExecutor.executeQueryAndDo(query2) {
+        queryExecutor.executeQueryAndDo(query2, conn) {
             assertTrue(it.next())
             assertEquals(3, it.getInt(1))
             assertTrue(it.next())
@@ -241,6 +250,7 @@ class DBInitCreateDeleteViewsTest {
     }
 
     @Test
+    @Order(2)
     @DisplayName("should create bad_brand_groups view")
     fun createBadBrandsView() {
         dbInitCreateDeleteViews.createBadBrandGroupsView()
@@ -254,7 +264,7 @@ class DBInitCreateDeleteViewsTest {
             );
         """.trimIndent()
 
-        queryExecutor.executeQueryAndDo(query) {
+        queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
             assertTrue(it.getBoolean(1))
             assertFalse(it.next())
@@ -267,7 +277,7 @@ class DBInitCreateDeleteViewsTest {
             ORDER BY id;
         """.trimIndent()
 
-        queryExecutor.executeQueryAndDo(query2) {
+        queryExecutor.executeQueryAndDo(query2, conn) {
             assertTrue(it.next())
             assertEquals(3, it.getInt(1))
             assertTrue(it.next())
@@ -277,30 +287,20 @@ class DBInitCreateDeleteViewsTest {
     }
 
     companion object {
+        private lateinit var conn: Connection
+
         @BeforeAll
         @JvmStatic
-        fun setupAll() = TestDatabaseSetup.setup(populate = DatabaseState.RAW)
+        fun setupAll() {
+            conn = getTestDbConnection()
+            TestDatabaseSetup.setup(populate = DatabaseState.RAW)
+        }
 
         @AfterAll
         @JvmStatic
         fun teardownAll() {
-            TestDatabaseSetup.teardown()
-
-            // remove views
-            val query = """
-                DROP VIEW IF EXISTS $TEST_DATABASE.bad_publishers;
-                DROP VIEW IF EXISTS $TEST_DATABASE.bad_series;
-                DROP VIEW IF EXISTS $TEST_DATABASE.bad_issues;
-                DROP VIEW IF EXISTS $TEST_DATABASE.bad_stories;
-                DROP VIEW IF EXISTS $TEST_DATABASE.bad_indicia_publishers;
-                DROP VIEW IF EXISTS $TEST_DATABASE.bad_brand_groups;
-            """.trimIndent()
-
-            getTestDbConnection().use { connection ->
-                connection.createStatement().use { statement ->
-                    statement.execute(query)
-                }
-            }
+            conn.close()
+            dropAllTables(getTestDbConnection(), TEST_DATABASE)
         }
     }
 }

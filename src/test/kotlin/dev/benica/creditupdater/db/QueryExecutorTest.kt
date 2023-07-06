@@ -1,9 +1,8 @@
 package dev.benica.creditupdater.db
 
 import com.zaxxer.hikari.HikariDataSource
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import dev.benica.creditupdater.di.ConnectionSource
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
@@ -51,14 +50,12 @@ class QueryExecutorTest {
         val tableName = "test_table_create"
         val sqlStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
 
-        queryExecutor.executeSqlStatement(sqlStmt)
+        queryExecutor.executeSqlStatement(sqlStmt, mConn)
 
-        getTestDbConnection().use { conn ->
-            val metadata = conn.metaData
-            val table = metadata.getTables(null, null, tableName, null)
+        val metadata = mConn.metaData
+        val table = metadata.getTables(null, null, tableName, null)
 
-            assertTrue(table.next(), "Table $tableName should exist")
-        }
+        assertTrue(table.next(), "Table $tableName should exist")
     }
 
     @Test
@@ -68,26 +65,24 @@ class QueryExecutorTest {
         val columnName = "test_column"
         val sqlStmt = "ALTER TABLE $tableName ADD COLUMN $columnName VARCHAR(255);"
 
-        getTestDbConnection().use { conn ->
-            // Create test table
-            val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
-            conn.createStatement().use { stmt ->
-                stmt.execute(createTableStmt)
-            }
+        // Create test table
+        val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(createTableStmt)
+        }
 
-            // Execute ALTER TABLE
-            queryExecutor.executeSqlStatement(sqlStmt)
+        // Execute ALTER TABLE
+        queryExecutor.executeSqlStatement(sqlStmt, mConn)
 
-            // Check that column exists
-            val metadata = conn.metaData
-            val table = metadata.getColumns(null, null, tableName, columnName)
-            assertTrue(table.next(), "Column $columnName should exist in table $tableName")
+        // Check that column exists
+        val metadata = mConn.metaData
+        val table = metadata.getColumns(null, null, tableName, columnName)
+        assertTrue(table.next(), "Column $columnName should exist in table $tableName")
 
-            // cleanup
-            val dropTableStmt = "DROP TABLE $tableName;"
-            conn.createStatement().use { stmt ->
-                stmt.execute(dropTableStmt)
-            }
+        // cleanup
+        val dropTableStmt = "DROP TABLE $tableName;"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(dropTableStmt)
         }
     }
 
@@ -97,28 +92,26 @@ class QueryExecutorTest {
         val tableName = "test_table_insert_into"
         val sqlStmt = "INSERT INTO $tableName VALUES (1);"
 
-        getTestDbConnection().use { conn ->
-            // Create test table
-            val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
-            conn.createStatement().use { stmt ->
-                stmt.execute(createTableStmt)
-            }
+        // Create test table
+        val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(createTableStmt)
+        }
 
-            // Execute INSERT INTO
-            queryExecutor.executeSqlStatement(sqlStmt)
+        // Execute INSERT INTO
+        queryExecutor.executeSqlStatement(sqlStmt, mConn)
 
-            // Check that row exists
-            val selectStmt = "SELECT * FROM $tableName WHERE id = 1;"
-            conn.createStatement().use { stmt ->
-                val resultSet = stmt.executeQuery(selectStmt)
-                assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
-            }
+        // Check that row exists
+        val selectStmt = "SELECT * FROM $tableName WHERE id = 1;"
+        mConn.createStatement().use { stmt ->
+            val resultSet = stmt.executeQuery(selectStmt)
+            assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
+        }
 
-            // cleanup
-            val dropTableStmt = "DROP TABLE $tableName;"
-            conn.createStatement().use { stmt ->
-                stmt.execute(dropTableStmt)
-            }
+        // cleanup
+        val dropTableStmt = "DROP TABLE $tableName;"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(dropTableStmt)
         }
     }
 
@@ -128,34 +121,32 @@ class QueryExecutorTest {
         val tableName = "test_table_update"
         val sqlStmt = "UPDATE $tableName SET id = 2 WHERE id = 1;"
 
-        getTestDbConnection().use { conn ->
-            // Create test table
-            val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
-            conn.createStatement().use { stmt ->
-                stmt.execute(createTableStmt)
-            }
+        // Create test table
+        val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(createTableStmt)
+        }
 
-            // Insert row
-            val insertStmt = "INSERT INTO $tableName VALUES (1);"
-            conn.createStatement().use { stmt ->
-                stmt.execute(insertStmt)
-            }
+        // Insert row
+        val insertStmt = "INSERT INTO $tableName VALUES (1);"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(insertStmt)
+        }
 
-            // Execute UPDATE
-            queryExecutor.executeSqlStatement(sqlStmt)
+        // Execute UPDATE
+        queryExecutor.executeSqlStatement(sqlStmt, mConn)
 
-            // Check that row exists
-            val selectStmt = "SELECT * FROM $tableName WHERE id = 2;"
-            conn.createStatement().use { stmt ->
-                val resultSet = stmt.executeQuery(selectStmt)
-                assertTrue(resultSet.next(), "Row with id 2 should exist in table $tableName")
-            }
+        // Check that row exists
+        val selectStmt = "SELECT * FROM $tableName WHERE id = 2;"
+        mConn.createStatement().use { stmt ->
+            val resultSet = stmt.executeQuery(selectStmt)
+            assertTrue(resultSet.next(), "Row with id 2 should exist in table $tableName")
+        }
 
-            // cleanup
-            val dropTableStmt = "DROP TABLE $tableName;"
-            conn.createStatement().use { stmt ->
-                stmt.execute(dropTableStmt)
-            }
+        // cleanup
+        val dropTableStmt = "DROP TABLE $tableName;"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(dropTableStmt)
         }
     }
 
@@ -165,34 +156,32 @@ class QueryExecutorTest {
         val tableName = "test_table_delete"
         val sqlStmt = "DELETE FROM $tableName WHERE id = 1;"
 
-        getTestDbConnection().use { conn ->
-            // Create test table
-            val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
-            conn.createStatement().use { stmt ->
-                stmt.execute(createTableStmt)
-            }
+        // Create test table
+        val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(createTableStmt)
+        }
 
-            // Insert row
-            val insertStmt = "INSERT INTO $tableName VALUES (1);"
-            conn.createStatement().use { stmt ->
-                stmt.execute(insertStmt)
-            }
+        // Insert row
+        val insertStmt = "INSERT INTO $tableName VALUES (1);"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(insertStmt)
+        }
 
-            // Execute DELETE
-            queryExecutor.executeSqlStatement(sqlStmt)
+        // Execute DELETE
+        queryExecutor.executeSqlStatement(sqlStmt, mConn)
 
-            // Check that row exists
-            val selectStmt = "SELECT * FROM $tableName WHERE id = 1;"
-            conn.createStatement().use { stmt ->
-                val resultSet = stmt.executeQuery(selectStmt)
-                assertTrue(!resultSet.next(), "Row with id 1 should not exist in table $tableName")
-            }
+        // Check that row exists
+        val selectStmt = "SELECT * FROM $tableName WHERE id = 1;"
+        mConn.createStatement().use { stmt ->
+            val resultSet = stmt.executeQuery(selectStmt)
+            assertTrue(!resultSet.next(), "Row with id 1 should not exist in table $tableName")
+        }
 
-            // cleanup
-            val dropTableStmt = "DROP TABLE $tableName;"
-            conn.createStatement().use { stmt ->
-                stmt.execute(dropTableStmt)
-            }
+        // cleanup
+        val dropTableStmt = "DROP TABLE $tableName;"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(dropTableStmt)
         }
     }
 
@@ -202,27 +191,19 @@ class QueryExecutorTest {
         val tableName = "test_table_drop"
         val sqlStmt = "DROP TABLE $tableName;"
 
-        getTestDbConnection().use { conn ->
-            // Create test table
-            val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
-            conn.createStatement().use { stmt ->
-                stmt.execute(createTableStmt)
-            }
-
-            // Execute DROP TABLE
-            queryExecutor.executeSqlStatement(sqlStmt)
-
-            // Check that table does not exist
-            val metadata = conn.metaData
-            val table = metadata.getTables(null, null, tableName, null)
-            assertTrue(!table.next(), "Table $tableName should not exist")
-
-            // cleanup
-            val dropTableStmt = "DROP TABLE $tableName;"
-            conn.createStatement().use { stmt ->
-                stmt.execute(dropTableStmt)
-            }
+        // Create test table
+        val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(createTableStmt)
         }
+
+        // Execute DROP TABLE
+        queryExecutor.executeSqlStatement(sqlStmt, mConn)
+
+        // Check that table does not exist
+        val metadata = mConn.metaData
+        val table = metadata.getTables(null, null, tableName, null)
+        assertTrue(!table.next(), "Table $tableName should not exist")
     }
 
     @Test
@@ -233,7 +214,7 @@ class QueryExecutorTest {
 
         // Execute & Assert
         assertThrows<SQLException> {
-            queryExecutor.executeSqlStatement(sqlStmt)
+            queryExecutor.executeSqlStatement(sqlStmt, mConn)
         }
     }
 
@@ -243,16 +224,14 @@ class QueryExecutorTest {
         // Setup
         val sqlStmt = "/* comment */"
 
-        getTestDbConnection().use { conn ->
-            val databaseBefore = conn.catalog
+        val databaseBefore = mConn.catalog
 
-            // Execute
-            queryExecutor.executeSqlStatement(sqlStmt)
-            val databaseAfter = conn.catalog
+        // Execute
+        queryExecutor.executeSqlStatement(sqlStmt, mConn)
+        val databaseAfter = mConn.catalog
 
-            // Assert
-            assertEquals(databaseBefore, databaseAfter, "Database should not change")
-        }
+        // Assert
+        assertEquals(databaseBefore, databaseAfter, "Database should not change")
     }
 
     // executeQueryAndDo
@@ -262,31 +241,29 @@ class QueryExecutorTest {
         val tableName = "test_table_query"
         val sqlStmt = "SELECT * FROM $tableName;"
 
-        getTestDbConnection().use { conn ->
-            // Create test table
-            val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
-            conn.createStatement().use { stmt ->
-                stmt.execute(createTableStmt)
-            }
+        // Create test table
+        val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(createTableStmt)
+        }
 
-            // Insert row
-            val insertStmt = "INSERT INTO $tableName VALUES (1);"
-            conn.createStatement().use { stmt ->
-                stmt.execute(insertStmt)
-            }
+        // Insert row
+        val insertStmt = "INSERT INTO $tableName VALUES (1);"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(insertStmt)
+        }
 
-            // Execute query
-            queryExecutor.executeQueryAndDo(sqlStmt) { resultSet ->
-                assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
-                assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
-                assertFalse(resultSet.next(), "There should be only one row in table $tableName")
-            }
+        // Execute query
+        queryExecutor.executeQueryAndDo(sqlStmt, mConn) { resultSet ->
+            assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
+            assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
+            assertFalse(resultSet.next(), "There should be only one row in table $tableName")
+        }
 
-            // cleanup
-            val dropTableStmt = "DROP TABLE $tableName;"
-            conn.createStatement().use { stmt ->
-                stmt.execute(dropTableStmt)
-            }
+        // cleanup
+        val dropTableStmt = "DROP TABLE $tableName;"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(dropTableStmt)
         }
     }
 
@@ -296,33 +273,31 @@ class QueryExecutorTest {
         val tableName = "test_table_query_multiple_rows"
         val sqlStmt = "SELECT * FROM $tableName;"
 
-        getTestDbConnection().use { conn ->
-            // Create test table
-            val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
-            conn.createStatement().use { stmt ->
-                stmt.execute(createTableStmt)
-            }
+        // Create test table
+        val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY);"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(createTableStmt)
+        }
 
-            // Insert rows
-            val insertStmt = "INSERT INTO $tableName VALUES (1), (2);"
-            conn.createStatement().use { stmt ->
-                stmt.execute(insertStmt)
-            }
+        // Insert rows
+        val insertStmt = "INSERT INTO $tableName VALUES (1), (2);"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(insertStmt)
+        }
 
-            // Execute query
-            queryExecutor.executeQueryAndDo(sqlStmt) { resultSet ->
-                assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
-                assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
-                assertTrue(resultSet.next(), "Row with id 2 should exist in table $tableName")
-                assertTrue(resultSet.getInt("id") == 2, "Row with id 2 should exist in table $tableName")
-                assertFalse(resultSet.next(), "There should be only two rows in table $tableName")
-            }
+        // Execute query
+        queryExecutor.executeQueryAndDo(sqlStmt, mConn) { resultSet ->
+            assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
+            assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
+            assertTrue(resultSet.next(), "Row with id 2 should exist in table $tableName")
+            assertTrue(resultSet.getInt("id") == 2, "Row with id 2 should exist in table $tableName")
+            assertFalse(resultSet.next(), "There should be only two rows in table $tableName")
+        }
 
-            // cleanup
-            val dropTableStmt = "DROP TABLE $tableName;"
-            conn.createStatement().use { stmt ->
-                stmt.execute(dropTableStmt)
-            }
+        // cleanup
+        val dropTableStmt = "DROP TABLE $tableName;"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(dropTableStmt)
         }
     }
 
@@ -332,32 +307,30 @@ class QueryExecutorTest {
         val tableName = "test_table_query_multiple_columns"
         val sqlStmt = "SELECT * FROM $tableName;"
 
-        getTestDbConnection().use { conn ->
-            // Create test table
-            val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY, name VARCHAR(255));"
-            conn.createStatement().use { stmt ->
-                stmt.execute(createTableStmt)
-            }
+        // Create test table
+        val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY, name VARCHAR(255));"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(createTableStmt)
+        }
 
-            // Insert row
-            val insertStmt = "INSERT INTO $tableName VALUES (1, 'test');"
-            conn.createStatement().use { stmt ->
-                stmt.execute(insertStmt)
-            }
+        // Insert row
+        val insertStmt = "INSERT INTO $tableName VALUES (1, 'test');"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(insertStmt)
+        }
 
-            // Execute query
-            queryExecutor.executeQueryAndDo(sqlStmt) { resultSet ->
-                assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
-                assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
-                assertTrue(resultSet.getString("name") == "test", "Row with id 1 should exist in table $tableName")
-                assertFalse(resultSet.next(), "There should be only one row in table $tableName")
-            }
+        // Execute query
+        queryExecutor.executeQueryAndDo(sqlStmt, mConn) { resultSet ->
+            assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
+            assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
+            assertTrue(resultSet.getString("name") == "test", "Row with id 1 should exist in table $tableName")
+            assertFalse(resultSet.next(), "There should be only one row in table $tableName")
+        }
 
-            // cleanup
-            val dropTableStmt = "DROP TABLE $tableName;"
-            conn.createStatement().use { stmt ->
-                stmt.execute(dropTableStmt)
-            }
+        // cleanup
+        val dropTableStmt = "DROP TABLE $tableName;"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(dropTableStmt)
         }
     }
 
@@ -367,35 +340,33 @@ class QueryExecutorTest {
         val tableName = "test_table_query_multiple_rows_and_columns"
         val sqlStmt = "SELECT * FROM $tableName;"
 
-        getTestDbConnection().use { conn ->
-            // Create test table
-            val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY, name VARCHAR(255));"
-            conn.createStatement().use { stmt ->
-                stmt.execute(createTableStmt)
-            }
+        // Create test table
+        val createTableStmt = "CREATE TABLE $tableName (id INT PRIMARY KEY, name VARCHAR(255));"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(createTableStmt)
+        }
 
-            // Insert rows
-            val insertStmt = "INSERT INTO $tableName VALUES (1, 'test1'), (2, 'test2');"
-            conn.createStatement().use { stmt ->
-                stmt.execute(insertStmt)
-            }
+        // Insert rows
+        val insertStmt = "INSERT INTO $tableName VALUES (1, 'test1'), (2, 'test2');"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(insertStmt)
+        }
 
-            // Execute query
-            queryExecutor.executeQueryAndDo(sqlStmt) { resultSet ->
-                assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
-                assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
-                assertTrue(resultSet.getString("name") == "test1", "Row with id 1 should exist in table $tableName")
-                assertTrue(resultSet.next(), "Row with id 2 should exist in table $tableName")
-                assertTrue(resultSet.getInt("id") == 2, "Row with id 2 should exist in table $tableName")
-                assertTrue(resultSet.getString("name") == "test2", "Row with id 2 should exist in table $tableName")
-                assertFalse(resultSet.next(), "There should be only two rows in table $tableName")
-            }
+        // Execute query
+        queryExecutor.executeQueryAndDo(sqlStmt, mConn) { resultSet ->
+            assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
+            assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
+            assertTrue(resultSet.getString("name") == "test1", "Row with id 1 should exist in table $tableName")
+            assertTrue(resultSet.next(), "Row with id 2 should exist in table $tableName")
+            assertTrue(resultSet.getInt("id") == 2, "Row with id 2 should exist in table $tableName")
+            assertTrue(resultSet.getString("name") == "test2", "Row with id 2 should exist in table $tableName")
+            assertFalse(resultSet.next(), "There should be only two rows in table $tableName")
+        }
 
-            // cleanup
-            val dropTableStmt = "DROP TABLE $tableName;"
-            conn.createStatement().use { stmt ->
-                stmt.execute(dropTableStmt)
-            }
+        // cleanup
+        val dropTableStmt = "DROP TABLE $tableName;"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(dropTableStmt)
         }
     }
 
@@ -411,38 +382,33 @@ class QueryExecutorTest {
             )
         }
 
-        getTestDbConnection().use { conn ->
-            queryExecutor.executeSqlScript(sqlScript)
+        queryExecutor.executeSqlScript(sqlScript, conn = mConn)
 
-            // Check if table exists
-            val query = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$TEST_DATABASE'"
-            conn.createStatement().use { stmt ->
-                stmt.executeQuery(query).use { resultSet ->
-                    val tableNames = mutableListOf<String>()
-
-                    while (resultSet.next()) {
-                        tableNames.add(resultSet.getString("table_name"))
-                    }
-
-                    assertTrue(tableNames.contains(tableName), "Table $tableName should exist")
-                }
+        // Check if table exists
+        val query =
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = '$TEST_DATABASE_QUERY_EXECUTOR' AND table_name = '$tableName'"
+        mConn.createStatement().use { stmt ->
+            stmt.executeQuery(query).use { resultSet ->
+                assertTrue(resultSet.next(), "Table $tableName should exist")
+                assertTrue(resultSet.getString("table_name") == tableName, "Table $tableName should exist")
+                assertFalse(resultSet.next(), "There should be only one table")
             }
+        }
 
-            // Check if row exists
-            val query2 = "SELECT * FROM $tableName;"
-            conn.createStatement().use { stmt ->
-                stmt.executeQuery(query2).use { resultSet ->
-                    assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
-                    assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
-                    assertFalse(resultSet.next(), "There should be only one row in table $tableName")
-                }
+        // Check if row exists
+        val query2 = "SELECT * FROM $tableName;"
+        mConn.createStatement().use { stmt ->
+            stmt.executeQuery(query2).use { resultSet ->
+                assertTrue(resultSet.next(), "Row with id 1 should exist in table $tableName")
+                assertTrue(resultSet.getInt("id") == 1, "Row with id 1 should exist in table $tableName")
+                assertFalse(resultSet.next(), "There should be only one row in table $tableName")
             }
+        }
 
-            // cleanup
-            val dropTableStmt = "DROP TABLE $tableName;"
-            conn.createStatement().use { stmt ->
-                stmt.execute(dropTableStmt)
-            }
+        // cleanup
+        val dropTableStmt = "DROP TABLE $tableName;"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(dropTableStmt)
         }
     }
 
@@ -450,18 +416,16 @@ class QueryExecutorTest {
     @DisplayName("Should execute SQL script as transaction when runAsTransaction is true")
     fun shouldExecuteSqlScriptAsTransactionWhenRunAsTransactionIsTrue() {
         // Create mock objects
-        val connectionSourceMock = mock<ConnectionSource>()
-        val hikariDataSourceMock = mock<HikariDataSource>()
-        val connectionMock = mock<Connection>()
-        val statementMock = mock<Statement>()
+        val connectionSourceMock: ConnectionSource = mock()
+        val hikariDataSourceMock: HikariDataSource = mock()
+        val connectionMock: Connection = mock()
+        val statementMock: Statement = mock()
         val resultSetMock = mock<ResultSet>()
 
-        // Create a QueryExecutor instance with the mocked objects
-        val queryExecutor = QueryExecutor("test_database")
-        queryExecutor.connectionSource = connectionSourceMock
+        val queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
 
         // Mock the behavior of the mocked objects
-        whenever(connectionSourceMock.getConnection("test_database")).thenReturn(hikariDataSourceMock)
+        whenever(connectionSourceMock.getConnection(TEST_DATABASE_QUERY_EXECUTOR)).thenReturn(hikariDataSourceMock)
         whenever(hikariDataSourceMock.connection).thenReturn(connectionMock)
         whenever(connectionMock.createStatement()).thenReturn(statementMock)
         whenever(statementMock.executeQuery(any())).thenReturn(resultSetMock)
@@ -476,17 +440,14 @@ class QueryExecutorTest {
             """.trimMargin()
             )
         }
-        queryExecutor.executeSqlScript(sqlScript, true)
+        queryExecutor.executeSqlScript(sqlScript, true, connectionMock)
 
         // Verify the expected interactions
-        verify(connectionSourceMock).getConnection("test_database")
-        verify(hikariDataSourceMock).connection
         verify(connectionMock, times(3)).createStatement()
         verify(statementMock).executeUpdate("INSERT INTO $table VALUES (1)")
         verify(statementMock).executeUpdate("INSERT INTO $table VALUES (2)")
         verify(statementMock).executeUpdate("INSERT INTO $table VALUES (3)")
         verify(connectionMock).commit()
-        verify(connectionMock).close()
         verify(connectionMock).autoCommit = false
         verify(connectionMock).autoCommit = true
     }
@@ -502,11 +463,10 @@ class QueryExecutorTest {
         val resultSetMock = mock<ResultSet>()
 
         // Create a QueryExecutor instance with the mocked objects
-        val queryExecutor = QueryExecutor("test_database")
-        queryExecutor.connectionSource = connectionSourceMock
+        val queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
 
         // Mock the behavior of the mocked objects
-        whenever(connectionSourceMock.getConnection("test_database")).thenReturn(hikariDataSourceMock)
+        whenever(connectionSourceMock.getConnection(TEST_DATABASE_QUERY_EXECUTOR)).thenReturn(hikariDataSourceMock)
         whenever(hikariDataSourceMock.connection).thenReturn(connectionMock)
         whenever(connectionMock.createStatement()).thenReturn(statementMock)
         whenever(statementMock.executeQuery(any())).thenReturn(resultSetMock)
@@ -522,17 +482,14 @@ class QueryExecutorTest {
             """.trimMargin()
             )
         }
-        assertThrows<SQLException> { queryExecutor.executeSqlScript(sqlScript, true) }
+        assertThrows<SQLException> { queryExecutor.executeSqlScript(sqlScript, true, connectionMock) }
 
         // Verify the expected interactions
-        verify(connectionSourceMock).getConnection("test_database")
-        verify(hikariDataSourceMock).connection
         verify(connectionMock).createStatement()
         verify(statementMock).executeUpdate("INSERT INTO $table VALUES (1)")
         verify(statementMock, never()).executeUpdate("INSERT INTO $table VALUES (2)")
         verify(statementMock, never()).executeUpdate("INSERT INTO $table VALUES (3)")
         verify(connectionMock).rollback()
-        verify(connectionMock).close()
         verify(connectionMock).autoCommit = false
         verify(connectionMock).autoCommit = true
     }
@@ -543,30 +500,28 @@ class QueryExecutorTest {
     fun shouldReturnTheNumberOfItemsInTheSpecifiedTable() {
         val tableName = "test_table1"
         // create table
-        getTestDbConnection().use { conn ->
-            conn.createStatement().use { stmt ->
-                stmt.executeUpdate("CREATE TABLE $tableName (id INT);")
-            }
+        mConn.createStatement().use { stmt ->
+            stmt.executeUpdate("CREATE TABLE $tableName (id INT);")
+        }
 
-            val sqlScript = File("temp.sql").apply {
-                writeText(
-                    """INSERT INTO $tableName VALUES (1);
+        val sqlScript = File("temp.sql").apply {
+            writeText(
+                """INSERT INTO $tableName VALUES (1);
                     |INSERT INTO $tableName VALUES (2);
                     |INSERT INTO $tableName VALUES (3);""".trimMargin()
-                )
-            }
+            )
+        }
 
-            queryExecutor.executeSqlScript(sqlScript)
+        queryExecutor.executeSqlScript(sqlScript, conn = mConn)
 
-            val itemCount = queryExecutor.getItemCount(tableName)
+        val itemCount = queryExecutor.getItemCount(tableName, conn = mConn)
 
-            assertEquals(3, itemCount, "There should be 3 items in table $tableName")
+        assertEquals(3, itemCount, "There should be 3 items in table $tableName")
 
-            // cleanup
-            val dropTableStmt = "DROP TABLE $tableName;"
-            conn.createStatement().use { stmt ->
-                stmt.execute(dropTableStmt)
-            }
+        // cleanup
+        val dropTableStmt = "DROP TABLE $tableName;"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(dropTableStmt)
         }
     }
 
@@ -575,20 +530,18 @@ class QueryExecutorTest {
     fun shouldReturnZeroWhenTheSpecifiedTableIsEmpty() {
         val tableName = "test_table2"
         // create table
-        getTestDbConnection().use { conn ->
-            conn.createStatement().use { stmt ->
-                stmt.executeUpdate("CREATE TABLE $tableName (id INT);")
-            }
+        mConn.createStatement().use { stmt ->
+            stmt.executeUpdate("CREATE TABLE $tableName (id INT);")
+        }
 
-            val itemCount = queryExecutor.getItemCount(tableName)
+        val itemCount = queryExecutor.getItemCount(tableName, conn = mConn)
 
-            assertEquals(0, itemCount, "There should be 0 items in table $tableName")
+        assertEquals(0, itemCount, "There should be 0 items in table $tableName")
 
-            // cleanup
-            val dropTableStmt = "DROP TABLE $tableName;"
-            conn.createStatement().use { stmt ->
-                stmt.execute(dropTableStmt)
-            }
+        // cleanup
+        val dropTableStmt = "DROP TABLE $tableName;"
+        mConn.createStatement().use { stmt ->
+            stmt.execute(dropTableStmt)
         }
     }
 
@@ -606,10 +559,6 @@ class QueryExecutorTest {
         whenever(dataSource.connection).thenReturn(connection)
         whenever(connection.prepareStatement(any(), any<Int>())).thenReturn(preparedStatement)
 
-        // Create an instance of QueryExecutor
-        val queryExecutor = QueryExecutor("test_database")
-        queryExecutor.connectionSource = connectionSource
-
         // Define the SQL statement and the batch action
         val sql = "INSERT INTO users (name, age) VALUES (?, ?)"
         val batchAction: (PreparedStatement) -> Unit = { stmt ->
@@ -626,11 +575,14 @@ class QueryExecutorTest {
         whenever(preparedStatement.executeBatch()).thenReturn(intArrayOf(1, 1))
 
         // Call the method under test
-        val result = queryExecutor.executePreparedStatementBatch(sql, Statement.RETURN_GENERATED_KEYS, batchAction)
+        val result = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR).executePreparedStatementBatch(
+            sql,
+            Statement.RETURN_GENERATED_KEYS,
+            connection,
+            batchAction
+        )
 
         // Verify the interactions and assertions
-        verify(connectionSource).getConnection("test_database")
-        verify(dataSource).connection
         verify(connection).prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
         verify(preparedStatement).setString(1, "John")
         verify(preparedStatement).setInt(2, 30)
@@ -662,8 +614,7 @@ class QueryExecutorTest {
         whenever(connection.prepareStatement(any(), any<Int>())).thenReturn(preparedStatement)
 
         // Create an instance of QueryExecutor
-        val queryExecutor = QueryExecutor("test_database")
-        queryExecutor.connectionSource = connectionSource
+        val queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
 
         // Define the SQL statement and the batch action
         val sql = "INSERT INTO users (name, age) VALUES (?, ?)"
@@ -681,7 +632,7 @@ class QueryExecutorTest {
         whenever(preparedStatement.executeBatch()).thenReturn(intArrayOf(1, 1))
 
         // Call the method under test
-        val result = queryExecutor.executePreparedStatementBatch(sql, Statement.RETURN_GENERATED_KEYS, batchAction)
+        val result = queryExecutor.executePreparedStatementBatch(sql, Statement.RETURN_GENERATED_KEYS, connection, batchAction)
 
         // Verify the interactions and assertions
         assertEquals(2, result.size)
@@ -707,8 +658,7 @@ class QueryExecutorTest {
         whenever(connection.prepareStatement(any())).thenReturn(preparedStatement)
 
         // Create an instance of QueryExecutor
-        val queryExecutor = QueryExecutor("test_database")
-        queryExecutor.connectionSource = connectionSource
+        val queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
 
         // Define the SQL statement and the action
         val sql = "INSERT INTO users (name, age) VALUES (?, ?)"
@@ -723,10 +673,9 @@ class QueryExecutorTest {
         }
 
         // Call the method under test
-        queryExecutor.executePreparedStatement(sql, action)
+        queryExecutor.executePreparedStatement(sql, connection, action)
 
         // Verify the interactions and assertions
-        verify(connectionSource).getConnection("test_database")
         verify(connection).prepareStatement(sql)
         verify(preparedStatement).setString(1, "John")
         verify(preparedStatement).setInt(2, 30)
@@ -738,97 +687,31 @@ class QueryExecutorTest {
 
     @AfterEach
     fun tearDown() {
-        dropAllTables(conn)
+        dropAllTables(mConn, TEST_DATABASE_QUERY_EXECUTOR)
     }
 
     companion object {
         private lateinit var queryExecutor: QueryExecutor
         internal const val TEST_DATABASE_QUERY_EXECUTOR = "credit_updater_test_qe"
-        private lateinit var conn: Connection
+        private lateinit var mConn: Connection
 
         @BeforeAll
         @JvmStatic
         fun setUp() {
-            conn = getDbConnection(TEST_DATABASE_QUERY_EXECUTOR)
-            conn.autoCommit = false
+            mConn = getDbConnection(TEST_DATABASE_QUERY_EXECUTOR)
             queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
 
-            dropAllTables(conn)
+            dropAllTables(mConn, TEST_DATABASE_QUERY_EXECUTOR)
         }
 
         @AfterAll
         @JvmStatic
         fun breakDown() {
-            dropAllTables(conn)
-            conn.rollback()
-            conn.close()
+            dropAllTables(mConn, TEST_DATABASE_QUERY_EXECUTOR)
+            mConn.close()
             removeSqlScriptFiles()
         }
 
         private fun removeSqlScriptFiles(): Boolean = File("temp.sql").delete()
-
-        internal fun dropAllTables(conn: Connection) {
-            try {
-                // disable foreign key checks
-                conn.createStatement().use { stmt ->
-                    stmt.execute("SET FOREIGN_KEY_CHECKS = 0")
-                }
-
-                val tablesQuery =
-                    """SELECT table_name 
-                            |FROM information_schema.tables 
-                            |WHERE table_schema = '$TEST_DATABASE_QUERY_EXECUTOR' 
-                            |AND table_type = 'BASE TABLE'""".trimMargin()
-
-                val viewsQuery =
-                    """SELECT table_name 
-                            |FROM information_schema.tables 
-                            |WHERE table_schema = '$TEST_DATABASE_QUERY_EXECUTOR' 
-                            |AND table_type = 'VIEW'""".trimMargin()
-
-                conn.createStatement().use { stmt ->
-                    // Retrieve the names of all tables in the database
-                    stmt.executeQuery(tablesQuery).use { resultSet ->
-                        val tableNames = mutableListOf<String>()
-
-                        // Store the table names in a list
-                        while (resultSet.next()) {
-                            val tableName = resultSet.getString("table_name")
-                            tableNames.add(tableName)
-                        }
-
-                        // Generate and execute DROP TABLE statements for each table
-                        tableNames.forEach { tableName ->
-                            val dropStatement = "DROP TABLE $tableName"
-                            stmt.executeUpdate(dropStatement)
-                        }
-                    }
-
-                    // Retrieve the names of all views in the database
-                    stmt.executeQuery(viewsQuery).use { resultSet ->
-                        val viewNames = mutableListOf<String>()
-
-                        // Store the view names in a list
-                        while (resultSet.next()) {
-                            val viewName = resultSet.getString("table_name")
-                            viewNames.add(viewName)
-                        }
-
-                        // Generate and execute DROP VIEW statements for each view
-                        viewNames.forEach { viewName ->
-                            val dropStatement = "DROP VIEW $viewName"
-                            stmt.executeUpdate(dropStatement)
-                        }
-                    }
-                }
-            } catch (e: SQLException) {
-                e.printStackTrace()
-            } finally {
-                // enable foreign key checks
-                conn.createStatement().use { stmt ->
-                    stmt.execute("SET FOREIGN_KEY_CHECKS = 1")
-                }
-            }
-        }
     }
 }

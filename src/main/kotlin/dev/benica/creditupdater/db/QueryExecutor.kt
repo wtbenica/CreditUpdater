@@ -1,33 +1,19 @@
 package dev.benica.creditupdater.db
 
-import dev.benica.creditupdater.di.ConnectionSource
-import dev.benica.creditupdater.di.DaggerDatabaseComponent
 import dev.benica.creditupdater.di.DatabaseComponent
 import mu.KLogger
 import mu.KotlinLogging
 import java.io.File
 import java.sql.*
-import javax.inject.Inject
 
 /**
  * A collection of functions that execute SQL queries.
  *
  * @param schema the name of the database to use
- * @param databaseComponent the [DatabaseComponent] to use, defaults to a
- *     new [DaggerDatabaseComponent]
  */
 class QueryExecutor(
     private val schema: String,
-    databaseComponent: DatabaseComponent = DaggerDatabaseComponent.create(),
 ) {
-    init {
-        databaseComponent.inject(this)
-    }
-
-    // Dependencies
-    @Inject
-    internal lateinit var connectionSource: ConnectionSource
-
     // Private Properties
     private val logger: KLogger
         get() = KotlinLogging.logger(this::class.java.simpleName)
@@ -53,12 +39,10 @@ class QueryExecutor(
      *     used. Any statement is committed and the connection is closed.
      */
     @Throws(SQLException::class)
-    fun executeSqlStatement(sqlStmt: String, connection: Connection? = null) {
-        val conn = connection ?: connectionSource.getConnection(schema).connection
-
+    fun executeSqlStatement(sqlStmt: String, connection: Connection) {
         try {
             @Suppress("kotlin:S6314")
-            conn.createStatement().use { stmt ->
+            connection.createStatement().use { stmt ->
                 when {
                     sqlStmt.startsWithAny(listOf("INSERT", "UPDATE", "DELETE")) -> stmt.executeUpdate(sqlStmt)
                     //sqlStmt.startsWithAny(listOf("SELECT")) -> throw SQLException("Use executeQueryAndDo for SELECT statements")
@@ -68,10 +52,6 @@ class QueryExecutor(
         } catch (sqlEx: SQLException) {
             logger.error("Error running SQL script $sqlStmt", sqlEx)
             throw sqlEx
-        } finally {
-            if (connection == null) {
-                conn.close()
-            }
         }
     }
 
@@ -83,12 +63,10 @@ class QueryExecutor(
      * @throws SQLException if an error occurs
      */
     @Throws(SQLException::class)
-    fun executeQueryAndDo(query: String, handleResultSet: (ResultSet) -> Unit) {
-        connectionSource.getConnection(schema).connection.use { c ->
-            c.createStatement().use { stmt ->
-                stmt.executeQuery(query).use { rs ->
-                    handleResultSet(rs)
-                }
+    fun executeQueryAndDo(query: String, conn: Connection, handleResultSet: (ResultSet) -> Unit) {
+        conn.createStatement().use { stmt ->
+            stmt.executeQuery(query).use { rs ->
+                handleResultSet(rs)
             }
         }
     }
@@ -96,8 +74,9 @@ class QueryExecutor(
     /**
      * Runs an SQL script.
      *
-     * Statements must be separated by a semicolon \(;). If the script is run as
-     * a transaction, the script will be rolled back if an exception is thrown.
+     * Statements must be separated by a semicolon \(;). If the script is run
+     * as a transaction, the script will be rolled back if an exception is
+     * thrown.
      * - Note: This function does not handle semicolons in strings.
      * - Note: Comments must be followed by a semicolon. If not, the following
      *   statement will be commented out.
@@ -109,28 +88,27 @@ class QueryExecutor(
     @Throws(SQLException::class)
     fun executeSqlScript(
         sqlScript: File,
-        runAsTransaction: Boolean = false
+        runAsTransaction: Boolean = false,
+        conn: Connection,
     ) {
-        connectionSource.getConnection(schema).connection.use { conn ->
-            try {
-                val statements: List<String> = sqlScript.parseSqlScript()
-                if (runAsTransaction) {
-                    conn.autoCommit = false
-                    executeStatements(statements, conn)
-                    conn.commit()
-                } else {
-                    executeStatements(statements)
-                }
-            } catch (sqlEx: SQLException) {
-                logger.error("Error running SQL script", sqlEx)
-                if (runAsTransaction) {
-                    conn.rollback()
-                }
-                throw sqlEx
-            } finally {
-                if (runAsTransaction) {
-                    conn.autoCommit = true
-                }
+        try {
+            val statements: List<String> = sqlScript.parseSqlScript()
+            if (runAsTransaction) {
+                conn.autoCommit = false
+                executeStatements(statements, conn)
+                conn.commit()
+            } else {
+                executeStatements(statements, conn)
+            }
+        } catch (sqlEx: SQLException) {
+            logger.error("Error running SQL script", sqlEx)
+            if (runAsTransaction) {
+                conn.rollback()
+            }
+            throw sqlEx
+        } finally {
+            if (runAsTransaction) {
+                conn.autoCommit = true
             }
         }
     }
@@ -141,7 +119,7 @@ class QueryExecutor(
      *
      * @param statements the list of statements
      */
-    internal fun executeStatements(statements: List<String>, conn: Connection? = null) {
+    internal fun executeStatements(statements: List<String>, conn: Connection) {
         logger.info { "executeStatements: ${statements.size} statements" }
         statements.filter { it.isNotBlank() }.forEach { sqlStmt ->
             logger.info { "${sqlStmt.replace("\\s{2,}".toRegex(), "\n")}\n" }
@@ -192,16 +170,15 @@ class QueryExecutor(
     @Throws(SQLException::class)
     internal fun getItemCount(
         tableName: String,
-        condition: String? = null
+        condition: String? = null,
+        conn: Connection
     ): Int {
         val sql =
             "SELECT COUNT(*) AS count FROM $tableName g" + if (condition != null) " WHERE $condition" else ""
-        connectionSource.getConnection(schema).connection.use { conn ->
-            conn.createStatement().use { stmt ->
-                val rs = stmt.executeQuery(sql)
-                rs.next()
-                return rs.getInt(1)
-            }
+        conn.createStatement().use { stmt ->
+            val rs = stmt.executeQuery(sql)
+            rs.next()
+            return rs.getInt(1)
         }
     }
 
@@ -218,13 +195,12 @@ class QueryExecutor(
     fun executePreparedStatementBatch(
         sql: String,
         autoGeneratedKeys: Int = Statement.NO_GENERATED_KEYS,
+        conn: Connection,
         batchAction: (PreparedStatement) -> Unit
     ): IntArray =
-        connectionSource.getConnection(schema).connection.use { conn ->
-            conn.prepareStatement(sql, autoGeneratedKeys).use { stmt ->
-                batchAction(stmt)
-                stmt.executeBatch()
-            }
+        conn.prepareStatement(sql, autoGeneratedKeys).use { stmt ->
+            batchAction(stmt)
+            stmt.executeBatch()
         }
 
     /**
@@ -237,11 +213,10 @@ class QueryExecutor(
     @Throws(SQLException::class)
     fun executePreparedStatement(
         sql: String,
+        conn: Connection,
         act: (PreparedStatement) -> Unit
-    ) = connectionSource.getConnection(schema).connection.use { conn ->
-        conn.prepareStatement(sql).use { stmt ->
-            act(stmt)
-        }
+    ) = conn.prepareStatement(sql).use { stmt ->
+        act(stmt)
     }
 
     private fun File.parseSqlScript(): List<String> =

@@ -1,10 +1,9 @@
 package dev.benica.creditupdater.extractor
 
 import com.zaxxer.hikari.HikariDataSource
-import dev.benica.creditupdater.Credentials
-import dev.benica.creditupdater.db.QueryExecutorTest
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.setup
+import dev.benica.creditupdater.db.TestDatabaseSetup
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import dev.benica.creditupdater.di.*
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -15,7 +14,7 @@ import java.sql.ResultSet
 import java.sql.SQLException
 
 class CreditExtractorTest {
-    private val database: String = Credentials.TEST_DATABASE
+    private val database: String = TEST_DATABASE_CREDIT_EXRACTOR
     private lateinit var connectionSource: ConnectionSource
     private lateinit var dataSource: HikariDataSource
     private lateinit var connection: Connection
@@ -32,10 +31,8 @@ class CreditExtractorTest {
 
         creditExtractor = CreditExtractor(database)
 
-        getTestDbConnection().use { conn ->
-            conn.createStatement().use {
-                it.execute("TRUNCATE TABLE m_story_credit")
-            }
+        mConn.createStatement().use {
+            it.execute("TRUNCATE TABLE m_story_credit")
         }
     }
 
@@ -43,10 +40,8 @@ class CreditExtractorTest {
     @DisplayName("should extract credits and insert them into the database")
     fun shouldExtractCreditsAndInsertThemIntoTheDatabase() {
         // Truncate gcd_story_credit
-        getTestDbConnection().use { conn ->
-            conn.createStatement().use {
-                it.execute("TRUNCATE TABLE gcd_story_credit")
-            }
+        mConn.createStatement().use {
+            it.execute("TRUNCATE TABLE gcd_story_credit")
         }
 
         val resultSet = mock<ResultSet>()
@@ -64,38 +59,36 @@ class CreditExtractorTest {
         assertEquals(1, result)
 
         // verify against database
-        getTestDbConnection().use { conn ->
-            conn.createStatement().use {
-                val res =
-                    it.executeQuery("SELECT * FROM m_story_credit WHERE story_id = 1 ORDER BY creator_id, credit_type_id")
-                res.next()
-                assertEquals(1, res.getInt("creator_id"))
-                assertEquals(1, res.getInt("credit_type_id"))
-                res.next()
-                assertEquals(2, res.getInt("creator_id"))
-                assertEquals(2, res.getInt("credit_type_id"))
-                res.next()
-                assertEquals(2, res.getInt("creator_id"))
-                assertEquals(3, res.getInt("credit_type_id"))
-                res.next()
-                assertEquals(3, res.getInt("creator_id"))
-                assertEquals(2, res.getInt("credit_type_id"))
-                res.next()
-                assertEquals(4, res.getInt("creator_id"))
-                assertEquals(3, res.getInt("credit_type_id"))
-                res.next()
-                assertEquals(5, res.getInt("creator_id"))
-                assertEquals(4, res.getInt("credit_type_id"))
-                res.next()
-                assertEquals(6, res.getInt("creator_id"))
-                assertEquals(5, res.getInt("credit_type_id"))
-                res.next()
-                assertEquals(7, res.getInt("creator_id"))
-                assertEquals(6, res.getInt("credit_type_id"))
-                res.next()
-                assertEquals(8, res.getInt("creator_id"))
-                assertEquals(6, res.getInt("credit_type_id"))
-            }
+        mConn.createStatement().use {
+            val res =
+                it.executeQuery("SELECT * FROM m_story_credit WHERE story_id = 1 ORDER BY creator_id, credit_type_id")
+            res.next()
+            assertEquals(1, res.getInt("creator_id"))
+            assertEquals(1, res.getInt("credit_type_id"))
+            res.next()
+            assertEquals(2, res.getInt("creator_id"))
+            assertEquals(2, res.getInt("credit_type_id"))
+            res.next()
+            assertEquals(2, res.getInt("creator_id"))
+            assertEquals(3, res.getInt("credit_type_id"))
+            res.next()
+            assertEquals(3, res.getInt("creator_id"))
+            assertEquals(2, res.getInt("credit_type_id"))
+            res.next()
+            assertEquals(4, res.getInt("creator_id"))
+            assertEquals(3, res.getInt("credit_type_id"))
+            res.next()
+            assertEquals(5, res.getInt("creator_id"))
+            assertEquals(4, res.getInt("credit_type_id"))
+            res.next()
+            assertEquals(6, res.getInt("creator_id"))
+            assertEquals(5, res.getInt("credit_type_id"))
+            res.next()
+            assertEquals(7, res.getInt("creator_id"))
+            assertEquals(6, res.getInt("credit_type_id"))
+            res.next()
+            assertEquals(8, res.getInt("creator_id"))
+            assertEquals(6, res.getInt("credit_type_id"))
         }
     }
 
@@ -110,12 +103,21 @@ class CreditExtractorTest {
     }
 
     companion object {
+        private const val TEST_DATABASE_CREDIT_EXRACTOR = "credit_updater_test_credit_extractor"
+        private lateinit var mConn: Connection
+
         @BeforeAll
         @JvmStatic
-        fun setUpAll() = setup()
+        fun setUpAll() {
+            mConn = getDbConnection(TEST_DATABASE_CREDIT_EXRACTOR)
+            TestDatabaseSetup.setup(schema = TEST_DATABASE_CREDIT_EXRACTOR)
+        }
 
         @AfterAll
         @JvmStatic
-        fun tearDownAll() = QueryExecutorTest.breakDown()
+        fun tearDownAll() {
+            dropAllTables(mConn, TEST_DATABASE_CREDIT_EXRACTOR)
+            mConn.close()
+        }
     }
 }

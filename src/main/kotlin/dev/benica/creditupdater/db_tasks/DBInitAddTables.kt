@@ -1,11 +1,13 @@
 package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.db.QueryExecutor
+import java.sql.Connection
 
 @Suppress("kotlin:S1192")
 class DBInitAddTables(
     private val queryExecutor: QueryExecutor,
-    private val targetSchema: String
+    private val targetSchema: String,
+    private val conn: Connection
 ) {
     // Public Methods
     /**
@@ -58,7 +60,7 @@ class DBInitAddTables(
             """select 'Column Exists' status"""
         )
 
-        queryExecutor.executeStatements(statement)
+        queryExecutor.executeStatements(statement, conn)
     }
 
     /**
@@ -82,7 +84,7 @@ class DBInitAddTables(
             """select 'Column Exists' status"""
         )
 
-        queryExecutor.executeStatements(statement)
+        queryExecutor.executeStatements(statement, conn)
     }
 
     /**
@@ -105,7 +107,7 @@ class DBInitAddTables(
             """select 'Column Exists' status"""
         )
 
-        queryExecutor.executeStatements(statement)
+        queryExecutor.executeStatements(statement, conn)
     }
 
     /**
@@ -129,7 +131,7 @@ class DBInitAddTables(
             """select 'Column Exists' status"""
         )
 
-        queryExecutor.executeStatements(statement)
+        queryExecutor.executeStatements(statement, conn)
     }
 
     /** Add the 'm_characters' table if it does not exist. */
@@ -144,7 +146,7 @@ class DBInitAddTables(
             UNIQUE INDEX (name, alter_ego, publisher_id)
             );""".trimIndent()
 
-        queryExecutor.executeSqlStatement(statement)
+        queryExecutor.executeSqlStatement(statement, conn)
     }
 
     /** Add the 'm_character_appearance' table if it does not exist. */
@@ -167,14 +169,14 @@ class DBInitAddTables(
             UNIQUE INDEX (details, character_id, story_id, notes)
             );""".trimIndent()
 
-        queryExecutor.executeSqlStatement(statement)
+        queryExecutor.executeSqlStatement(statement, conn)
     }
 
     /** Add the 'm_story_credit' table if it does not exist. */
     internal fun createExtractedStoryCreditsTableIfNotExists() {
         val statement = """CREATE TABLE IF NOT EXISTS $targetSchema.m_story_credit LIKE gcd_story_credit;""".trimIndent()
 
-        queryExecutor.executeSqlStatement(statement)
+        queryExecutor.executeSqlStatement(statement, conn)
     }
 
     /**
@@ -196,7 +198,7 @@ class DBInitAddTables(
             """select 'Constraint Exists' status"""
         )
 
-        queryExecutor.executeStatements(statement)
+        queryExecutor.executeStatements(statement, conn)
     }
 
     /**
@@ -220,7 +222,7 @@ class DBInitAddTables(
             """select 'Constraint Exists' status"""
         )
 
-        queryExecutor.executeStatements(statement)
+        queryExecutor.executeStatements(statement, conn)
     }
 
     /**
@@ -244,7 +246,7 @@ class DBInitAddTables(
             """select 'Constraint Exists' status"""
         )
 
-        queryExecutor.executeStatements(statement)
+        queryExecutor.executeStatements(statement, conn)
     }
 
     /**
@@ -268,7 +270,7 @@ class DBInitAddTables(
             """select 'Constraint Exists' status"""
         )
 
-        queryExecutor.executeStatements(statement)
+        queryExecutor.executeStatements(statement, conn)
     }
 
     /**
@@ -292,7 +294,7 @@ class DBInitAddTables(
             """select 'Constraint Exists' status"""
         )
 
-        queryExecutor.executeStatements(statement)
+        queryExecutor.executeStatements(statement, conn)
     }
 
     /**
@@ -316,7 +318,7 @@ class DBInitAddTables(
             """select 'Constraint Exists' status"""
         )
 
-        queryExecutor.executeStatements(statement)
+        queryExecutor.executeStatements(statement, conn)
     }
 
     private fun ifNotExistStatement(
