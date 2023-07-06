@@ -14,13 +14,13 @@ import kotlin.jvm.Throws
 /**
  * Credit extractor - creates linked credits from named credits
  *
- * @param database the database
+ * @param schema the database
  * @constructor Create empty Credit extractor
  */
 class CreditExtractor(
-    database: String,
+    schema: String,
     repositoryComponent: CreditRepositoryComponent = DaggerCreditRepositoryComponent.create()
-) : Extractor(database) {
+) : Extractor(schema) {
     override val extractTable: String = "gcd_story"
     override val extractedItem = "Credit"
     override val fromValue = "StoryId"
@@ -32,7 +32,7 @@ class CreditExtractor(
 
     init {
         repositoryComponent.inject(this)
-        repository = repoSource.getRepo(database)
+        repository = repoSource.getRepo(schema)
     }
 
     private val logger: KLogger

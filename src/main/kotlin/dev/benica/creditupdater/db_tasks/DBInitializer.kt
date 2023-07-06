@@ -67,8 +67,14 @@ class DBInitializer(
                     dropIsSourcedAndSourcedByColumns()
                     DBInitAddTables(
                         queryExecutor = QueryExecutor(targetSchema),
-                        database = targetSchema,
+                        targetSchema = targetSchema,
                     ).addTablesAndConstraints()
+
+                    DBInitCreateDeleteViews(
+                        queryExecutor = QueryExecutor(targetSchema),
+                        targetSchema = targetSchema,
+                    ).createDeleteViews()
+
                     removeUnnecessaryRecords()
                 }
 
@@ -133,7 +139,6 @@ class DBInitializer(
      */
     @Throws(SQLException::class)
     private fun removeUnnecessaryRecords() {
-        dbTask.runSqlScript(sqlScriptPath = INIT_CREATE_VIEWS_FOR_DELETION)
         dbTask.runSqlScript(sqlScriptPath = INIT_REMOVE_ITEMS)
     }
 
@@ -151,13 +156,6 @@ class DBInitializer(
         dbTask.runSqlScript(sqlScriptPath = ISSUE_SERIES_PATH, runAsTransaction = true)
 
     companion object {
-        /**
-         * This script creates several views that filter out records from the
-         * database based on certain criteria. These views are then used to delete
-         * records from various tables in the database.
-         */
-        const val INIT_CREATE_VIEWS_FOR_DELETION = "src/main/resources/sql/init_create_views_for_deletion.sql"
-
         /**
          * This script creates several views that filter out records from the
          * database based on certain criteria. These views are then used to delete
