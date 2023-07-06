@@ -59,7 +59,7 @@ class CLIParser {
     var migrate: List<String>? = null
 
     @Parameter(
-        names = ["-i", "--init"],
+        names = ["-n", "--init"],
         description = "Starting story id",
         validateWith = [StartIdValidator::class],
         arity = 1
@@ -67,7 +67,7 @@ class CLIParser {
     var startingId: Int? = null
 
     @Parameter(
-        names = ["-w", "--interactive"],
+        names = ["-i", "--interactive"],
         description = "Start in interactive mode",
     )
     var interactive: Boolean = false
