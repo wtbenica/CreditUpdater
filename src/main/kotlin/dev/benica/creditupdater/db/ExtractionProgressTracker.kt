@@ -18,8 +18,6 @@ import javax.inject.Named
 /**
  * A class that tracks the progress of an extraction.
  *
- * @note The caller is responsible for closing the tracker.
- *
  * @param extractedType the type of data being extracted
  * @param targetSchema the schema to extract data from
  * @param totalItems the total number of items to extract
@@ -30,6 +28,8 @@ import javax.inject.Named
  * @param logger the [KLogger] to use, defaults to a new [KotlinLogging]
  *     logger
  *    - Note: This is only used for testing
+ *
+ * @note The caller is responsible for closing the tracker.
  */
 class ExtractionProgressTracker(
     internal val extractedType: String,
@@ -38,7 +38,7 @@ class ExtractionProgressTracker(
     internal val progressInfoMap: ProgressInfoMap = ProgressInfoMap(),
     dispatchAndExecuteComponent: DispatchAndExecuteComponent? = DaggerDispatchAndExecuteComponent.create(),
     private val logger: KLogger = KotlinLogging.logger(this::class.java.simpleName)
-): AutoCloseable {
+) : AutoCloseable {
     @Volatile
     var progressInfo: ProgressInfo
         private set

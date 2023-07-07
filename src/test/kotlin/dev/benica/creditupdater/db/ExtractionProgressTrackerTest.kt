@@ -85,7 +85,8 @@ class ExtractionProgressTrackerTest {
     @Test
     @DisplayName("should load progress info correctly when there is no existing progress file")
     fun shouldLoadProgressInfoCorrectlyWhenThereIsNoExistingProgressFile() {
-        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE_EPT, 10, ProgressInfoMap("nonexistent_progress.json"))
+        val ept =
+            ExtractionProgressTracker("Credit", TEST_DATABASE_EPT, 10, ProgressInfoMap("nonexistent_progress.json"))
         val progressInfoMap = ept.progressInfoMap
         assertEquals(0, progressInfoMap.get("Credit").lastProcessedItemId)
         assertEquals(0, progressInfoMap.get("Credit").totalTimeMillis)
@@ -273,6 +274,37 @@ class ExtractionProgressTrackerTest {
     }
 
     @Test
+    @DisplayName("should return correct last processed item id when file does not contain itemType")
+    fun shouldReturnCorrectLastProcessedItemIdWhenFileIsEmpty() {
+        val fileName = "test_progress_file_empty.json"
+        val file = File(fileName)
+        file.writeText("{}")
+
+        assertEquals(0, ExtractionProgressTracker.getLastProcessedItemId("Credit", fileName))
+
+        file.delete()
+    }
+
+    @Test
+    @DisplayName("should return correct last processed item id when no progress info is saved")
+    fun shouldReturnCorrectLastProcessedItemIdWhenNoProgressInfoIsSaved() {
+        val fileName = "test_progress_file_no_progress_info.json"
+        val file = File(fileName)
+        file.writeText("""{"Credit": {}}""")
+
+        assertEquals(0, ExtractionProgressTracker.getLastProcessedItemId("Credit", fileName))
+
+        file.delete()
+    }
+
+    @Test
+    @DisplayName("should return correct last processed item id with fileName default parameter")
+    fun shouldReturnCorrectLastProcessedItemIdWithFileNameDefaultParameter() {
+        assertEquals(2, ExtractionProgressTracker.getLastProcessedItemId("Credit"))
+    }
+
+    // toPercent
+    @Test
     fun toPercentShouldFormatFloatToTwoDecimalPlaces() {
         // Arrange
         val value = 0.75f
@@ -397,6 +429,13 @@ class ExtractionProgressTrackerTest {
                     stmt.execute("CREATE TABLE IF NOT EXISTS gcd_story (id INT)")
                 }
             }
+
+            // Rename progress.json to progress.bak, create a new progress.json file with test data
+            val progressFile = File("progress.json")
+            if (progressFile.exists()) {
+                progressFile.renameTo(File("progress.bak"))
+            }
+            progressFile.writeText(DEFAULT_PROGRESS_MAP)
         }
 
         @AfterAll
@@ -408,6 +447,13 @@ class ExtractionProgressTrackerTest {
                     stmt.execute("DROP TABLE IF EXISTS gcd_story")
                 }
             }
+
+            // Delete progress.json, rename progress.bak to progress.json
+            val progressFile = File("progress.json")
+            if (progressFile.exists()) {
+                progressFile.delete()
+            }
+            File("progress.bak").renameTo(progressFile)
         }
     }
 }
