@@ -233,7 +233,12 @@ class TestDatabaseSetup {
 
             when (populate) {
                 DatabaseState.EMPTY -> {}
-                DatabaseState.RAW -> addRecordsToBeRemoved(schema)
+                DatabaseState.RAW_FOR_BAD_VIEWS -> addRecordsToBeRemovedInBadTables(schema)
+                DatabaseState.RAW_FOR_CULLING -> {
+                    addRecordsToBeRemovedInBadTables(schema)
+                    addTablesAndRecordsToBeRemovedWithBadLinks(schema)
+                }
+
                 DatabaseState.PREPARED -> addExtractedTables(schema)
             }
         }
@@ -265,7 +270,7 @@ class TestDatabaseSetup {
             }
         }
 
-        private fun addRecordsToBeRemoved(schema: String = TEST_DATABASE) {
+        private fun addRecordsToBeRemovedInBadTables(schema: String = TEST_DATABASE) {
             getDbConnection(schema).use { conn ->
                 conn.createStatement().use { statement ->
                     // insert publisher
@@ -341,6 +346,209 @@ class TestDatabaseSetup {
                             VALUES
                                 ('Viva Italia', 3),
                                 ('Etch', 4)""".trimIndent()
+                    )
+                }
+            }
+        }
+
+        fun addTablesAndRecordsToBeRemovedWithBadLinks(schema: String = TEST_DATABASE) {
+            getDbConnection(schema).use { conn ->
+                conn.createStatement().use { statement ->
+                    // create gcd_biblio_entry table
+                    statement.execute(
+                        """CREATE TABLE IF NOT EXISTS `gcd_biblio_entry` (
+                            `id` int (11) NOT NULL AUTO_INCREMENT,
+                            `name` varchar (255) NOT NULL,
+                            `story_id` int (11) NOT NULL,
+                            PRIMARY KEY (`id`),
+                            FOREIGN KEY (`story_id`) REFERENCES `gcd_story`(`id`)
+                        )""".trimIndent()
+                    )
+
+                    // insert gcd_biblio_entry's with links to bad gcd_story's
+                    statement.execute(
+                        """INSERT INTO gcd_biblio_entry (name, story_id)
+                            VALUES
+                                ('Il fumetto di Mao', 3),
+                                ('Simpsons Comics Extravaganze', 4),
+                                ('Batman: Une Lecture de Bon Conseil', 5),
+                                ('Wolverine: Son of Canada', 6)""".trimIndent()
+                    )
+
+                    // create gcd_reprint table
+                    statement.execute(
+                        """CREATE TABLE IF NOT EXISTS `gcd_reprint` (
+                            `id` int (11) NOT NULL AUTO_INCREMENT,
+                            `origin_id` int (11) NOT NULL,
+                            `target_id` int (11) NOT NULL,
+                            PRIMARY KEY (`id`),
+                            FOREIGN KEY (`origin_id`) REFERENCES `gcd_story`(`id`),
+                            FOREIGN KEY (`target_id`) REFERENCES `gcd_story`(`id`)
+                        )""".trimIndent()
+                    )
+
+                    // insert gcd_reprint's with links to bad gcd_story's
+                    statement.execute(
+                        """INSERT INTO gcd_reprint (origin_id, target_id)
+                            VALUES
+                                (1, 3),
+                                (2, 4),
+                                (5, 1),
+                                (6, 2),
+                                (3, 4)""".trimIndent()
+                    )
+
+                    // create gcd_story_feature_object table
+                    statement.execute(
+                        """CREATE TABLE IF NOT EXISTS `gcd_story_feature_object` (
+                            `id` int (11) NOT NULL AUTO_INCREMENT,
+                            `story_id` int (11) NOT NULL,
+                            PRIMARY KEY (`id`),
+                            FOREIGN KEY (`story_id`) REFERENCES `gcd_story`(`id`)
+                        )""".trimIndent()
+                    )
+
+                    // insert gcd_story_feature_object's with links to bad gcd_story's
+                    statement.execute(
+                        """INSERT INTO gcd_story_feature_object (story_id)
+                            VALUES
+                                (3),
+                                (4),
+                                (5),
+                                (6)""".trimIndent()
+                    )
+
+                    // create gcd_story_feature_logo table
+                    statement.execute(
+                        """CREATE TABLE IF NOT EXISTS `gcd_story_feature_logo` (
+                            `id` int (11) NOT NULL AUTO_INCREMENT,
+                            `story_id` int (11) NOT NULL,
+                            PRIMARY KEY (`id`),
+                            FOREIGN KEY (`story_id`) REFERENCES `gcd_story`(`id`)
+                        )""".trimIndent()
+                    )
+
+                    // insert gcd_story_feature_logo's with links to bad gcd_story's
+                    statement.execute(
+                        """INSERT INTO gcd_story_feature_logo (story_id)
+                            VALUES
+                                (3),
+                                (4),
+                                (5),
+                                (6)""".trimIndent()
+                    )
+
+                    // create gcd_issue_credit table
+                    statement.execute(
+                        """CREATE TABLE IF NOT EXISTS `gcd_issue_credit` (
+                            `id` int (11) NOT NULL AUTO_INCREMENT,
+                            `issue_id` int (11) NOT NULL,
+                            PRIMARY KEY (`id`),
+                            FOREIGN KEY (`issue_id`) REFERENCES `gcd_issue`(`id`)
+                        )""".trimIndent()
+                    )
+
+                    // insert gcd_issue_credit's with links to bad gcd_issue's
+                    statement.execute(
+                        """INSERT INTO gcd_issue_credit (issue_id)
+                            VALUES
+                                (3),
+                                (4),
+                                (5),
+                                (6)""".trimIndent()
+                    )
+
+                    // create gcd_issue_indicia_printer table
+                    statement.execute(
+                        """CREATE TABLE IF NOT EXISTS `gcd_issue_indicia_printer` (
+                            `id` int (11) NOT NULL AUTO_INCREMENT,
+                            `issue_id` int (11) NOT NULL,
+                            PRIMARY KEY (`id`),
+                            FOREIGN KEY (`issue_id`) REFERENCES `gcd_issue`(`id`)
+                        )""".trimIndent()
+                    )
+
+                    // insert gcd_issue_indicia_printer's with links to bad gcd_issue's
+                    statement.execute(
+                        """INSERT INTO gcd_issue_indicia_printer (issue_id)
+                            VALUES
+                                (3),
+                                (4),
+                                (5),
+                                (6)""".trimIndent()
+                    )
+
+                    // create gcd_series_bond table
+                    statement.execute(
+                        """CREATE TABLE IF NOT EXISTS `gcd_series_bond` (
+                            `id` int (11) NOT NULL AUTO_INCREMENT,
+                            `origin_issue_id` int (11) NOT NULL,
+                            `target_issue_id` int (11) NOT NULL,
+                            PRIMARY KEY (`id`),
+                            FOREIGN KEY (`origin_issue_id`) REFERENCES `gcd_issue`(`id`),
+                            FOREIGN KEY (`target_issue_id`) REFERENCES `gcd_issue`(`id`)
+                        )""".trimIndent()
+                    )
+
+                    // insert gcd_series_bond's with links to bad gcd_issue's
+                    statement.execute(
+                        """INSERT INTO gcd_series_bond (origin_issue_id, target_issue_id)
+                            VALUES
+                                (1, 3),
+                                (2, 4),
+                                (5, 1),
+                                (6, 2),
+                                (3, 4)""".trimIndent()
+                    )
+
+                    // create bad publisher, series, issue, story views
+                    statement.execute(
+                        """CREATE VIEW `bad_publishers` AS (
+                            SELECT gp.id
+                            FROM gcd_publisher gp
+                            WHERE gp.country_id != 225
+                            OR gp.id NOT IN (
+                                SELECT DISTINCT gp.id
+                                FROM gcd_publisher gp
+                                INNER JOIN gcd_series gs ON gp.id = gs.publisher_id
+                                WHERE gs.year_began >= 1900
+                            )
+                        )""".trimIndent()
+                    )
+
+                    statement.execute(
+                        """CREATE VIEW `bad_series` AS (
+                            SELECT gs.id
+                            FROM gcd_series gs
+                            WHERE gs.country_id != 225
+                            OR gs.publisher_id IN (
+                                SELECT id
+                                FROM bad_publishers
+                            )
+                            OR gs.year_began < 1900
+                        )""".trimIndent()
+                    )
+
+                    statement.execute(
+                        """CREATE VIEW `bad_issues` AS (
+                            SELECT gi.id
+                            FROM gcd_issue gi
+                            WHERE gi.series_id IN (
+                                SELECT id
+                                FROM bad_series
+                            )
+                        )""".trimIndent()
+                    )
+
+                    statement.execute(
+                        """CREATE VIEW `bad_stories` AS (
+                            SELECT gs.id
+                            FROM gcd_story gs
+                            WHERE gs.issue_id IN (
+                                SELECT id
+                                FROM bad_issues
+                            )
+                        )""".trimIndent()
                     )
                 }
             }
@@ -444,6 +652,7 @@ class TestDatabaseSetup {
 
 enum class DatabaseState {
     EMPTY,
-    RAW,
+    RAW_FOR_BAD_VIEWS,
+    RAW_FOR_CULLING,
     PREPARED
 }
