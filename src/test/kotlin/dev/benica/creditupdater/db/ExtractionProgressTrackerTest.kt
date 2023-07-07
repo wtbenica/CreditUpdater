@@ -1,17 +1,20 @@
 package dev.benica.creditupdater.db
 
 import com.google.gson.Gson
+import com.zaxxer.hikari.HikariDataSource
 import dev.benica.creditupdater.Credentials.Companion.PASSWORD_INITIALIZER
 import dev.benica.creditupdater.Credentials.Companion.USERNAME_INITIALIZER
 import dev.benica.creditupdater.cli_parser.CLIParser
 import dev.benica.creditupdater.db.ExtractionProgressTracker.Companion.ProgressInfo
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
+import dev.benica.creditupdater.di.ConnectionSource
 import mu.KLogger
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.mockito.*
 import org.mockito.kotlin.*
 import java.io.File
+import java.sql.Connection
 import java.sql.DriverManager
 
 class ExtractionProgressTrackerTest {
@@ -340,6 +343,32 @@ class ExtractionProgressTrackerTest {
 
         // Assert
         assertEquals("0.01%", result)
+    }
+
+    @Test
+    @DisplayName("should call close() and conn.close() when used in try-with-resources")
+    fun shouldCallCloseAndConnCloseWhenUsedInTryWithResources() {
+        // Create the repository
+        val repoMock = spy(ExtractionProgressTracker("mock type", "mock target", dispatchAndExecuteComponent = null))
+        val connectionSourceMock = mock<ConnectionSource>()
+        val hikariDataSourceMock = mock<HikariDataSource>()
+        val connectionMock = mock<Connection>()
+
+        repoMock.connectionSource = connectionSourceMock
+        repoMock.conn = connectionMock
+
+        whenever(repoMock.connectionSource).thenReturn(connectionSourceMock)
+        whenever(connectionSourceMock.getConnection(any())).thenReturn(hikariDataSourceMock)
+        whenever(hikariDataSourceMock.connection).thenReturn(connectionMock)
+        doCallRealMethod().whenever(repoMock).close()
+        doNothing().whenever(connectionMock).close()
+
+        // Use in try-with-resources
+        repoMock.use { }
+
+        // Verify that close() and conn.close() were called
+        verify(repoMock, times(1)).close()
+        verify(connectionMock, times(1)).close()
     }
 
     companion object {

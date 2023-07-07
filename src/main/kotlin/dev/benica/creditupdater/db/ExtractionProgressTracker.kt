@@ -36,7 +36,7 @@ class ExtractionProgressTracker(
     targetSchema: String,
     private val totalItems: Int = 0,
     internal val progressInfoMap: ProgressInfoMap = ProgressInfoMap(),
-    dispatchAndExecuteComponent: DispatchAndExecuteComponent = DaggerDispatchAndExecuteComponent.create(),
+    dispatchAndExecuteComponent: DispatchAndExecuteComponent? = DaggerDispatchAndExecuteComponent.create(),
     private val logger: KLogger = KotlinLogging.logger(this::class.java.simpleName)
 ): AutoCloseable {
     @Volatile
@@ -47,22 +47,27 @@ class ExtractionProgressTracker(
     internal lateinit var connectionSource: ConnectionSource
 
     private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
-    private val conn: Connection
+    internal lateinit var conn: Connection
 
     @Inject
     @Named("IO")
     internal lateinit var ioDispatcher: CoroutineDispatcher
 
     init {
-        dispatchAndExecuteComponent.inject(this)
-        conn = connectionSource.getConnection(targetSchema).connection
+        if (dispatchAndExecuteComponent != null) {
+            dispatchAndExecuteComponent.inject(this)
+            conn = connectionSource.getConnection(targetSchema).connection
+        }
 
         logger.debug { "Progress tracker initialized for $extractedType" }
         progressInfo = progressInfoMap.get(extractedType)
         logger.debug { "Progress info initialized for $extractedType" }
-        CoroutineScope(ioDispatcher).launch {
-            progressInfo.numCompleted = getItemsCompleted()
-            logger.debug { "Progress info updated for $extractedType: $progressInfo" }
+
+        if (dispatchAndExecuteComponent != null) {
+            CoroutineScope(ioDispatcher).launch {
+                progressInfo.numCompleted = getItemsCompleted()
+                logger.debug { "Progress info updated for $extractedType: $progressInfo" }
+            }
         }
     }
 
