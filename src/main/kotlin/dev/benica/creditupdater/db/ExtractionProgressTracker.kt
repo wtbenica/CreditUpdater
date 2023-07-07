@@ -9,7 +9,6 @@ import kotlinx.coroutines.*
 import mu.KLogger
 import mu.KotlinLogging
 import java.io.File
-import java.io.FileReader
 import java.io.FileWriter
 import java.sql.Connection
 import javax.inject.Inject
@@ -154,7 +153,7 @@ class ExtractionProgressTracker(
             return if (progressFile.exists()) {
                 val gson = Gson()
                 val progressInfo: MutableMap<String, ProgressInfo>
-                FileReader(progressFile).use { reader ->
+                progressFile.reader().use { reader ->
                     progressInfo =
                         gson.fromJson(reader, object : TypeToken<MutableMap<String, ProgressInfo>>() {}.type)
                 }
@@ -194,7 +193,7 @@ class ProgressInfoMap(private val fileName: String = "progress.json") {
     init {
         val file = File(fileName)
         if (file.exists()) {
-            FileReader(file).use { reader ->
+            file.reader().use { reader ->
                 mProgressInfoMap =
                     Gson().fromJson(
                         reader,

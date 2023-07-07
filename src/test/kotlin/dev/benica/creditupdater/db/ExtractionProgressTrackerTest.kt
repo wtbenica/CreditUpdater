@@ -2,20 +2,18 @@ package dev.benica.creditupdater.db
 
 import com.google.gson.Gson
 import com.zaxxer.hikari.HikariDataSource
-import dev.benica.creditupdater.Credentials.Companion.PASSWORD_INITIALIZER
-import dev.benica.creditupdater.Credentials.Companion.USERNAME_INITIALIZER
 import dev.benica.creditupdater.cli_parser.CLIParser
 import dev.benica.creditupdater.db.ExtractionProgressTracker.Companion.ProgressInfo
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import dev.benica.creditupdater.di.ConnectionSource
 import mu.KLogger
+import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.mockito.*
 import org.mockito.kotlin.*
 import java.io.File
 import java.sql.Connection
-import java.sql.DriverManager
 
 class ExtractionProgressTrackerTest {
     private lateinit var parser: CLIParser
@@ -31,16 +29,7 @@ class ExtractionProgressTrackerTest {
         parser = CLIParser()
 
         // Create a test_progress.json file
-        val file = File(TEST_PROGRESS_FILE)
-        file.writer().use {
-            it.write(DEFAULT_PROGRESS_MAP.filter { c -> !c.isWhitespace() })
-        }
-
-        DriverManager.getConnection(
-            "jdbc:mysql://localhost:3306/$TEST_DATABASE_EPT",
-            USERNAME_INITIALIZER,
-            PASSWORD_INITIALIZER
-        ).use { conn ->
+        getDbConnection(TEST_DATABASE_EPT).use { conn ->
             conn.createStatement().use { stmt ->
                 // truncate
                 stmt.execute("TRUNCATE TABLE gcd_story")
@@ -124,23 +113,28 @@ class ExtractionProgressTrackerTest {
 
         // verify saved file
         val file = File(TEST_PROGRESS_FILE)
+
         val gson = Gson()
+
+        @Language("JSON")
         val expected: String = gson.toJson(
             """{
-            "Credit": {
-                "lastProcessedItemId": 8,
-                "totalTimeMillis": 1000,
-                "numCompleted": 3
-            },
-            "Character": {
-                "lastProcessedItemId": 3,
-                "totalTimeMillis": 3000,
-                "numCompleted": 0
-            }
-        }""".filter { !it.isWhitespace() }
+                "Credit": {
+                    "lastProcessedItemId": 8,
+                    "totalTimeMillis": 1000,
+                    "numCompleted": 3
+                },
+                "Character": {
+                    "lastProcessedItemId": 3,
+                    "totalTimeMillis": 3000,
+                    "numCompleted": 0
+                }
+            }""".filter { !it.isWhitespace() }
         )
 
-        assertEquals(expected, gson.toJson(file.readText()))
+        val actual = gson.toJson(file.readText())
+
+        assertEquals(expected, actual)
     }
 
     // resetProgressInfo
@@ -164,23 +158,28 @@ class ExtractionProgressTrackerTest {
 
         // verify saved file
         val file = File(TEST_PROGRESS_FILE)
+
         val gson = Gson()
+
+        @Language("JSON")
         val expected: String = gson.toJson(
-            """{
-            "Credit": {
-                "lastProcessedItemId": 0,
-                "totalTimeMillis": 0,
-                "numCompleted": 0
-            },
-            "Character": {
-                "lastProcessedItemId": 3,
-                "totalTimeMillis": 3000,
-                "numCompleted": 0
-            }
-        }""".filter { !it.isWhitespace() }
+            """{ 
+                  "Credit": {
+                    "lastProcessedItemId": 0,
+                    "totalTimeMillis": 0,
+                    "numCompleted": 0
+                  },
+                  "Character": {
+                    "lastProcessedItemId": 3,
+                    "totalTimeMillis": 3000,
+                    "numCompleted": 0
+                  }
+            }""".filter { !it.isWhitespace() }
         )
 
-        assertEquals(expected, gson.toJson(file.readText()))
+        val actual = gson.toJson(file.readText())
+
+        assertEquals(expected, actual)
     }
 
     // saveProgressInfo
@@ -407,6 +406,7 @@ class ExtractionProgressTrackerTest {
         private const val TEST_DATABASE_EPT = "credit_updater_test_ept"
         private const val ITEMS_COMPLETED = 2
         private const val TEST_PROGRESS_FILE = "test_progress.json"
+        @Language("JSON")
         private const val DEFAULT_PROGRESS_MAP = """{
             "Credit": {
                 "lastProcessedItemId": 2,
@@ -430,6 +430,10 @@ class ExtractionProgressTrackerTest {
                 }
             }
 
+            // create TEST_PROGRESS_FILE and add DEFAULT_PROGRESS_MAP to it
+            File(TEST_PROGRESS_FILE).writer().use { testProgressFile ->
+                testProgressFile.write(DEFAULT_PROGRESS_MAP)
+            }
             // Rename progress.json to progress.bak, create a new progress.json file with test data
             val progressFile = File("progress.json")
             if (progressFile.exists()) {
