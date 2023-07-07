@@ -522,7 +522,7 @@ class DBInitAddTablesTest {
         @JvmStatic
         fun setupAll() {
             conn = TestDatabaseSetup.getDbConnection(TEST_DATABASE)
-            TestDatabaseSetup.setup(populate = DatabaseState.RAW)
+            TestDatabaseSetup.setup(populate = DatabaseState.RAW_FOR_BAD_VIEWS)
         }
 
         @AfterAll

@@ -293,7 +293,7 @@ class DBInitCreateDeleteViewsTest {
         @JvmStatic
         fun setupAll() {
             conn = getTestDbConnection()
-            TestDatabaseSetup.setup(populate = DatabaseState.RAW)
+            TestDatabaseSetup.setup(populate = DatabaseState.RAW_FOR_BAD_VIEWS)
         }
 
         @AfterAll
