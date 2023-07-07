@@ -4,7 +4,6 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dev.benica.creditupdater.db.ExtractionProgressTracker
 import java.io.File
-import java.io.FileReader
 
 /**
  * This class is used to start the application in interactive mode.
@@ -98,11 +97,17 @@ enum class ExtractedType(val text: String, val stepNumber: Int) {
     CREDIT("Credit", 3)
 }
 
+/**
+ * Reads a json file and returns a progress map.
+ */
 fun File.loadProgressInfo(): MutableMap<String, ExtractionProgressTracker.Companion.ProgressInfo> =
     if (exists()) {
         val gson = Gson()
-        FileReader(this).use { reader ->
-            gson.fromJson(reader, object : TypeToken<MutableMap<String, ExtractionProgressTracker.Companion.ProgressInfo>>() {}.type)
+        reader().use { reader ->
+            gson.fromJson(
+                reader,
+                object : TypeToken<MutableMap<String, ExtractionProgressTracker.Companion.ProgressInfo>>() {}.type
+            )
         }
     } else {
         mutableMapOf()
