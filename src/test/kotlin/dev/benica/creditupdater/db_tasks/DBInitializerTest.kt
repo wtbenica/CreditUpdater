@@ -4,66 +4,36 @@ import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.db.DatabaseState
 import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.db.TestDatabaseSetup
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
-import org.mockito.kotlin.doNothing
-import org.mockito.kotlin.spy
-import org.mockito.kotlin.verify
-import org.mockito.kotlin.whenever
 import java.sql.Connection
 
-@TestMethodOrder(MethodOrderer.OrderAnnotation::class)
-class DBInitCreateDeleteViewsTest {
-
+class DBInitializerTest {
     private val queryExecutor = QueryExecutor(TEST_DATABASE)
-    private var dbInitCreateDeleteViews: DBInitCreateDeleteViews =
-        DBInitCreateDeleteViews(queryExecutor, TEST_DATABASE, conn)
-
-    @BeforeEach
-    fun setup() {
-        dbInitCreateDeleteViews = DBInitCreateDeleteViews(queryExecutor, TEST_DATABASE, conn)
-    }
 
     @Test
-    @DisplayName("should call each function once when createDeleteViews is called")
-    fun callEachFunctionOnce() {
-        val dbInitCreateDeleteViewsMock = spy(DBInitCreateDeleteViews(queryExecutor, TEST_DATABASE, conn))
+    @DisplayName("should create the delete views correctly")
+    fun shouldCreateDeleteViewsCorrectly() {
+        DBInitializer.createDeleteViews(queryExecutor, conn)
 
-        // Mock the functions in createDeleteViews
-        doNothing().whenever(dbInitCreateDeleteViewsMock).createBadPublishersView()
-        doNothing().whenever(dbInitCreateDeleteViewsMock).createBadSeriesView()
-        doNothing().whenever(dbInitCreateDeleteViewsMock).createBadIssuesView()
-        doNothing().whenever(dbInitCreateDeleteViewsMock).createBadStoriesView()
-        doNothing().whenever(dbInitCreateDeleteViewsMock).createBadIndiciaPublishersView()
-        doNothing().whenever(dbInitCreateDeleteViewsMock).createBadBrandGroupsView()
-
-        dbInitCreateDeleteViewsMock.createDeleteViews()
-
-        // Verify that each function was called once
-        verify(dbInitCreateDeleteViewsMock).createBadPublishersView()
-        verify(dbInitCreateDeleteViewsMock).createBadSeriesView()
-        verify(dbInitCreateDeleteViewsMock).createBadIssuesView()
-        verify(dbInitCreateDeleteViewsMock).createBadStoriesView()
-        verify(dbInitCreateDeleteViewsMock).createBadIndiciaPublishersView()
-        verify(dbInitCreateDeleteViewsMock).createBadBrandGroupsView()
+        verifyBadPublishers()
+        verifyBadSeries()
+        verifyBadIssues()
+        verifyBadStories()
+        verifyBadIndiciaPublishers()
+        verifyBadBrandGroups()
     }
 
-    @Test
-    @Order(1)
-    @DisplayName("should create bad_publishers view")
-    fun createBadPublishersView() {
-        dbInitCreateDeleteViews.createBadPublishersView()
-
+    private fun verifyBadPublishers() {
+        // verify bad_publishers view was created
         val query = """
-            SELECT EXISTS (
-                SELECT 1
-                FROM information_schema.views
-                WHERE table_schema = '$TEST_DATABASE'
-                AND table_name = 'bad_publishers'
-            );
-        """.trimIndent()
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.views
+                    WHERE table_schema = '$TEST_DATABASE'
+                    AND table_name = 'bad_publishers'
+                );
+            """.trimIndent()
 
         queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
@@ -87,20 +57,16 @@ class DBInitCreateDeleteViewsTest {
         }
     }
 
-    @Test
-    @Order(2)
-    @DisplayName("should create bad_series view")
-    fun createBadSeriesView() {
-        dbInitCreateDeleteViews.createBadSeriesView()
-
+    private fun verifyBadSeries() {
+        // verify bad_series view was created
         val query = """
-            SELECT EXISTS (
-                SELECT 1
-                FROM information_schema.views
-                WHERE table_schema = '$TEST_DATABASE'
-                AND table_name = 'bad_series'
-            );
-        """.trimIndent()
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.views
+                    WHERE table_schema = '$TEST_DATABASE'
+                    AND table_name = 'bad_series'
+                );
+            """.trimIndent()
 
         queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
@@ -130,20 +96,16 @@ class DBInitCreateDeleteViewsTest {
         }
     }
 
-    @Test
-    @Order(3)
-    @DisplayName("should create bad_issues view")
-    fun createBadIssuesView() {
-        dbInitCreateDeleteViews.createBadIssuesView()
-
+    private fun verifyBadIssues() {
+        // verify bad_issues view was created
         val query = """
-            SELECT EXISTS (
-                SELECT 1
-                FROM information_schema.views
-                WHERE table_schema = '$TEST_DATABASE'
-                AND table_name = 'bad_issues'
-            );
-        """.trimIndent()
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.views
+                    WHERE table_schema = '$TEST_DATABASE'
+                    AND table_name = 'bad_issues'
+                );
+            """.trimIndent()
 
         queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
@@ -173,20 +135,16 @@ class DBInitCreateDeleteViewsTest {
         }
     }
 
-    @Test
-    @Order(4)
-    @DisplayName("should create bad_stories view")
-    fun createBadStoriesView() {
-        dbInitCreateDeleteViews.createBadStoriesView()
-
+    private fun verifyBadStories() {
+        // verify bad_stories view was created
         val query = """
-            SELECT EXISTS (
-                SELECT 1
-                FROM information_schema.views
-                WHERE table_schema = '$TEST_DATABASE'
-                AND table_name = 'bad_stories'
-            );
-        """.trimIndent()
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.views
+                    WHERE table_schema = '$TEST_DATABASE'
+                    AND table_name = 'bad_stories'
+                );
+            """.trimIndent()
 
         queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
@@ -214,20 +172,16 @@ class DBInitCreateDeleteViewsTest {
         }
     }
 
-    @Test
-    @Order(2)
-    @DisplayName("should create bad_indicia_publishers view")
-    fun createBadIndiciaPublishersView() {
-        dbInitCreateDeleteViews.createBadIndiciaPublishersView()
-
+    private fun verifyBadIndiciaPublishers() {
+        // verify bad_indicia_publishers view was created
         val query = """
-            SELECT EXISTS (
-                SELECT 1
-                FROM information_schema.views
-                WHERE table_schema = '$TEST_DATABASE'
-                AND table_name = 'bad_indicia_publishers'
-            );
-        """.trimIndent()
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.views
+                    WHERE table_schema = '$TEST_DATABASE'
+                    AND table_name = 'bad_indicia_publishers'
+                );
+            """.trimIndent()
 
         queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
@@ -251,20 +205,16 @@ class DBInitCreateDeleteViewsTest {
         }
     }
 
-    @Test
-    @Order(2)
-    @DisplayName("should create bad_brand_groups view")
-    fun createBadBrandsView() {
-        dbInitCreateDeleteViews.createBadBrandGroupsView()
-
+    private fun verifyBadBrandGroups() {
+        // verify bad_brand_groups view was created
         val query = """
-            SELECT EXISTS (
-                SELECT 1
-                FROM information_schema.views
-                WHERE table_schema = '$TEST_DATABASE'
-                AND table_name = 'bad_brand_groups'
-            );
-        """.trimIndent()
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.views
+                    WHERE table_schema = '$TEST_DATABASE'
+                    AND table_name = 'bad_brand_groups'
+                );
+            """.trimIndent()
 
         queryExecutor.executeQueryAndDo(query, conn) {
             assertTrue(it.next())
@@ -294,7 +244,7 @@ class DBInitCreateDeleteViewsTest {
         @BeforeAll
         @JvmStatic
         fun setupAll() {
-            conn = getTestDbConnection()
+            conn = TestDatabaseSetup.getTestDbConnection()
             TestDatabaseSetup.setup(populateWith = DatabaseState.RAW_FOR_BAD_VIEWS)
         }
 
@@ -302,7 +252,7 @@ class DBInitCreateDeleteViewsTest {
         @JvmStatic
         fun teardownAll() {
             conn.close()
-            dropAllTables(getTestDbConnection(), TEST_DATABASE)
+            TestDatabaseSetup.dropAllTables(TestDatabaseSetup.getTestDbConnection(), TEST_DATABASE)
         }
     }
 }
