@@ -1,6 +1,5 @@
 package dev.benica.creditupdater.db
 
-import dev.benica.creditupdater.di.DatabaseComponent
 import mu.KLogger
 import mu.KotlinLogging
 import java.io.File
@@ -222,7 +221,7 @@ class QueryExecutor(
     private fun File.parseSqlScript(): List<String> =
         useLines(Charsets.UTF_8) { lines: Sequence<String> ->
             lines.filter { it.isNotBlank() }
-                .map { it.replace("<schema>", schema).trim() }
+                .map { it.replace("{{targetSchema}}", schema).trim() }
                 .joinToString(separator = " ")
                 .split(";")
                 .filter { it.isNotBlank() }

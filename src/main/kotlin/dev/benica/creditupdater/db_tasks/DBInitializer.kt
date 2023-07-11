@@ -7,6 +7,7 @@ import dev.benica.creditupdater.di.*
 import kotlinx.coroutines.*
 import mu.KLogger
 import mu.KotlinLogging
+import java.io.File
 import java.sql.Connection
 import java.sql.SQLException
 import javax.inject.Inject
@@ -65,6 +66,8 @@ class DBInitializer(
      */
     @Throws(SQLException::class)
     suspend fun prepareDb() {
+        val queryExecutor = QueryExecutor(targetSchema)
+
         withContext(ioDispatcher) {
             try {
                 logger.info { "Updating $targetSchema" }
@@ -72,17 +75,14 @@ class DBInitializer(
                 if (startAtStep == 1) {
                     logger.info { "Starting Table Updates..." }
                     dropIsSourcedAndSourcedByColumns()
+
                     DBInitAddTables(
                         queryExecutor = QueryExecutor(targetSchema),
                         targetSchema = targetSchema,
                         conn = conn
                     ).addTablesAndConstraints()
 
-                    DBInitCreateDeleteViews(
-                        queryExecutor = QueryExecutor(targetSchema),
-                        targetSchema = targetSchema,
-                        conn = conn
-                    ).createDeleteViews()
+                    createDeleteViews(queryExecutor, conn)
 
                     removeUnnecessaryRecords()
                 }
@@ -177,6 +177,7 @@ class DBInitializer(
          */
         const val INIT_REMOVE_ITEMS = "src/main/resources/sql/init_remove_items.sql"
 
+        internal fun createDeleteViews(queryExecutor: QueryExecutor, conn: Connection) = queryExecutor.executeSqlScript(File("src/main/resources/sql/db_init_create_delete_views.sql"), conn = conn)
     }
 }
 
