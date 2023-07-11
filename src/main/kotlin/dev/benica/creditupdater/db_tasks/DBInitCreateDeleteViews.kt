@@ -38,7 +38,7 @@ class DBInitCreateDeleteViews(
      * Create the bad_publishers view.
      *
      * This view is used to filter out publishers that are not from the US or
-     * are not from the 20th century.
+     * haven't printed any series in the 20th or 21st centuries.
      */
     internal fun createBadPublishersView() {
         val query =
