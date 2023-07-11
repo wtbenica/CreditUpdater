@@ -143,7 +143,8 @@ class ExtractionProgressTracker(
 
     companion object {
         /**
-         * Returns the ID of the last item that was processed for [itemType].
+         * Returns the ID of the last item that was processed for [itemType] as
+         * stored in [fileName].
          *
          * @param itemType the type of item to get the last processed ID for
          */

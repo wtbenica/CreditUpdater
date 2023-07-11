@@ -131,11 +131,10 @@ class DBInitializer(
     @Throws(SQLException::class)
     private fun dropIsSourcedAndSourcedByColumns() {
         dbTask.executeSqlStatement(
-            """
-                    ALTER TABLE $targetSchema.gcd_story_credit
-                    DROP COLUMN IF EXISTS is_sourced,
-                    DROP COLUMN IF EXISTS sourced_by;
-                """.trimIndent()
+            """ALTER TABLE $targetSchema.gcd_story_credit
+                DROP COLUMN IF EXISTS is_sourced,
+                DROP COLUMN IF EXISTS sourced_by;
+            """.trimIndent()
         )
     }
 
