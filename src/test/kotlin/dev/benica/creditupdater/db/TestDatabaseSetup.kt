@@ -3,20 +3,61 @@ package dev.benica.creditupdater.db
 import dev.benica.creditupdater.Credentials
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Test
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.SQLException
 
 class TestDatabaseSetup {
+    //@Test
+    //fun testRaw() {
+    //    setup(DatabaseState.RAW_FOR_BAD_VIEWS)
+    //}
+    //
+    //@Test
+    //fun testBadStories() {
+    //    truncateAllTables()
+    //    setup(DatabaseState.RAW_FOR_CULLING)
+    //}
+    //
+    //@Test
+    //fun testPrepared() {
+    //    setup(DatabaseState.PREPARED)
+    //}
+    //
+    //@Test
+    //fun teardownTest() {
+    //    teardown()
+    //}
+    //
+    //@Test
+    //fun truncateAllTables() {
+    //    getTestDbConnection().use { connection ->
+    //        connection.createStatement().use { statement ->
+    //            statement.execute("SET FOREIGN_KEY_CHECKS = 0")
+    //            statement.execute("TRUNCATE TABLE gcd_biblio_entry")
+    //            statement.execute("TRUNCATE TABLE gcd_story_credit")
+    //            statement.execute("TRUNCATE TABLE gcd_story_feature_object")
+    //            statement.execute("TRUNCATE TABLE gcd_story_feature_logo")
+    //            statement.execute("TRUNCATE TABLE gcd_issue_credit")
+    //            statement.execute("TRUNCATE TABLE gcd_issue_indicia_printer")
+    //            statement.execute("TRUNCATE TABLE gcd_issue")
+    //            statement.execute("TRUNCATE TABLE gcd_series")
+    //            statement.execute("TRUNCATE TABLE gcd_publisher")
+    //            statement.execute("SET FOREIGN_KEY_CHECKS = 1")
+    //        }
+    //    }
+    //}
+
     companion object {
         /**
          * Creates a base database
          *
-         * @param populate adds records or tables to the database
+         * @param populateWith adds records or tables to the database
          * @param schema the name of the database to create
          */
         @JvmStatic
-        fun setup(populate: DatabaseState = DatabaseState.PREPARED, schema: String = TEST_DATABASE) {
+        fun setup(populateWith: DatabaseState = DatabaseState.PREPARED, schema: String = TEST_DATABASE) {
             // create publishers table
             getDbConnection(schema).use { connection ->
                 connection.createStatement().use { statement ->
@@ -49,6 +90,8 @@ class TestDatabaseSetup {
                             publisher_id INT NOT NULL,
                             country_id INTEGER NOT NULL,
                             language_id INTEGER NOT NULL,
+                            first_issue_id INT DEFAULT NULL,
+                            last_issue_id INT DEFAULT NULL,
                             FOREIGN KEY (publisher_id) REFERENCES gcd_publisher(id)
                         )""".trimIndent()
                     )
@@ -71,6 +114,7 @@ class TestDatabaseSetup {
                             id INT PRIMARY KEY AUTO_INCREMENT,
                             number INT NOT NULL,
                             series_id INT NOT NULL,
+                            variant_of_id INT DEFAULT NULL,
                             FOREIGN KEY (series_id) REFERENCES gcd_series(id)
                         )""".trimIndent()
                     )
@@ -231,19 +275,21 @@ class TestDatabaseSetup {
                 }
             }
 
-            when (populate) {
+            when (populateWith) {
                 DatabaseState.EMPTY -> {}
-                DatabaseState.RAW_FOR_BAD_VIEWS -> addRecordsToBeRemovedInBadTables(schema)
+                DatabaseState.RAW_FOR_BAD_VIEWS -> addBadRecords(schema)
                 DatabaseState.RAW_FOR_CULLING -> {
-                    addRecordsToBeRemovedInBadTables(schema)
-                    addTablesAndRecordsToBeRemovedWithBadLinks(schema)
+                    addBadRecords(schema)
+                    addBadViews(schema)
+                    addBadRecordsByAssociation(schema)
                 }
 
-                DatabaseState.PREPARED -> addExtractedTables(schema)
+                DatabaseState.PREPARED -> addExtractedStoryCreditTable(schema)
             }
         }
 
-        private fun addExtractedTables(schema: String = TEST_DATABASE) {
+        /** Adds the m_story_credit table */
+        private fun addExtractedStoryCreditTable(schema: String = TEST_DATABASE) {
             // create m_story_credit table
             getDbConnection(schema).use { connection ->
                 connection.createStatement().use { statement ->
@@ -270,54 +316,114 @@ class TestDatabaseSetup {
             }
         }
 
-        private fun addRecordsToBeRemovedInBadTables(schema: String = TEST_DATABASE) {
+        /**
+         * Creates or replaces bad_publishers, bad_series, bad_issues, and
+         * bad_stories views
+         */
+        private fun addBadViews(schema: String = TEST_DATABASE) {
             getDbConnection(schema).use { conn ->
                 conn.createStatement().use { statement ->
-                    // insert publisher
-                    /*
-                    - Editori Laterza - IT-IT (bad - non-US)
-                    - HarperCollins - US-EN (bad - no 20+th century series)
-                     */
+                    statement.execute(
+                        """CREATE OR REPLACE VIEW `bad_publishers` AS (
+                                    SELECT gp.id
+                                    FROM gcd_publisher gp
+                                    WHERE gp.country_id != 225
+                                    OR gp.id NOT IN (
+                                        SELECT DISTINCT gp.id
+                                        FROM gcd_publisher gp
+                                        INNER JOIN gcd_series gs ON gp.id = gs.publisher_id
+                                        WHERE gs.year_began >= 1900
+                                    )
+                                )""".trimIndent()
+                    )
+
+                    statement.execute(
+                        """CREATE OR REPLACE VIEW `bad_series` AS (
+                                    SELECT gs.id
+                                    FROM gcd_series gs
+                                    WHERE gs.country_id != 225
+                                    OR gs.language_id != 25
+                                    OR gs.year_began < 1900
+                                    OR gs.publisher_id IN (SELECT id FROM bad_publishers)
+                                )""".trimIndent()
+                    )
+
+                    statement.execute(
+                        """CREATE OR REPLACE VIEW `bad_issues` AS (
+                                    SELECT gi.id
+                                    FROM gcd_issue gi
+                                    WHERE gi.series_id IN (
+                                        SELECT id
+                                        FROM bad_series
+                                    )
+                                )""".trimIndent()
+                    )
+
+                    statement.execute(
+                        """CREATE OR REPLACE VIEW `bad_stories` AS (
+                                    SELECT gs.id
+                                    FROM gcd_story gs
+                                    WHERE gs.issue_id IN (
+                                        SELECT id
+                                        FROM bad_issues
+                                    )
+                                )""".trimIndent()
+                    )
+
+                    statement.execute(
+                        """CREATE OR REPLACE VIEW `bad_indicia_publishers` AS (
+                                    SELECT gip.id
+                                    FROM gcd_indicia_publisher gip
+                                    WHERE gip.parent_id IN (SELECT id FROM bad_publishers)
+                                )""".trimIndent()
+                    )
+
+                    statement.execute(
+                        """CREATE OR REPLACE VIEW `bad_brand_groups` AS (
+                                    SELECT gbg.id
+                                    FROM gcd_brand_group gbg
+                                    WHERE gbg.parent_id IN (SELECT id FROM bad_publishers)
+                                )""".trimIndent()
+                    )
+                }
+            }
+        }
+
+        /** Add records that meet the bad views' criteria. */
+        private fun addBadRecords(schema: String = TEST_DATABASE) {
+            getDbConnection(schema).use { conn ->
+                conn.createStatement().use { statement ->
+                    // insert publisher / ids: 3, 4, 5
                     statement.execute(
                         """INSERT INTO gcd_publisher (name, country_id, year_began)
                             VALUES 
-                                ('Editori Laterza', 106, 1901),
-                                ('HarperCollins', 225, 1817)""".trimIndent()
+                                ('country_id != 225', 106, 1901),
+                                ('no series >= 1900', 225, 1817),
+                                ('old publisher, series >= 1900', 225, 1800)""".trimIndent()
                     )
 
-                    // insert series
-                    /*
-                    - I fumetti di Mao - IT-IT (bad - foreign publisher)
-                    - Simpsons Comics Extravaganze - US-EN (bad - publisher has no 20th/21st century series)
-                    - Batman: Une Lecture de Bon Conseil - US-FR (bad - foreign language)
-                    - Wolverine: Son of Canada - US-EN (bad - foreign country)
-                    - Little Red Riding Hood - US-EN (bad - publisher has post-20th century series, but this series isn't one of them)
-                     */
+                    // insert series / ids: 3, 4, 5, 6, 7
                     statement.execute(
                         """INSERT INTO gcd_series (name, year_began, publisher_id, country_id, language_id)
                             VALUES
-                                ('I fumetti di Mao', 1990, 3, 106, 51),
-                                ('Simpsons Comics Extravaganze', 1899, 4, 225, 25),
-                                ('Batman: Une Lecture de Bon Conseil', 2010, 2, 225, 34),
-                                ('Wolverine: Son of Canada', 1983, 1, 36, 25),
-                                ('Little Red Riding Hood', 1890, 2, 225, 25)
+                                ('bad publisher', 1990, 3, 106, 51),
+                                ('< 1900, bad publisher', 1899, 4, 225, 25),
+                                ('language_id != 25', 2010, 2, 225, 34),
+                                ('country_id != 225', 1983, 1, 36, 25),
+                                ('< 1900, good publisher', 1890, 2, 225, 25),
+                                ('>= 1900, old but good publisher', 1900, 5, 225, 25)
                                 """.trimMargin()
                     )
 
-                    // insert issues
-                    /*
-                    - I fumetti di Mao - 1
-                    - Simposons Comics Extravaganze - 1
-                    - Batman: Une Lecture de Bon Conseil - 1
-                    - Wolverine: Son of Canada - 1
-                     */
+                    // insert issues / ids: 3, 4, 5, 6, 7
                     statement.execute(
                         """INSERT INTO gcd_issue (number, series_id)
                             VALUES 
                                 (1, 3),
                                 (1, 4),
                                 (1, 5),
-                                (1, 6)
+                                (1, 6),
+                                (1, 7)
                                 """.trimIndent()
                     )
 
@@ -351,23 +457,35 @@ class TestDatabaseSetup {
             }
         }
 
-        fun addTablesAndRecordsToBeRemovedWithBadLinks(schema: String = TEST_DATABASE) {
+        /** Create tables for and add records that are bad by association. */
+        private fun addBadRecordsByAssociation(schema: String = TEST_DATABASE) {
             getDbConnection(schema).use { conn ->
                 conn.createStatement().use { statement ->
+
+                    // insert gcd_story_credit's with links to bad gcd_story's
+                    statement.execute(
+                        """INSERT INTO gcd_story_credit (creator_id, credit_type_id, story_id)
+                            VALUES
+                                (1, 1, 3),
+                                (2, 2, 4),
+                                (3, 3, 5),
+                                (4, 4, 6)""".trimIndent()
+                    )
+
                     // create gcd_biblio_entry table
                     statement.execute(
                         """CREATE TABLE IF NOT EXISTS `gcd_biblio_entry` (
                             `id` int (11) NOT NULL AUTO_INCREMENT,
                             `name` varchar (255) NOT NULL,
-                            `story_id` int (11) NOT NULL,
+                            `story_ptr_id` int (11) NOT NULL,
                             PRIMARY KEY (`id`),
-                            FOREIGN KEY (`story_id`) REFERENCES `gcd_story`(`id`)
+                            FOREIGN KEY (`story_ptr_id`) REFERENCES `gcd_story`(`id`)
                         )""".trimIndent()
                     )
 
                     // insert gcd_biblio_entry's with links to bad gcd_story's
                     statement.execute(
-                        """INSERT INTO gcd_biblio_entry (name, story_id)
+                        """INSERT INTO gcd_biblio_entry (name, story_ptr_id)
                             VALUES
                                 ('Il fumetto di Mao', 3),
                                 ('Simpsons Comics Extravaganze', 4),
@@ -381,21 +499,24 @@ class TestDatabaseSetup {
                             `id` int (11) NOT NULL AUTO_INCREMENT,
                             `origin_id` int (11) NOT NULL,
                             `target_id` int (11) NOT NULL,
+                            `origin_issue_id` int (11) NOT NULL,
+                            `target_issue_id` int (11) NOT NULL,
                             PRIMARY KEY (`id`),
                             FOREIGN KEY (`origin_id`) REFERENCES `gcd_story`(`id`),
-                            FOREIGN KEY (`target_id`) REFERENCES `gcd_story`(`id`)
+                            FOREIGN KEY (`target_id`) REFERENCES `gcd_story`(`id`),
+                            FOREIGN KEY (`origin_issue_id`) REFERENCES `gcd_issue`(`id`),
+                            FOREIGN KEY (`target_issue_id`) REFERENCES `gcd_issue`(`id`)
                         )""".trimIndent()
                     )
 
-                    // insert gcd_reprint's with links to bad gcd_story's
+                    // insert gcd_reprint's with links to bad gcd_story's or gcd_issue's
                     statement.execute(
-                        """INSERT INTO gcd_reprint (origin_id, target_id)
+                        """INSERT INTO gcd_reprint (origin_id, target_id, origin_issue_id, target_issue_id)
                             VALUES
-                                (1, 3),
-                                (2, 4),
-                                (5, 1),
-                                (6, 2),
-                                (3, 4)""".trimIndent()
+                                (3, 4, 3, 4),
+                                (4, 5, 4, 5),
+                                (5, 6, 5, 6),
+                                (6, 3, 6, 3)""".trimIndent()
                     )
 
                     // create gcd_story_feature_object table
@@ -484,71 +605,54 @@ class TestDatabaseSetup {
                             `id` int (11) NOT NULL AUTO_INCREMENT,
                             `origin_issue_id` int (11) NOT NULL,
                             `target_issue_id` int (11) NOT NULL,
+                            `origin_id` int (11) NOT NULL,
+                            `target_id` int (11) NOT NULL,
                             PRIMARY KEY (`id`),
                             FOREIGN KEY (`origin_issue_id`) REFERENCES `gcd_issue`(`id`),
-                            FOREIGN KEY (`target_issue_id`) REFERENCES `gcd_issue`(`id`)
+                            FOREIGN KEY (`target_issue_id`) REFERENCES `gcd_issue`(`id`),
+                            FOREIGN KEY (`origin_id`) REFERENCES `gcd_series`(`id`),
+                            FOREIGN KEY (`target_id`) REFERENCES `gcd_series`(`id`)
                         )""".trimIndent()
                     )
 
-                    // insert gcd_series_bond's with links to bad gcd_issue's
+                    // insert gcd_series_bond's with links to bad gcd_issue's but origin_id and target_id are to good series
                     statement.execute(
-                        """INSERT INTO gcd_series_bond (origin_issue_id, target_issue_id)
+                        """INSERT INTO gcd_series_bond (origin_issue_id, target_issue_id, origin_id, target_id)
                             VALUES
-                                (1, 3),
-                                (2, 4),
-                                (5, 1),
-                                (6, 2),
-                                (3, 4)""".trimIndent()
+                                (3, 4, 1, 2),
+                                (4, 5, 2, 3),
+                                (5, 6, 3, 4),
+                                (6, 3, 4, 1)""".trimIndent()
                     )
 
-                    // create bad publisher, series, issue, story views
+                    // insert gcd_series_bond's with links to bad series, but good issues
                     statement.execute(
-                        """CREATE VIEW `bad_publishers` AS (
-                            SELECT gp.id
-                            FROM gcd_publisher gp
-                            WHERE gp.country_id != 225
-                            OR gp.id NOT IN (
-                                SELECT DISTINCT gp.id
-                                FROM gcd_publisher gp
-                                INNER JOIN gcd_series gs ON gp.id = gs.publisher_id
-                                WHERE gs.year_began >= 1900
-                            )
-                        )""".trimIndent()
+                        """INSERT INTO gcd_series_bond (origin_issue_id, target_issue_id, origin_id, target_id)
+                            VALUES
+                                (1, 2, 1, 6),
+                                (1, 2, 2, 3),
+                                (1, 2, 3, 1),
+                                (1, 2, 4, 2)""".trimIndent()
                     )
 
+                    // insert gcd_issue's with variant_of_id link to gcd_issue whose series or publisher is bad
                     statement.execute(
-                        """CREATE VIEW `bad_series` AS (
-                            SELECT gs.id
-                            FROM gcd_series gs
-                            WHERE gs.country_id != 225
-                            OR gs.publisher_id IN (
-                                SELECT id
-                                FROM bad_publishers
-                            )
-                            OR gs.year_began < 1900
-                        )""".trimIndent()
+                        """INSERT INTO gcd_issue (series_id, number, variant_of_id)
+                            VALUES
+                                (1, 1, 3),
+                                (2, 1, 4),
+                                (3, 1, 5),
+                                (4, 1, 6)""".trimIndent()
                     )
 
+                    // insert series whose first_issue_id or last_issue_id is a bad issue
                     statement.execute(
-                        """CREATE VIEW `bad_issues` AS (
-                            SELECT gi.id
-                            FROM gcd_issue gi
-                            WHERE gi.series_id IN (
-                                SELECT id
-                                FROM bad_series
-                            )
-                        )""".trimIndent()
-                    )
-
-                    statement.execute(
-                        """CREATE VIEW `bad_stories` AS (
-                            SELECT gs.id
-                            FROM gcd_story gs
-                            WHERE gs.issue_id IN (
-                                SELECT id
-                                FROM bad_issues
-                            )
-                        )""".trimIndent()
+                        """INSERT INTO gcd_series (name, year_began, publisher_id, country_id, language_id, first_issue_id, last_issue_id)
+                            VALUES
+                                ('Series 1', 1900, 1, 225, 1, 3, 4),
+                                ('Series 2', 1900, 2, 225, 1, 4, 5),
+                                ('Series 3', 1900, 3, 225, 1, 5, 6),
+                                ('Series 4', 1900, 4, 225, 1, 6, 3)""".trimIndent()
                     )
                 }
             }
@@ -558,7 +662,7 @@ class TestDatabaseSetup {
         @AfterAll
         fun teardown() {
             // remove all tables
-            getDbConnection(TEST_DATABASE).use { connection ->
+            getTestDbConnection().use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute("DROP TABLE IF EXISTS m_character_appearance")
                     statement.execute("DROP TABLE IF EXISTS m_character")

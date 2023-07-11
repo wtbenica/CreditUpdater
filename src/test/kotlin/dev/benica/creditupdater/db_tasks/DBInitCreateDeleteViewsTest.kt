@@ -71,7 +71,7 @@ class DBInitCreateDeleteViewsTest {
             assertFalse(it.next())
         }
 
-        // verify that bad publishers contains ids 3, 4
+        // verify that bad publishers contains ids 3, 4, and not 5
         val query2 = """
             SELECT id
             FROM $TEST_DATABASE.bad_publishers
@@ -167,6 +167,8 @@ class DBInitCreateDeleteViewsTest {
             assertEquals(5, it.getInt(1))
             assertTrue(it.next())
             assertEquals(6, it.getInt(1))
+            assertTrue(it.next())
+            assertEquals(7, it.getInt(1))
             assertFalse(it.next())
         }
     }
@@ -293,7 +295,7 @@ class DBInitCreateDeleteViewsTest {
         @JvmStatic
         fun setupAll() {
             conn = getTestDbConnection()
-            TestDatabaseSetup.setup(populate = DatabaseState.RAW_FOR_BAD_VIEWS)
+            TestDatabaseSetup.setup(populateWith = DatabaseState.RAW_FOR_BAD_VIEWS)
         }
 
         @AfterAll
