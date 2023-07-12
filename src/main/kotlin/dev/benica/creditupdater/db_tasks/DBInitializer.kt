@@ -74,6 +74,8 @@ class DBInitializer(
 
                 if (startAtStep == 1) {
                     logger.info { "Starting Table Updates..." }
+                    dropUnusedTables(queryExecutor, conn)
+
                     dropIsSourcedAndSourcedByColumns()
 
                     DBInitAddTables(
@@ -84,7 +86,7 @@ class DBInitializer(
 
                     createDeleteViews(queryExecutor, conn)
 
-                    removeUnnecessaryRecords()
+                    removeUnnecessaryRecords(queryExecutor, conn)
                 }
 
                 if (startAtStep <= 2) {
@@ -137,18 +139,18 @@ class DBInitializer(
             """.trimIndent()
         )
     }
-
-    /**
-     * Shrink database - this function shrinks the database by removing a bunch
-     * of records: Non-US/Canadian publishers, non-English languages, and
-     * pre-1900 stories.
-     *
-     * @throws SQLException
-     */
-    @Throws(SQLException::class)
-    private fun removeUnnecessaryRecords() {
-        dbTask.runSqlScript(sqlScriptPath = INIT_REMOVE_ITEMS)
-    }
+    //
+    ///**
+    // * Shrink database - this function shrinks the database by removing a bunch
+    // * of records: Non-US/Canadian publishers, non-English languages, and
+    // * pre-1900 stories.
+    // *
+    // * @throws SQLException
+    // */
+    //@Throws(SQLException::class)
+    //private fun removeUnnecessaryRecords() {
+    //    dbTask.runSqlScript(sqlScriptPath = INIT_REMOVE_ITEMS)
+    //}
 
     /**
      * Add issue series to credits - this function adds the 'issue' and
@@ -164,20 +166,26 @@ class DBInitializer(
         dbTask.runSqlScript(sqlScriptPath = ISSUE_SERIES_PATH, runAsTransaction = true)
 
     companion object {
-        /**
-         * This script creates several views that filter out records from the
-         * database based on certain criteria. These views are then used to delete
-         * records from various tables in the database. The script also updates
-         * some records in the gcd_issue and gcd_series tables by setting their
-         * variant_of_id, first_issue_id, and last_issue_id fields to NULL.
-         * Finally, the script deletes records from the gcd_indicia_publisher,
-         * gcd_brand_group, gcd_brand_emblem_group, gcd_brand_use, and
-         * gcd_publisher tables based on certain criteria. Overall, this script is
-         * used to limit the records in the database based on certain criteria.
-         */
         const val INIT_REMOVE_ITEMS = "src/main/resources/sql/init_remove_items.sql"
+        const val INIT_DROP_UNUSED_TABLES = "src/main/resources/sql/drop_unused_tables.sql"
+        const val INIT_CREATE_BAD_VIEWS = "src/main/resources/sql/db_init_create_delete_views.sql"
+        internal fun createDeleteViews(queryExecutor: QueryExecutor, conn: Connection) =
+            queryExecutor.executeSqlScript(sqlScript = File(INIT_CREATE_BAD_VIEWS), conn = conn)
 
-        internal fun createDeleteViews(queryExecutor: QueryExecutor, conn: Connection) = queryExecutor.executeSqlScript(File("src/main/resources/sql/db_init_create_delete_views.sql"), conn = conn)
+        internal fun dropUnusedTables(queryExecutor: QueryExecutor, conn: Connection) =
+            queryExecutor.executeSqlScript(sqlScript = File(INIT_DROP_UNUSED_TABLES), conn = conn)
+
+        /**
+         * Shrink database - this function shrinks the database by removing a bunch
+         * of records: Non-US/Canadian publishers, non-English languages, and
+         * pre-1900 stories.
+         *
+         * @throws SQLException
+         */
+        @Throws(SQLException::class)
+        internal fun removeUnnecessaryRecords(queryExecutor: QueryExecutor, conn: Connection) {
+            queryExecutor.executeSqlScript(sqlScript = File(INIT_REMOVE_ITEMS), conn = conn)
+        }
     }
 }
 
