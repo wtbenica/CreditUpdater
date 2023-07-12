@@ -42,7 +42,7 @@ class CreditRepository(
      * @param storyId the story id
      * @param roleId the credit_type id
      */
-    internal fun createOrUpdateStoryCredit(extractedName: String, storyId: Int, roleId: Int) {
+    internal fun insertStoryCreditIfNotExists(extractedName: String, storyId: Int, roleId: Int) {
         lookupGcndId(extractedName)?.let { gcndId ->
             lookupStoryCreditId(gcndId, storyId, roleId) ?: insertStoryCredit(
                 gcndId,

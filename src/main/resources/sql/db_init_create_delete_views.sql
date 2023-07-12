@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW {{targetSchema}}.bad_publishers AS (
+CREATE OR REPLACE VIEW bad_publishers AS (
         SELECT gp.id
         FROM gcd_publisher gp
         WHERE gp.country_id != 225
@@ -9,7 +9,8 @@ CREATE OR REPLACE VIEW {{targetSchema}}.bad_publishers AS (
                 WHERE gs.year_began >= 1900
             )
     );
-CREATE OR REPLACE VIEW {{targetSchema}}.bad_series AS (
+
+CREATE OR REPLACE VIEW bad_series AS (
         SELECT gs.id
         FROM gcd_series gs
         WHERE gs.country_id != 225
@@ -20,7 +21,8 @@ CREATE OR REPLACE VIEW {{targetSchema}}.bad_series AS (
                 FROM bad_publishers
             )
     );
-CREATE OR REPLACE VIEW {{targetSchema}}.bad_issues AS (
+
+CREATE OR REPLACE VIEW bad_issues AS (
         SELECT gi.id
         FROM gcd_issue gi
         WHERE gi.series_id IN (
@@ -28,27 +30,12 @@ CREATE OR REPLACE VIEW {{targetSchema}}.bad_issues AS (
                 FROM bad_series
             )
     );
-CREATE OR REPLACE VIEW {{targetSchema}}.bad_stories AS (
+
+CREATE OR REPLACE VIEW bad_stories AS (
         SELECT gs.id
         FROM gcd_story gs
         WHERE gs.issue_id IN (
                 SELECT id
                 FROM bad_issues
-            )
-    );
-CREATE OR REPLACE VIEW {{targetSchema}}.bad_indicia_publishers AS (
-        SELECT gip.id
-        FROM gcd_indicia_publisher gip
-        WHERE gip.parent_id IN (
-                SELECT id
-                FROM bad_publishers
-            )
-    );
-CREATE OR REPLACE VIEW {{targetSchema}}.bad_brand_groups AS (
-        SELECT gbg.id
-        FROM gcd_brand_group gbg
-        WHERE gbg.parent_id IN (
-                SELECT id
-                FROM bad_publishers
             )
     );
