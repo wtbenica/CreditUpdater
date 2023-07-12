@@ -75,7 +75,7 @@ class CreditExtractor(
 
     /**
      * Create credits for names - calls
-     * [CreditRepository.createOrUpdateStoryCredit] for each name
+     * [CreditRepository.insertStoryCreditIfNotExists] for each name
      * in [scriptNames] with the given [storyId] and [roleId].
      *
      * @param scriptNames the names to create credits for
@@ -88,7 +88,7 @@ class CreditExtractor(
         roleId: Int
     ) {
         scriptNames.forEach { name ->
-            repository.createOrUpdateStoryCredit(
+            repository.insertStoryCreditIfNotExists(
                 extractedName = name.prepareName(),
                 storyId = storyId,
                 roleId = roleId
