@@ -18,10 +18,6 @@
  OR target_id IN (SELECT id FROM bad_stories);
 
  DELETE
- FROM gcd_story_feature_object
- WHERE story_id IN (SELECT id FROM bad_stories);
-
- DELETE
  FROM gcd_story_feature_logo
  WHERE story_id IN (SELECT id FROM bad_stories);
 
@@ -115,13 +111,6 @@
  WHERE brandgroup_id IN (
      SELECT *
      FROM bad_brand_groups);
-
- DELETE
- FROM gcd_brand_group
- WHERE parent_id IN (
-     SELECT *
-     FROM bad_publishers
- );
 
  DELETE
  FROM gcd_brand_use

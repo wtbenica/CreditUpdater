@@ -1,39 +1,42 @@
 # If the issue and series columns don't already exist, then it adds them 
 # to the gcd_story_credit and m_character_appearance tables
 # Then creates the m_story_credit table;
-
 ###########################################################################
 # Add issue/series columns to story_credit                                #
 ##########################################################################;
-SELECT COUNT(*)
-INTO @exists
+SELECT COUNT(*) INTO @exists
 FROM information_schema.columns
 WHERE table_schema = 'new_gcd_dump'
   AND column_name = 'issue_id'
   AND table_name = 'gcd_story_credit';
 
-SET @query_ngd_story_credit_issue_id_exists =
-        IF(@exists <= 0, 'ALTER TABLE new_gcd_dump.gcd_story_credit ADD COLUMN issue_id INT DEFAULT NULL',
-           'SELECT \'Column exists\' status');
+SET @query_ngd_story_credit_issue_id_exists = IF(
+    @exists <= 0,
+    'ALTER TABLE new_gcd_dump.gcd_story_credit ADD COLUMN issue_id INT DEFAULT NULL',
+    'SELECT \'Column exists\' status'
+  );
 
-PREPARE stmt FROM @query_ngd_story_credit_issue_id_exists;
+PREPARE stmt
+FROM @query_ngd_story_credit_issue_id_exists;
+
 EXECUTE stmt;
 
-
-SELECT COUNT(*)
-INTO @exists
+SELECT COUNT(*) INTO @exists
 FROM information_schema.columns
 WHERE table_schema = 'new_gcd_dump'
   AND table_name = 'gcd_story_credit'
   AND column_name = 'series_id';
 
-SET @query_ngd_story_credit_series_id_exists =
-        IF(@exists <= 0, 'ALTER TABLE new_gcd_dump.gcd_story_credit ADD COLUMN series_id INT DEFAULT NULL',
-           'SELECT \'Column exists\' status');
+SET @query_ngd_story_credit_series_id_exists = IF(
+    @exists <= 0,
+    'ALTER TABLE new_gcd_dump.gcd_story_credit ADD COLUMN series_id INT DEFAULT NULL',
+    'SELECT \'Column exists\' status'
+  );
 
-PREPARE stmt FROM @query_ngd_story_credit_series_id_exists;
+PREPARE stmt
+FROM @query_ngd_story_credit_series_id_exists;
+
 EXECUTE stmt;
-
 
 ###########################################################################
 # Create extracted item tables if not exist                               #
@@ -44,11 +47,11 @@ CREATE TABLE IF NOT EXISTS new_gcd_dump.m_story_credit LIKE gcdb2.gcd_story_cred
 
 CREATE TABLE IF NOT EXISTS new_gcd_dump.m_character LIKE gcdb2.m_character;
 
-
 # ###########################################################################
 # Create views of 'good' items: publisher is US && > 1900                   #
 # ##########################################################################;
 DROP TABLE IF EXISTS new_gcd_dump.good_publishers;
+
 CREATE TABLE new_gcd_dump.good_publishers AS
 SELECT *
 FROM new_gcd_dump.gcd_publisher
@@ -56,99 +59,107 @@ WHERE country_id = 225
   AND year_began >= 1900;
 
 DROP TABLE IF EXISTS new_gcd_dump.publishers_to_migrate;
+
 CREATE TABLE new_gcd_dump.publishers_to_migrate AS
 SELECT new.*
 FROM new_gcd_dump.good_publishers new
-         LEFT JOIN gcdb2.gcd_publisher old ON new.id = old.id
+  LEFT JOIN gcdb2.gcd_publisher old ON new.id = old.id
 WHERE new.id NOT IN (
     SELECT id
     FROM gcdb2.gcd_publisher
-)
-   OR new.modified != old.modified;
+  )
+  OR new.modified != old.modified;
 
 DROP TABLE IF EXISTS new_gcd_dump.good_series;
+
 CREATE TABLE new_gcd_dump.good_series AS
 SELECT *
 FROM new_gcd_dump.gcd_series
 WHERE publisher_id IN (
     SELECT id
     FROM new_gcd_dump.good_publishers
-)
+  )
   AND country_id = 225
   AND language_id = 25;
 
 DROP TABLE IF EXISTS new_gcd_dump.series_to_migrate;
+
 CREATE TABLE new_gcd_dump.series_to_migrate AS
 SELECT new.*
 FROM new_gcd_dump.good_series new
-         LEFT JOIN gcdb2.gcd_series old ON new.id = old.id
+  LEFT JOIN gcdb2.gcd_series old ON new.id = old.id
 WHERE new.id NOT IN (
     SELECT id
     FROM gcdb2.gcd_series
-)
-   OR new.modified != old.modified;
+  )
+  OR new.modified != old.modified;
 
 DROP TABLE IF EXISTS new_gcd_dump.good_issue;
+
 CREATE TABLE new_gcd_dump.good_issue AS
 SELECT *
 FROM new_gcd_dump.gcd_issue
 WHERE series_id IN (
     SELECT id
     FROM new_gcd_dump.good_series
-);
+  );
 
 DROP TABLE IF EXISTS new_gcd_dump.issues_to_migrate;
+
 CREATE TABLE new_gcd_dump.issues_to_migrate AS
 SELECT new.*
 FROM new_gcd_dump.good_issue new
-         LEFT JOIN gcdb2.gcd_issue old ON new.id = old.id
+  LEFT JOIN gcdb2.gcd_issue old ON new.id = old.id
 WHERE new.id NOT IN (
     SELECT id
     FROM gcdb2.gcd_issue
-)
-   OR new.modified != old.modified;
+  )
+  OR new.modified != old.modified;
 
 DROP TABLE new_gcd_dump.good_story;
+
 CREATE TABLE new_gcd_dump.good_story AS
 SELECT *
 FROM new_gcd_dump.gcd_story
 WHERE issue_id IN (
     SELECT id
     FROM new_gcd_dump.good_issue
-)
+  )
   AND type_id IN (6, 19);
 
 DROP TABLE IF EXISTS new_gcd_dump.stories_to_migrate;
+
 CREATE TABLE new_gcd_dump.stories_to_migrate AS
 SELECT new.*
 FROM new_gcd_dump.good_story new
-         LEFT JOIN gcdb2.gcd_story old ON new.id = old.id
+  LEFT JOIN gcdb2.gcd_story old ON new.id = old.id
 WHERE new.id NOT IN (
     SELECT id
     FROM gcdb2.gcd_story
-)
-   OR new.modified != old.modified;
+  )
+  OR new.modified != old.modified;
 
 DROP TABLE IF EXISTS new_gcd_dump.good_story_credit;
+
 CREATE TABLE new_gcd_dump.good_story_credit AS
 SELECT *
 FROM new_gcd_dump.gcd_story_credit
 WHERE story_id IN (
     SELECT id
     FROM new_gcd_dump.good_story
-);
+  );
 
 DROP TABLE IF EXISTS new_gcd_dump.story_credits_to_migrate;
+
 CREATE TABLE new_gcd_dump.story_credits_to_migrate AS
 SELECT new.*
 FROM new_gcd_dump.good_story_credit new
-         LEFT JOIN gcdb2.gcd_story_credit old ON new.id = old.id
+  LEFT JOIN gcdb2.gcd_story_credit old ON new.id = old.id
 WHERE new.id NOT IN (
     SELECT id
     FROM gcdb2.gcd_story_credit
-)
-   OR new.modified != old.modified;
-
+  )
+  OR new.modified != old.modified;
 
 # ###########################################################################
 # # Add extracted item table constraints if not exist                       #
