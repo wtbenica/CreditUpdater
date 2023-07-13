@@ -122,12 +122,17 @@ class DBInitializerTest {
         CoroutineScope(Dispatchers.IO).launch {
             DBInitializer(TEST_DATABASE, startAtStep = 1).prepareDb()
 
+            // give db ops a chance to finish
+            Thread.sleep(1000)
+
             verifyUnusedTables(exist = false)
             verifySourcedColumns(exist = false)
             verifyDeleteViewsExist()
             verifyDeleteViewsContain(isEmpty = true)
             verifyRecordCounts(unculled = false)
             verifyIssueAndSeriesIdsAreSet()
+            DBTaskTest.verifyCharactersWereExtracted(conn)
+            DBTaskTest.verifyCharacterAppearancesWereExtracted(conn)
         }
     }
 

@@ -9,17 +9,6 @@ import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.SQLException
 
-private fun File.parseSqlScript(schema: String): List<String> =
-    useLines(Charsets.UTF_8) { lines: Sequence<String> ->
-        lines.filter { it.isNotBlank() }
-            .map { it.replace("{{targetSchema}}", schema).trim() }
-            .joinToString(separator = " ")
-            .split(";")
-            .filter { it.isNotBlank() }
-            .map { it.trim() }
-    }
-
-
 class TestDatabaseSetup {
     companion object {
 

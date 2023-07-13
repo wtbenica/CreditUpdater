@@ -30,14 +30,14 @@ class DBTask(
 
     // Dependencies
     @Inject
-    internal lateinit var connecitonSource: ConnectionSource
+    internal lateinit var connectionSource: ConnectionSource
 
     private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
     protected val conn: Connection
 
     init {
         databaseComponent.inject(this)
-        conn = connecitonSource.getConnection(targetSchema).connection
+        conn = connectionSource.getConnection(targetSchema).connection
     }
 
     // Private Properties
@@ -45,48 +45,6 @@ class DBTask(
         get() = KotlinLogging.logger(this::class.java.simpleName)
 
     // Public Methods
-    /**
-     * Extract credits - extracts non-relational creator credits from stories
-     * in [schema].stories_to_migrate
-     *
-     * @param schema The schema with the stories_to_migrate table.
-     * @param initial Whether this is the initial run.
-     * @throws SQLException if an error occurs
-     */
-    @Throws(SQLException::class)
-    fun extractCredits(
-        schema: String,
-        initial: Boolean,
-        startingId: Int? = null,
-        batchSize: Int = DEFAULT_BATCH_SIZE,
-    ) {
-        logger.info { "starting credits..." }
-
-        val extractor = CreditExtractor(schema)
-        val lastUpdatedItemId = startingId
-            ?: ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
-            ?: Credentials.CREDITS_STORY_START_ID
-
-        val table = if (initial) "gcd_story" else "stories_to_migrate"
-
-        /**
-         * Script sql - an sql snippet to get the writer, penciller, inker,
-         * colorist, letterer, and editor from the database.
-         */
-        val selectStoriesQuery =
-            """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
-                        FROM $schema.$table g
-                        WHERE g.id > $lastUpdatedItemId
-                        ORDER BY g.id """.trimIndent()
-
-        @Suppress("kotlin:S6307")
-        extractAndInsertItems(
-            selectItemsQuery = selectStoriesQuery,
-            extractor = extractor,
-            batchSize = batchSize
-        )
-    }
-
     /**
      * Extract characters and appearances - extracts characters and appearances
      * from the database.
@@ -122,6 +80,48 @@ class DBTask(
                 ORDER BY g.id """.trimIndent()
 
         logger.debug { "SelectStoriesQuery: $selectStoriesQuery" }
+
+        @Suppress("kotlin:S6307")
+        extractAndInsertItems(
+            selectItemsQuery = selectStoriesQuery,
+            extractor = extractor,
+            batchSize = batchSize
+        )
+    }
+
+    /**
+     * Extract credits - extracts non-relational creator credits from stories
+     * in [schema].stories_to_migrate
+     *
+     * @param schema The schema with the stories_to_migrate table.
+     * @param initial Whether this is the initial run.
+     * @throws SQLException if an error occurs
+     */
+    @Throws(SQLException::class)
+    fun extractCredits(
+        schema: String,
+        initial: Boolean,
+        startingId: Int? = null,
+        batchSize: Int = DEFAULT_BATCH_SIZE,
+    ) {
+        logger.info { "starting credits..." }
+
+        val extractor = CreditExtractor(schema)
+        val lastUpdatedItemId = startingId
+            ?: ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
+            ?: Credentials.CREDITS_STORY_START_ID
+
+        val table = if (initial) "gcd_story" else "stories_to_migrate"
+
+        /**
+         * Script sql - an sql snippet to get the writer, penciller, inker,
+         * colorist, letterer, and editor from the database.
+         */
+        val selectStoriesQuery =
+            """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
+                        FROM $schema.$table g
+                        WHERE g.id > $lastUpdatedItemId
+                        ORDER BY g.id """.trimIndent()
 
         @Suppress("kotlin:S6307")
         extractAndInsertItems(
@@ -206,13 +206,5 @@ class DBTask(
     ) = queryExecutor.executeSqlScript(
         sqlScript = File(sqlScriptPath), runAsTransaction = runAsTransaction,
         conn = conn
-    )
-
-    @Throws(SQLException::class)
-    fun executeSqlStatement(
-        sqlStmt: String
-    ) = queryExecutor.executeSqlStatement(
-        sqlStmt = sqlStmt,
-        connection = conn
     )
 }
