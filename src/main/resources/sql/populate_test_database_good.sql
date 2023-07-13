@@ -43,7 +43,7 @@ VALUES (
         'Daniel Vozzo',
         'John Workman',
         'Tom Peyer',
-        'Doom Patrol [Crazy Jane [Kay Challis], Robotman [Cliff Steele], Dorothy Spinner, Rebis [Larry Trainor]], Danny the Street, Flex Mentallo, Willoughby Kipling'
+        'Doom Patrol [Crazy Jane [Kay Challis]; Robotman [Cliff Steele]; Dorothy Spinner; Rebis [Larry Trainor]]; Danny the Street; Flex Mentallo (cameo, unnamed); Willoughby Kipling;'
     ),
     (
         2,
@@ -55,7 +55,7 @@ VALUES (
         'Liquid!',
         'Richard Starkings',
         'Mark Powers',
-        'X-Men [Beast [Hank McKoy], Cyclops [Scott Summers], White Queen [Emma Frost], Marvel Girl [Jean Grey], Professor X [Charles Xavier], Wolverine [Logan]]'
+        'X-Men [Beast [Hank McCoy]; Cyclops [Scott Summers]; White Queen [Emma Frost]; Marvel Girl [Jean Grey]; Professor X [Charles Xavier]; Wolverine [Logan]];'
     );
 
 INSERT IGNORE INTO `gcd_credit_type` (`id`, `name`)

@@ -1,6 +1,7 @@
 package dev.benica.creditupdater.db
 
 import com.zaxxer.hikari.HikariDataSource
+import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import dev.benica.creditupdater.di.ConnectionSource
@@ -27,6 +28,7 @@ class QueryExecutorTest {
                 |WHERE id = 5;;;
                 |# This is a comment with no semicolon
                 |SELECT * FROM table WHERE id = 6;""".trimMargin()
+
         val expected = listOf(
             "SELECT * FROM table WHERE id = 3",
             "SELECT * FROM table WHERE id = 4",
@@ -38,7 +40,7 @@ class QueryExecutorTest {
         val file = File("temp.sql")
         file.writeText(fileContents)
 
-        val actual = queryExecutor.parseSqlScript(file)
+        val actual = file.parseSqlScript(TEST_DATABASE)
 
         assertEquals(expected, actual)
     }

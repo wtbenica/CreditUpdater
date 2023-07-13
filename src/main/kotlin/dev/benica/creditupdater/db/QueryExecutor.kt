@@ -91,7 +91,7 @@ class QueryExecutor(
         conn: Connection,
     ) {
         try {
-            val statements: List<String> = sqlScript.parseSqlScript()
+            val statements: List<String> = sqlScript.parseSqlScript(schema)
             if (runAsTransaction) {
                 conn.autoCommit = false
                 executeStatements(statements, conn)
@@ -125,29 +125,6 @@ class QueryExecutor(
             executeSqlStatement(sqlStmt, conn)
         }
     }
-
-    /**
-     * Parses an SQL script into a list of statements.
-     *
-     * The script is split on semicolons and then each statement is trimmed and
-     * appended to a list. The list is then returned.
-     * - Note: This function does not handle semicolons in strings.
-     * - Note: Comments must be followed by a semicolon. If not, the following
-     *   statement will be commented out.
-     *
-     * @param file the file to parse
-     * @return the list of statements
-     */
-    internal fun parseSqlScript(file: File): List<String> =
-        file.useLines(Charsets.UTF_8) { lines: Sequence<String> ->
-            lines.filter { it.isNotBlank() }
-                .map { it.replace("<schema>", schema).trim() }
-                .joinToString(separator = " ")
-                .split(";")
-                .filter { it.isNotBlank() }
-                .map { it.trim() }
-        }
-
 
     /**
      * Checks if a string starts with any of the strings in a list.
@@ -217,15 +194,28 @@ class QueryExecutor(
     ) = conn.prepareStatement(sql).use { stmt ->
         act(stmt)
     }
-
-    private fun File.parseSqlScript(): List<String> =
-        useLines(Charsets.UTF_8) { lines: Sequence<String> ->
-            lines.filter { it.isNotBlank() }
-                .map { it.replace("{{targetSchema}}", schema).trim() }
-                .joinToString(separator = " ")
-                .split(";")
-                .filter { it.isNotBlank() }
-                .map { it.trim() }
-        }
 }
 
+/**
+ * Parses an SQL script into a list of statements.
+ *
+ * The script is split on semicolons and then each statement is trimmed and
+ * appended to a list. The list is then returned.
+ * - Note: This function does not handle semicolons in strings.
+ * - Note: Comments must be followed by a semicolon. If not, the following
+ *   statement will be commented out.
+ *
+ * @param schema will replace {{targetSchema}} in the script with the schema
+ * @return the list of statements
+ */
+internal fun File.parseSqlScript(schema: String): List<String> =
+    useLines(Charsets.UTF_8) { lines: Sequence<String> ->
+        val sql = lines.filter { it.isNotBlank() }
+            .map { it.replace("{{targetSchema}}", schema).trim() }
+            .joinToString(separator = " ")
+
+        val regex = Regex(""";(?=(?:[^']*'[^']*')*[^']*$)""")
+        regex.split(sql)
+            .filter { it.isNotBlank() }
+            .map { it.trim() }
+    }
