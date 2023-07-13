@@ -19,7 +19,6 @@ DROP TABLE IF EXISTS `gcd_feature_relation`;
 DROP TABLE IF EXISTS `gcd_feature_relation_type`;
 DROP TABLE IF EXISTS `gcd_feature_logo_2_feature`;
 DROP TABLE IF EXISTS `gcd_indicia_printer`;
-DROP TABLE IF EXISTS `gcd_indicia_publisher`;
 DROP TABLE IF EXISTS `gcd_issue_indicia_printer`;
 DROP TABLE IF EXISTS `gcd_membership_type`;
 DROP TABLE IF EXISTS `gcd_non_comic_work_role`;

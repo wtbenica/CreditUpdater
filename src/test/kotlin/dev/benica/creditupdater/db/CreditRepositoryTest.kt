@@ -2,8 +2,7 @@ package dev.benica.creditupdater.db
 
 import com.zaxxer.hikari.HikariDataSource
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.setup
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import dev.benica.creditupdater.di.ConnectionSource
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
@@ -12,7 +11,6 @@ import java.sql.*
 
 /** Credit Repository Test - tests the CreditRepository class */
 class CreditRepositoryTest {
-
     /** Function to test: createOrUpdateStoryCredit */
     @Test
     @DisplayName("should insert new story credit if one does not exist")
@@ -411,8 +409,8 @@ class CreditRepositoryTest {
         @BeforeAll
         @JvmStatic
         internal fun setupAll() {
-            setup()
-            conn = getDbConnection(TEST_DATABASE)
+            TestDatabaseSetup.setup(DBState.STEP_TWO_COMPLETE)
+            conn = getTestDbConnection()
         }
 
         @AfterAll

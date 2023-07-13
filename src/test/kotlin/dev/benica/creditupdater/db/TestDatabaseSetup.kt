@@ -3,6 +3,7 @@ package dev.benica.creditupdater.db
 import dev.benica.creditupdater.Credentials
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.db_tasks.DBInitializer.Companion.INIT_CREATE_BAD_VIEWS
+import dev.benica.creditupdater.db_tasks.DBInitializer.Companion.ISSUE_SERIES_PATH
 import java.io.File
 import java.sql.Connection
 import java.sql.DriverManager
@@ -52,6 +53,19 @@ class TestDatabaseSetup {
 
                     // Enable foreign key checks
                     stmt.execute("SET FOREIGN_KEY_CHECKS = 1")
+                }
+            }
+        }
+
+        private fun dropSourcedColumns(schema: String = TEST_DATABASE) {
+            getDbConnection(schema).use { connection ->
+                connection.createStatement().use { stmt ->
+                    val sqlStmt = """ALTER TABLE gcd_story_credit
+                                DROP COLUMN IF EXISTS is_sourced,
+                                DROP COLUMN IF EXISTS sourced_by;
+                            """.trimIndent()
+
+                    stmt.execute(sqlStmt)
                 }
             }
         }
@@ -112,8 +126,43 @@ class TestDatabaseSetup {
             }
         }
 
+        private fun populateCharacterTables(schema: String = TEST_DATABASE) {
+            val statements =
+                File("src/main/resources/sql/populate_extracted_character_tables.sql").parseSqlScript(TEST_DATABASE)
+            getDbConnection(schema).use { connection ->
+                statements.filter { it.isNotBlank() }.forEach { statement ->
+                    connection.createStatement().use { stmt ->
+                        stmt.execute(statement)
+                    }
+                }
+            }
+        }
+
+        private fun populateCreditTables(schema: String = TEST_DATABASE) {
+            val statements =
+                File("src/main/resources/sql/populate_extracted_credits_tables.sql").parseSqlScript(TEST_DATABASE)
+            getDbConnection(schema).use { connection ->
+                statements.filter { it.isNotBlank() }.forEach { statement ->
+                    connection.createStatement().use { stmt ->
+                        stmt.execute(statement)
+                    }
+                }
+            }
+        }
+
         private fun createBadViews(schema: String = TEST_DATABASE) {
             val statements = File(INIT_CREATE_BAD_VIEWS).parseSqlScript(TEST_DATABASE)
+            getDbConnection(schema).use { connection ->
+                statements.filter { it.isNotBlank() }.forEach { statement ->
+                    connection.createStatement().use { stmt ->
+                        stmt.execute(statement)
+                    }
+                }
+            }
+        }
+
+        private fun addIssueSeriesId(schema: String = TEST_DATABASE) {
+            val statements = File(ISSUE_SERIES_PATH).parseSqlScript(TEST_DATABASE)
             getDbConnection(schema).use { connection ->
                 statements.filter { it.isNotBlank() }.forEach { statement ->
                     connection.createStatement().use { stmt ->
@@ -126,30 +175,79 @@ class TestDatabaseSetup {
         /**
          * Creates a base database
          *
-         * @param populateWith adds records or tables to the database
+         * @param dbState the state of the database to create
          * @param schema the name of the database to create
          */
         @JvmStatic
-        fun setup(populateWith: DatabaseState = DatabaseState.PREPARED, schema: String = TEST_DATABASE) {
+        fun setup(dbState: DBState = DBState.PREPARED, schema: String = TEST_DATABASE) {
             dropAllTablesAndViews(schema)
             createTestDatabaseTables(schema)
 
-            when (populateWith) {
-                DatabaseState.EMPTY -> {
+            when (dbState) {
+                DBState.INITIAL -> {
                     addUnusedTables(schema)
                     populateTestDatabaseGood(schema)
                     populateTestDatabaseBad(schema)
                 }
-                DatabaseState.GOOD_RECORDS -> populateTestDatabaseGood(schema)
-                DatabaseState.ALL_RECORDS -> {
-                    createBadViews()
+
+                DBState.UNUSED_TABLES_DROPPED -> {
                     populateTestDatabaseGood(schema)
                     populateTestDatabaseBad(schema)
                 }
 
-                DatabaseState.PREPARED -> {
+                DBState.SOURCED_COLUMNS_DROPPED -> {
                     populateTestDatabaseGood(schema)
+                    populateTestDatabaseBad(schema)
+                    dropSourcedColumns(schema)
+                }
+
+                DBState.EXTRACTED_TABLES_ADDED -> {
+                    populateTestDatabaseGood(schema)
+                    populateTestDatabaseBad(schema)
+                    dropSourcedColumns(schema)
                     createExtractedTables(schema)
+                }
+
+                DBState.DELETE_VIEWS_CREATED -> {
+                    populateTestDatabaseGood(schema)
+                    populateTestDatabaseBad(schema)
+                    dropSourcedColumns(schema)
+                    createExtractedTables(schema)
+                    createBadViews(schema)
+                }
+
+                DBState.STEP_ONE_COMPLETE -> {
+                    populateTestDatabaseGood(schema)
+                    dropSourcedColumns(schema)
+                    createExtractedTables(schema)
+                    createBadViews(schema)
+                }
+
+                DBState.STEP_TWO_COMPLETE -> {
+                    populateTestDatabaseGood(schema)
+                    dropSourcedColumns(schema)
+                    createExtractedTables(schema)
+                    createBadViews(schema)
+                    populateCharacterTables(schema)
+                }
+
+                DBState.STEP_THREE_COMPLETE -> {
+                    populateTestDatabaseGood(schema)
+                    dropSourcedColumns(schema)
+                    createExtractedTables(schema)
+                    createBadViews(schema)
+                    populateCharacterTables(schema)
+                    populateCreditTables(schema)
+                }
+
+                DBState.PREPARED -> {
+                    populateTestDatabaseGood(schema)
+                    dropSourcedColumns(schema)
+                    createExtractedTables(schema)
+                    createBadViews(schema)
+                    populateCharacterTables(schema)
+                    populateCreditTables(schema)
+                    addIssueSeriesId(schema)
                 }
             }
         }
@@ -233,9 +331,14 @@ class TestDatabaseSetup {
     }
 }
 
-enum class DatabaseState {
-    EMPTY,
-    GOOD_RECORDS,
-    ALL_RECORDS,
+enum class DBState {
+    INITIAL,
+    UNUSED_TABLES_DROPPED,
+    SOURCED_COLUMNS_DROPPED,
+    EXTRACTED_TABLES_ADDED,
+    DELETE_VIEWS_CREATED,
+    STEP_ONE_COMPLETE,
+    STEP_TWO_COMPLETE,
+    STEP_THREE_COMPLETE,
     PREPARED
 }
