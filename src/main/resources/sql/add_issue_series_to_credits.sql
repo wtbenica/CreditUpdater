@@ -62,7 +62,7 @@ WHERE sy.issue_id NOT IN (
 
 -- Delete m_character_appearance records whose story is missing issue_id;
 DELETE mca
-FROM .m_character_appearance mca
+FROM m_character_appearance mca
 WHERE story_id IN (
     SELECT id
     FROM story_with_missing_issue);
@@ -85,12 +85,17 @@ SET series_id = (
 )
 WHERE series_id IS NULL;
 
+-- Add NOT NULL constraints to issue_id and series_id columns in gcd_story_credit table;
+ALTER TABLE gcd_story_credit
+MODIFY COLUMN issue_id INT NOT NULL,
+MODIFY COLUMN series_id INT NOT NULL;
+
 -- add NOT NULL constraints to issue_id and series_id columns in m_character_appearance table;
-ALTER TABLE .m_character_appearance
+ALTER TABLE m_character_appearance
 MODIFY COLUMN issue_id INT NOT NULL,
 MODIFY COLUMN series_id INT NOT NULL;
 
 -- add NOT NULL constraints to issue_id and series_id columns in m_story_credit table;
-ALTER TABLE .m_story_credit
+ALTER TABLE m_story_credit
 MODIFY COLUMN issue_id INT NOT NULL,
 MODIFY COLUMN series_id INT NOT NULL;

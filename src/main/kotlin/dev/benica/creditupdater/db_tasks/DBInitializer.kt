@@ -108,7 +108,7 @@ class DBInitializer(
 
                 if (startAtStep <= 4) {
                     logger.info { "Starting foreign key updates" }
-                    addIssueSeriesColumnsAndConstraints()
+                    addIssueSeriesColumnsAndConstraints(queryExecutor, conn)
                 }
 
                 logger.info { "Successfully updated $targetSchema" }
@@ -120,19 +120,6 @@ class DBInitializer(
             }
         }
     }
-
-    /**
-     * Add issue series to credits - this function adds the 'issue' and
-     * 'series' columns to the 'gcd_story_credit', 'm_story_credit', and
-     * 'm_character_appearance' tables. It also adds the appropriate foreign
-     * key constraints to the 'gcd_story_credit', 'm_character_appearance', and
-     * 'm_story_credit' tables.
-     *
-     * @throws SQLException
-     */
-    @Throws(SQLException::class)
-    private fun addIssueSeriesColumnsAndConstraints() =
-        dbTask.runSqlScript(sqlScriptPath = ISSUE_SERIES_PATH, runAsTransaction = true)
 
     companion object {
 
@@ -189,6 +176,29 @@ class DBInitializer(
         @Throws(SQLException::class)
         internal fun removeUnnecessaryRecords(queryExecutor: QueryExecutor, conn: Connection) {
             queryExecutor.executeSqlScript(sqlScript = File(INIT_REMOVE_ITEMS), conn = conn)
+        }
+
+
+        /**
+         * Add issue series to credits - this function adds the 'issue' and
+         * 'series' columns to the 'gcd_story_credit', 'm_story_credit', and
+         * 'm_character_appearance' tables. It also adds the appropriate foreign
+         * key constraints to the 'gcd_story_credit', 'm_character_appearance', and
+         * 'm_story_credit' tables.
+         *
+         * @throws SQLException
+         */
+        @Throws(SQLException::class)
+        internal fun addIssueSeriesColumnsAndConstraints(queryExecutor: QueryExecutor, conn: Connection) {
+            try {
+                conn.autoCommit = false
+                queryExecutor.executeSqlScript(sqlScript = File(ISSUE_SERIES_PATH), conn = conn)
+                conn.commit()
+                conn.autoCommit = true
+            } catch (sqlEx: SQLException) {
+                conn.rollback()
+                throw sqlEx
+            }
         }
     }
 }

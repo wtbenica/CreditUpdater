@@ -100,7 +100,7 @@ class DBInitializerTest {
             // verify that bad publishers contains ids 3, 4, and not 5
             val query2 = """
             SELECT id
-            FROM $TEST_DATABASE.bad_publishers
+            FROM bad_publishers
             ORDER BY id;
         """.trimIndent()
 
@@ -133,7 +133,7 @@ class DBInitializerTest {
             // verify that bad series contains ids 3, 4, 5, 6, 7
             val query2 = """
             SELECT id
-            FROM $TEST_DATABASE.bad_series
+            FROM bad_series
             ORDER BY id;
         """.trimIndent()
 
@@ -172,7 +172,7 @@ class DBInitializerTest {
             // verify that bad issues contains ids 3, 4, 5, 6
             val query2 = """
             SELECT id
-            FROM $TEST_DATABASE.bad_issues
+            FROM bad_issues
             ORDER BY id;
         """.trimIndent()
 
@@ -211,7 +211,7 @@ class DBInitializerTest {
             // verify that bad stories contains ids 3, 4, 5, 6, 7
             val query2 = """
             SELECT id
-            FROM $TEST_DATABASE.bad_stories
+            FROM bad_stories
             ORDER BY id;
         """.trimIndent()
 
@@ -250,7 +250,7 @@ class DBInitializerTest {
             // verify that bad indicia publishers contains ids 3, 4, 5
             val query2 = """
             SELECT id
-            FROM $TEST_DATABASE.bad_indicia_publishers
+            FROM bad_indicia_publishers
             ORDER BY id;
         """.trimIndent()
 
@@ -283,7 +283,7 @@ class DBInitializerTest {
         fun verifyPublishers(exists: Boolean = true) {
             val query = """
             SELECT COUNT(*)
-                FROM $TEST_DATABASE.gcd_publisher;
+                FROM gcd_publisher;
         """.trimIndent()
 
             queryExecutor.executeQueryAndDo(query, conn) {
@@ -296,7 +296,7 @@ class DBInitializerTest {
         fun verifySeries(exists: Boolean = true) {
             val query = """
             SELECT COUNT(*)
-                FROM $TEST_DATABASE.gcd_series;
+                FROM gcd_series;
         """.trimIndent()
 
             queryExecutor.executeQueryAndDo(query, conn) {
@@ -309,7 +309,7 @@ class DBInitializerTest {
         fun verifyIssues(exists: Boolean = true) {
             val query = """
             SELECT COUNT(*)
-                FROM $TEST_DATABASE.gcd_issue;
+                FROM gcd_issue;
         """.trimIndent()
 
             queryExecutor.executeQueryAndDo(query, conn) {
@@ -322,7 +322,7 @@ class DBInitializerTest {
         fun verifyStories(exists: Boolean = true) {
             val query = """
             SELECT COUNT(*)
-                FROM $TEST_DATABASE.gcd_story;
+                FROM gcd_story;
         """.trimIndent()
 
             queryExecutor.executeQueryAndDo(query, conn) {
@@ -335,7 +335,7 @@ class DBInitializerTest {
         fun verifySeriesBonds(exists: Boolean = true) {
             val query = """
             SELECT COUNT(*)
-                FROM $TEST_DATABASE.gcd_series_bond;
+                FROM gcd_series_bond;
         """.trimIndent()
 
             queryExecutor.executeQueryAndDo(query, conn) {
@@ -348,7 +348,7 @@ class DBInitializerTest {
         fun verifyStoryCredits(exists: Boolean = true) {
             val query = """
             SELECT COUNT(*)
-                FROM $TEST_DATABASE.gcd_story_credit;
+                FROM gcd_story_credit;
         """.trimIndent()
 
             queryExecutor.executeQueryAndDo(query, conn) {
@@ -361,7 +361,7 @@ class DBInitializerTest {
         fun verifyReprint(exists: Boolean = true) {
             val query = """
             SELECT COUNT(*)
-                FROM $TEST_DATABASE.gcd_reprint;
+                FROM gcd_reprint;
         """.trimIndent()
 
             queryExecutor.executeQueryAndDo(query, conn) {
@@ -374,7 +374,7 @@ class DBInitializerTest {
         fun verifyIssueCredit(exists: Boolean = true) {
             val query = """
             SELECT COUNT(*)
-                FROM $TEST_DATABASE.gcd_issue_credit;
+                FROM gcd_issue_credit;
         """.trimIndent()
 
             queryExecutor.executeQueryAndDo(query, conn) {
@@ -387,7 +387,7 @@ class DBInitializerTest {
         fun verifyIndiciaPublisher(exists: Boolean = true) {
             val query = """
             SELECT COUNT(*)
-                FROM $TEST_DATABASE.gcd_indicia_publisher;
+                FROM gcd_indicia_publisher;
         """.trimIndent()
 
             queryExecutor.executeQueryAndDo(query, conn) {
@@ -423,22 +423,138 @@ class DBInitializerTest {
     @Test
     @DisplayName("should add issue_id and series_id columns and constraints to gcd_story_credit, m_story_credit, m_character_appearance")
     fun shouldAddIssueAndSeriesIdColumns() {
-        // verify that gcd_story_credit, m_story_credit, m_character_appearance do not have issue_id and series_id columns
-        fun verifyNoIssueAndSeriesIdColumns() {
+        TestDatabaseSetup.setup(DBState.STEP_THREE_COMPLETE)
+
+        // verify that issue_id and series_id are all null for gcd_story_credit, m_story_credit, m_character_appearance
+        fun verifyNulls() {
             val query = """
-            SELECT column_name
-                FROM information_schema.columns
-                WHERE table_schema = '$TEST_DATABASE'
-                AND table_name IN ('gcd_story_credit', 'm_story_credit', 'm_character_appearance')
-                AND column_name IN ('issue_id', 'series_id');
+            SELECT COUNT(*)
+                FROM gcd_story_credit
+                WHERE issue_id IS NOT NULL
+                    OR series_id IS NOT NULL;
         """.trimIndent()
 
             queryExecutor.executeQueryAndDo(query, conn) {
-                assertFalse(it.next())
+                assertTrue(it.next())
+                assertEquals(0, it.getInt(1))
+            }
+
+            val query2 = """
+            SELECT COUNT(*)
+                FROM m_story_credit
+                WHERE issue_id IS NOT NULL
+                    OR series_id IS NOT NULL;
+        """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query2, conn) {
+                assertTrue(it.next())
+                assertEquals(0, it.getInt(1))
+            }
+
+            val query3 = """
+            SELECT COUNT(*)
+                FROM m_character_appearance
+                WHERE issue_id IS NOT NULL
+                    OR series_id IS NOT NULL;
+        """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query3, conn) {
+                assertTrue(it.next())
+                assertEquals(0, it.getInt(1))
             }
         }
 
-        //
+        // verify that issue_id and series_id in gcd_story_credit match the issue_id and series_id in the referenced gcd_story
+        fun verifyColumnValuesGcdStoryCredit() {
+            val query = """
+                SELECT COUNT(*)
+                FROM gcd_story_credit gsc
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM gcd_story gs
+                    JOIN gcd_issue gi on gi.id = gs.issue_id
+                    WHERE gs.id = gsc.story_id
+                        AND gs.issue_id = gsc.issue_id
+                        AND gi.series_id = gsc.series_id
+                );
+            """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query, conn) {
+                assertTrue(it.next())
+                assertEquals(0, it.getInt(1))
+            }
+        }
+
+        fun verifyColumnValuesMStoryCredit() {
+            // verify that issue_id and series_id in m_story_credit match the issue_id and series_id in the referenced gcd_story
+            val query = """
+                SELECT COUNT(*)
+                FROM m_story_credit msc
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM gcd_story gs
+                    JOIN gcd_issue gi on gi.id = gs.issue_id
+                    WHERE gs.id = msc.story_id
+                        AND gs.issue_id = msc.issue_id
+                        AND gi.series_id = msc.series_id
+                );
+            """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query, conn) {
+                assertTrue(it.next())
+                assertEquals(0, it.getInt(1))
+            }
+        }
+        
+        fun verifyColumnValuesMCharacterAppearance() {
+            // verify that issue_id and series_id in m_character_appearance match the issue_id and series_id in the referenced gcd_story
+            val query = """
+                SELECT COUNT(*)
+                FROM m_character_appearance mca
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM gcd_story gs
+                    JOIN gcd_issue gi on gi.id = gs.issue_id
+                    WHERE gs.id = mca.story_id
+                        AND gs.issue_id = mca.issue_id
+                        AND gi.series_id = mca.series_id
+                );
+            """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query, conn) {
+                assertTrue(it.next())
+                assertEquals(0, it.getInt(1))
+            }
+        }
+
+        // verify that table columns issue_id and series_id have been modified: MODIFY COLUMN x INT NOT NULL
+        fun verifyColumnConstraints() {
+            val query = """
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = '$TEST_DATABASE'
+                    AND table_name IN ('gcd_story_credit', 'm_story_credit', 'm_character_appearance')
+                    AND column_name IN ('issue_id', 'series_id')
+                    AND is_nullable = 'NO';
+            """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query, conn) {
+                assertTrue(it.next())
+                assertEquals(6, it.getInt(1))
+            }
+        }
+
+        verifyNulls()
+        
+        DBInitializer.addIssueSeriesColumnsAndConstraints(queryExecutor, conn)
+
+        verifyColumnValuesGcdStoryCredit()
+
+        verifyColumnValuesMStoryCredit()
+
+        verifyColumnValuesMCharacterAppearance()
+
+        verifyColumnConstraints()
     }
 
     companion object {
