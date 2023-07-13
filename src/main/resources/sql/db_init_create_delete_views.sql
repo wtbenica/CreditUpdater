@@ -39,3 +39,12 @@ CREATE OR REPLACE VIEW bad_stories AS (
                 FROM bad_issues
             )
     );
+
+CREATE OR REPLACE VIEW bad_indicia_publishers AS (
+        SELECT gip.id
+        FROM gcd_indicia_publisher gip
+        WHERE gip.parent_id IN (
+                SELECT id
+                FROM bad_publishers
+            )
+    );

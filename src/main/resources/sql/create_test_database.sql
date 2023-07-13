@@ -26,8 +26,10 @@ CREATE TABLE IF NOT EXISTS `gcd_issue` (
     `number` VARCHAR(50) DEFAULT NULL,
     `series_id` INT NOT NULL,
     `variant_of_id` INT DEFAULT NULL,
+    `indicia_publisher_id` INT DEFAULT NULL,
     FOREIGN KEY (`series_id`) REFERENCES `gcd_series`(`id`),
-    FOREIGN KEY (`variant_of_id`) REFERENCES `gcd_issue`(`id`)
+    FOREIGN KEY (`variant_of_id`) REFERENCES `gcd_issue`(`id`),
+    FOREIGN KEY (`indicia_publisher_id`) REFERENCES `gcd_indicia_publisher`(`id`)
 );
 
 CREATE TABLE IF NOT EXISTS `gcd_story` (
@@ -58,6 +60,8 @@ CREATE TABLE IF NOT EXISTS `gcd_story_credit`(
     `creator_id` int (11) NOT NULL,
     `credit_type_id` int (11) NOT NULL,
     `story_id` int (11) NOT NULL,
+    `is_sourced` tinyint (1) NOT NULL DEFAULT 0,
+    `sourced_by` varchar (255) DEFAULT NULL,
     PRIMARY KEY (`id`),
     FOREIGN KEY (`creator_id`) REFERENCES `gcd_creator_name_detail`(`id`),
     FOREIGN KEY (`credit_type_id`) REFERENCES `gcd_credit_type`(`id`),
@@ -84,6 +88,13 @@ CREATE TABLE IF NOT EXISTS `gcd_reprint` (
     `target_id` INT NOT NULL REFERENCES `gcd_story`(`id`),
     `origin_issue_id` INT NOT NULL REFERENCES `gcd_issue`(`id`),
     `target_issue_id` INT NOT NULL REFERENCES `gcd_issue`(`id`)
+);
+
+CREATE TABLE IF NOT EXISTS `gcd_issue_credit` (
+    `id` INT PRIMARY KEY AUTO_INCREMENT,
+    `creator_id` INT NOT NULL REFERENCES `gcd_creator_name_detail`(`id`),
+    `credit_type_id` INT NOT NULL REFERENCES `gcd_credit_type`(`id`),
+    `issue_id` INT NOT NULL REFERENCES `gcd_issue`(`id`)
 );
 
 SET FOREIGN_KEY_CHECKS = 1;

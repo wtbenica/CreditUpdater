@@ -13,13 +13,13 @@ INSERT IGNORE INTO `gcd_series` (
 VALUES (1, 'Doom Patrol', 1988, 2, 225, 25),
     (2, 'New X-Men', 2001, 1, 225, 25);
 
-INSERT IGNORE INTO `gcd_series_bond` (`id`, `origin_id`, `target_id`, `origin_issue_id`, `target_issue_id`)
-VALUES (1, 1, 2, 1, 2),
-    (2, 2, 1, 2, 1);
-
 INSERT IGNORE INTO `gcd_issue` (`id`, `number`, `series_id`)
 VALUES (1, 35, 1),
     (2, 114, 2);
+
+INSERT IGNORE INTO `gcd_series_bond` (`id`, `origin_id`, `target_id`, `origin_issue_id`, `target_issue_id`)
+VALUES (1, 1, 2, 1, 2),
+    (2, 2, 1, 2, 1);
 
 INSERT IGNORE INTO `gcd_story` (
         `id`,
@@ -86,3 +86,11 @@ VALUES (1, 2, 2, 1),
 INSERT IGNORE INTO `gcd_reprint` (`id`, `origin_id`, `target_id`, `origin_issue_id`, `target_issue_id`)
 VALUES (1, 1, 2, 1, 2),
     (2, 2, 1, 2, 1);
+
+INSERT IGNORE INTO `gcd_issue_credit` (`id`, `creator_id`, `credit_type_id`, `issue_id`)
+VALUES (1, 1, 1, 1),
+    (2, 2, 2, 1);
+
+INSERT IGNORE INTO `gcd_indicia_publisher` (`id`, `name`, `parent_id`)
+VALUES (1, 'Marvel Comics', 1),
+    (2, 'DC Comics', 2);

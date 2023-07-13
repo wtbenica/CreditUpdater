@@ -54,15 +54,15 @@ WHERE gsc.series_id IS NULL;
 -- Create a view of stories with missing issue_id;
 CREATE VIEW story_with_missing_issue AS
 SELECT sy.id
-FROM <schema>.gcd_story sy
+FROM gcd_story sy
 WHERE sy.issue_id NOT IN (
     SELECT gi.id
-    FROM <schema>.gcd_issue gi
+    FROM gcd_issue gi
 );
 
 -- Delete m_character_appearance records whose story is missing issue_id;
 DELETE mca
-FROM <schema>.m_character_appearance mca
+FROM .m_character_appearance mca
 WHERE story_id IN (
     SELECT id
     FROM story_with_missing_issue);
@@ -86,11 +86,11 @@ SET series_id = (
 WHERE series_id IS NULL;
 
 -- add NOT NULL constraints to issue_id and series_id columns in m_character_appearance table;
-ALTER TABLE <schema>.m_character_appearance
+ALTER TABLE .m_character_appearance
 MODIFY COLUMN issue_id INT NOT NULL,
 MODIFY COLUMN series_id INT NOT NULL;
 
 -- add NOT NULL constraints to issue_id and series_id columns in m_story_credit table;
-ALTER TABLE <schema>.m_story_credit
+ALTER TABLE .m_story_credit
 MODIFY COLUMN issue_id INT NOT NULL,
 MODIFY COLUMN series_id INT NOT NULL;

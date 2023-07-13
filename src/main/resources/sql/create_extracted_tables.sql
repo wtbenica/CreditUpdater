@@ -1,3 +1,8 @@
+ALTER TABLE `gcd_story_credit` ADD `issue_id` INT(11) DEFAULT NULL AFTER `story_id`;
+ALTER TABLE `gcd_story_credit` ADD `series_id` INT(11) DEFAULT NULL AFTER `issue_id`;
+ALTER TABLE `gcd_story_credit` ADD FOREIGN KEY (`issue_id`) REFERENCES `gcd_issue`(`id`);
+ALTER TABLE `gcd_story_credit` ADD FOREIGN KEY (`series_id`) REFERENCES `gcd_series`(`id`);
+
 CREATE TABLE IF NOT EXISTS m_character (
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
@@ -12,8 +17,8 @@ CREATE TABLE IF NOT EXISTS m_character_appearance (
     story_id INTEGER NOT NULL,
     notes VARCHAR(255),
     membership LONGTEXT,
-    issue_id INTEGER NOT NULL,
-    series_id INTEGER NOT NULL,
+    issue_id INTEGER DEFAULT NULL,
+    series_id INTEGER DEFAULT NULL,
     FOREIGN KEY (character_id) REFERENCES m_character (id),
     FOREIGN KEY (story_id) REFERENCES gcd_story (id),
     FOREIGN KEY (issue_id) REFERENCES gcd_issue (id),
@@ -25,8 +30,12 @@ CREATE TABLE IF NOT EXISTS `m_story_credit` (
     `creator_id` int (11) NOT NULL,
     `credit_type_id` int (11) NOT NULL,
     `story_id` int (11) NOT NULL,
+    `issue_id` int (11) DEFAULT NULL,
+    `series_id` int (11) DEFAULT NULL,
     PRIMARY KEY (`id`),
     FOREIGN KEY (`creator_id`) REFERENCES `gcd_creator_name_detail`(`id`),
     FOREIGN KEY (`credit_type_id`) REFERENCES `gcd_credit_type`(`id`),
-    FOREIGN KEY (`story_id`) REFERENCES `gcd_story`(`id`)
+    FOREIGN KEY (`story_id`) REFERENCES `gcd_story`(`id`),
+    FOREIGN KEY (`issue_id`) REFERENCES `gcd_issue`(`id`),
+    FOREIGN KEY (`series_id`) REFERENCES `gcd_series`(`id`)
 );

@@ -1,6 +1,5 @@
 package dev.benica.creditupdater.db_tasks
 
-import dev.benica.creditupdater.Credentials.Companion.ISSUE_SERIES_PATH
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
 import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.di.*
@@ -76,7 +75,7 @@ class DBInitializer(
                     logger.info { "Starting Table Updates..." }
                     dropUnusedTables(queryExecutor, conn)
 
-                    dropIsSourcedAndSourcedByColumns()
+                    dropIsSourcedAndSourcedByColumns(queryExecutor, conn)
 
                     DBInitAddTables(
                         queryExecutor = QueryExecutor(targetSchema),
@@ -123,24 +122,6 @@ class DBInitializer(
     }
 
     /**
-     * Drop is sourced and sourced by columns - this function drops the
-     * 'is_sourced' and 'sourced_by' columns from the 'gcd_story_credit' table.
-     * These columns have been added to the GCD, but are not needed by Infinite
-     * Longbox.
-     *
-     * @throws SQLException
-     */
-    @Throws(SQLException::class)
-    private fun dropIsSourcedAndSourcedByColumns() {
-        dbTask.executeSqlStatement(
-            """ALTER TABLE $targetSchema.gcd_story_credit
-                DROP COLUMN IF EXISTS is_sourced,
-                DROP COLUMN IF EXISTS sourced_by;
-            """.trimIndent()
-        )
-    }
-
-    /**
      * Add issue series to credits - this function adds the 'issue' and
      * 'series' columns to the 'gcd_story_credit', 'm_story_credit', and
      * 'm_character_appearance' tables. It also adds the appropriate foreign
@@ -154,9 +135,44 @@ class DBInitializer(
         dbTask.runSqlScript(sqlScriptPath = ISSUE_SERIES_PATH, runAsTransaction = true)
 
     companion object {
+
+        /**
+         * This SQL query updates the gcd_story_credit and m_story_credit
+         * tables by setting the issue_id and series_id columns to the
+         * corresponding values from the gcd_issue and gcd_story tables. It
+         * then creates a temporary table called story_with_missing_issue that
+         * contains the IDs of stories with missing issue IDs. It deletes
+         * all rows from the m_character_appearance table where the story_id
+         * is in the story_with_missing_issue table. Finally, it updates the
+         * m_character_appearance table by setting the issue_id and series_id
+         * columns to the corresponding values from the gcd_issue and gcd_story
+         * tables. The comments in the code provide a summary of each section of
+         * the query.
+         */
+        const val ISSUE_SERIES_PATH = "src/main/resources/sql/add_issue_series_to_credits.sql"
         const val INIT_REMOVE_ITEMS = "src/main/resources/sql/init_remove_items.sql"
         const val INIT_DROP_UNUSED_TABLES = "src/main/resources/sql/drop_unused_tables.sql"
         const val INIT_CREATE_BAD_VIEWS = "src/main/resources/sql/db_init_create_delete_views.sql"
+
+        /**
+         * Drop is sourced and sourced by columns - this function drops the
+         * 'is_sourced' and 'sourced_by' columns from the 'gcd_story_credit' table.
+         * These columns have been added to the GCD, but are not needed by Infinite
+         * Longbox.
+         *
+         * @throws SQLException
+         */
+        @Throws(SQLException::class)
+        internal fun dropIsSourcedAndSourcedByColumns(queryExecutor: QueryExecutor, conn: Connection) {
+            queryExecutor.executeSqlStatement(
+                sqlStmt = """ALTER TABLE gcd_story_credit
+                                DROP COLUMN IF EXISTS is_sourced,
+                                DROP COLUMN IF EXISTS sourced_by;
+                            """.trimIndent(),
+                connection = conn
+            )
+        }
+
         internal fun createDeleteViews(queryExecutor: QueryExecutor, conn: Connection) =
             queryExecutor.executeSqlScript(sqlScript = File(INIT_CREATE_BAD_VIEWS), conn = conn)
 

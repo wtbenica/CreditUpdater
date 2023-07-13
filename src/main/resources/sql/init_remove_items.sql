@@ -4,10 +4,6 @@
 # good_publishers table has been updated.
 # -----------------------------------------------------------------------------------------;
 
- DELETE
- FROM gcd_biblio_entry
- WHERE story_ptr_id IN (SELECT id FROM bad_stories);
-
  DELETE gsc
  FROM gcd_story_credit gsc
  WHERE gsc.story_id IN (SELECT id FROM bad_stories);
@@ -17,17 +13,9 @@
  WHERE origin_id IN (SELECT id FROM bad_stories)
  OR target_id IN (SELECT id FROM bad_stories);
 
- DELETE
- FROM gcd_story_feature_logo
- WHERE story_id IN (SELECT id FROM bad_stories);
-
  DELETE gic
  FROM gcd_issue_credit gic
  WHERE gic.issue_id IN (SELECT id FROM bad_issues);
-
- DELETE
- FROM gcd_issue_indicia_printer
- WHERE issue_id IN (SELECT id FROM bad_issues);
 
  DELETE
  FROM gcd_series_bond
@@ -87,6 +75,7 @@
  FROM gcd_series
  WHERE country_id != 225
     OR language_id != 25
+    OR year_began < 1900
     OR publisher_id IN (
      SELECT *
      FROM bad_publishers
@@ -107,19 +96,11 @@
  );
 
  DELETE
- FROM gcd_brand_emblem_group
- WHERE brandgroup_id IN (
-     SELECT *
-     FROM bad_brand_groups);
-
- DELETE
- FROM gcd_brand_use
- WHERE publisher_id IN (
-     SELECT *
-     FROM bad_publishers
- );
-
- DELETE
  FROM gcd_publisher
  WHERE country_id != 225
-    OR year_began < 1900;
+ OR id NOT IN (
+    SELECT DISTINCT gp.id
+    FROM gcd_publisher gp
+        INNER JOIN gcd_series gs ON gp.id = gs.publisher_id
+    WHERE gs.year_began >= 1900
+ );

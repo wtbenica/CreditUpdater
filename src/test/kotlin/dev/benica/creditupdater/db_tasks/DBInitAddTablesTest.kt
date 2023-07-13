@@ -1,7 +1,7 @@
 package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
-import dev.benica.creditupdater.db.DatabaseState
+import dev.benica.creditupdater.db.DBState
 import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.db.TestDatabaseSetup
 import org.junit.jupiter.api.*
@@ -22,6 +22,7 @@ class DBInitAddTablesTest {
     }
 
     @Test
+    @Order(1)
     @DisplayName("should call each function once when addTablesAndConstraints is called")
     fun callEachFunctionOnce() {
         val dbInitAddTablesMock = spy(DBInitAddTables(queryExecutor, TEST_DATABASE, conn))
@@ -515,6 +516,134 @@ class DBInitAddTablesTest {
         }
     }
 
+    @Test
+    @Order(4)
+    @DisplayName("should add tables and constraints")
+    fun shouldAddTablesAndConstraints() {
+        TestDatabaseSetup.setup(DBState.SOURCED_COLUMNS_DROPPED)
+        dbInit.addTablesAndConstraints()
+
+        // verify the m_character, m_character_appearance, and m_story_credit tables were added
+        val query = """SELECT table_name 
+            |FROM information_schema.tables 
+            |WHERE table_schema = '$TEST_DATABASE' 
+            |AND table_name IN ('m_character', 'm_character_appearance', 'm_story_credit')""".trimMargin()
+
+        queryExecutor.executeQueryAndDo(query, conn) {
+            assertTrue(it.next())
+            assertTrue(it.next())
+            assertTrue(it.next())
+            assertFalse(it.next())
+        }
+
+        // verify gcd_story_credit has series_id and issue_id columns
+        val query2 = """SELECT column_name 
+            |FROM information_schema.columns 
+            |WHERE table_schema = '$TEST_DATABASE' 
+            |AND table_name = 'gcd_story_credit' 
+            |AND column_name IN ('series_id', 'issue_id')""".trimMargin()
+
+        queryExecutor.executeQueryAndDo(query2, conn) {
+            assertTrue(it.next())
+            assertTrue(it.next())
+            assertFalse(it.next())
+        }
+
+        // verify fkey constraints on series_id and issue_id
+        val query3 = """SELECT column_name, referenced_table_name 
+            |FROM information_schema.key_column_usage 
+            |WHERE table_schema = '$TEST_DATABASE' 
+            |AND table_name = 'gcd_story_credit' 
+            |AND column_name IN ('series_id', 'issue_id') 
+            |AND referenced_table_name IN ('gcd_series', 'gcd_issue')
+            |ORDER BY column_name, referenced_table_name""".trimMargin()
+
+        queryExecutor.executeQueryAndDo(query3, conn) {
+            assertTrue(it.next())
+            assertEquals("issue_id", it.getString("column_name"))
+            assertEquals("gcd_issue", it.getString("referenced_table_name"))
+            assertTrue(it.next())
+            assertEquals("series_id", it.getString("column_name"))
+            assertEquals("gcd_series", it.getString("referenced_table_name"))
+            assertFalse(it.next())
+        }
+
+        // verify m_characters table was created
+        val query4 = """SELECT COUNT(*) 
+            |FROM information_schema.columns 
+            |WHERE table_schema = '$TEST_DATABASE' 
+            |AND table_name = 'm_character' 
+            |AND column_name IN ('id', 'name', 'alter_ego', 'publisher_id')""".trimMargin()
+
+        queryExecutor.executeQueryAndDo(query4, conn) {
+            assertTrue(it.next())
+            assertEquals(4, it.getInt(1))
+        }
+
+        // verify m_character_appearance table was created
+        val query5 = """SELECT COUNT(*) 
+            |FROM information_schema.columns 
+            |WHERE table_schema = '$TEST_DATABASE' 
+            |AND table_name = 'm_character_appearance' 
+            |AND column_name IN ('id', 'details', 'character_id', 'story_id', 'notes', 'membership', 'issue_id', 'series_id')""".trimMargin()
+
+        queryExecutor.executeQueryAndDo(query5, conn) {
+            assertTrue(it.next())
+            assertEquals(8, it.getInt(1))
+        }
+
+        // verify m_story_credit table was created and has the same columns & constraints as gcd_story_credit
+        val query6 = """SELECT COUNT(*) 
+            |FROM information_schema.columns 
+            |WHERE table_schema = '$TEST_DATABASE' 
+            |AND table_name = 'm_story_credit' 
+            |AND column_name IN ('id', 'creator_id', 'credit_type_id', 'story_id', 'issue_id', 'series_id')""".trimMargin()
+
+        queryExecutor.executeQueryAndDo(query6, conn) {
+            assertTrue(it.next())
+            assertEquals(6, it.getInt(1))
+        }
+
+        val query7 = """SELECT column_name, referenced_table_name 
+            |FROM information_schema.key_column_usage 
+            |WHERE table_schema = '$TEST_DATABASE' 
+            |AND table_name = 'm_story_credit' 
+            |AND column_name IN ('series_id', 'issue_id', 'story_id', 'creator_id', 'credit_type_id') 
+            |AND referenced_table_name IN ('gcd_series', 'gcd_issue', 'gcd_story', 'gcd_creator_name_detail', 'gcd_credit_type')
+            |ORDER BY column_name, referenced_table_name""".trimMargin()
+
+        queryExecutor.executeQueryAndDo(query7, conn) {
+            assertTrue(it.next())
+            assertEquals("creator_id", it.getString("column_name"))
+            assertEquals("gcd_creator_name_detail", it.getString("referenced_table_name"))
+            assertTrue(it.next())
+            assertEquals("credit_type_id", it.getString("column_name"))
+            assertEquals("gcd_credit_type", it.getString("referenced_table_name"))
+            assertTrue(it.next())
+            assertEquals("issue_id", it.getString("column_name"))
+            assertEquals("gcd_issue", it.getString("referenced_table_name"))
+            assertTrue(it.next())
+            assertEquals("series_id", it.getString("column_name"))
+            assertEquals("gcd_series", it.getString("referenced_table_name"))
+            assertTrue(it.next())
+            assertEquals("story_id", it.getString("column_name"))
+            assertEquals("gcd_story", it.getString("referenced_table_name"))
+            assertFalse(it.next())
+        }
+
+        // verify m_story_credit has primary key constraint on id
+        val query9 = """SELECT COUNT(*) 
+            |FROM information_schema.table_constraints 
+            |WHERE table_schema = '$TEST_DATABASE' 
+            |AND table_name = 'm_story_credit' 
+            |AND constraint_type = 'PRIMARY KEY'""".trimMargin()
+
+        queryExecutor.executeQueryAndDo(query9, conn) {
+            assertTrue(it.next())
+            assertEquals(1, it.getInt(1))
+        }
+    }
+
     companion object {
         private lateinit var conn: Connection
 
@@ -522,7 +651,7 @@ class DBInitAddTablesTest {
         @JvmStatic
         fun setupAll() {
             conn = TestDatabaseSetup.getTestDbConnection()
-            TestDatabaseSetup.setup(populateWith = DatabaseState.GOOD_RECORDS)
+            TestDatabaseSetup.setup(DBState.SOURCED_COLUMNS_DROPPED)
         }
 
         @AfterAll

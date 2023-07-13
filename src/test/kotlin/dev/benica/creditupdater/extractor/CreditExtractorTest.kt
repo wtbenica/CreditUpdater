@@ -1,9 +1,10 @@
 package dev.benica.creditupdater.extractor
 
 import com.zaxxer.hikari.HikariDataSource
+import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import dev.benica.creditupdater.db.DBState
 import dev.benica.creditupdater.db.TestDatabaseSetup
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import dev.benica.creditupdater.di.*
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -14,7 +15,7 @@ import java.sql.ResultSet
 import java.sql.SQLException
 
 class CreditExtractorTest {
-    private val database: String = TEST_DATABASE_CREDIT_EXRACTOR
+    private val database: String = TEST_DATABASE
     private lateinit var connectionSource: ConnectionSource
     private lateinit var dataSource: HikariDataSource
     private lateinit var connection: Connection
@@ -103,20 +104,19 @@ class CreditExtractorTest {
     }
 
     companion object {
-        private const val TEST_DATABASE_CREDIT_EXRACTOR = "credit_updater_test_credit_extractor"
         private lateinit var mConn: Connection
 
         @BeforeAll
         @JvmStatic
         fun setUpAll() {
-            mConn = getDbConnection(TEST_DATABASE_CREDIT_EXRACTOR)
-            TestDatabaseSetup.setup(schema = TEST_DATABASE_CREDIT_EXRACTOR)
+            mConn = getTestDbConnection()
+            TestDatabaseSetup.setup(dbState = DBState.STEP_TWO_COMPLETE)
         }
 
         @AfterAll
         @JvmStatic
         fun tearDownAll() {
-            dropAllTables(mConn, TEST_DATABASE_CREDIT_EXRACTOR)
+            TestDatabaseSetup.teardown()
             mConn.close()
         }
     }
