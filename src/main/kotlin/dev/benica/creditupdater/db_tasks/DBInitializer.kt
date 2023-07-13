@@ -150,7 +150,7 @@ class DBInitializer(
          * @throws SQLException
          */
         @Throws(SQLException::class)
-        internal fun dropIsSourcedAndSourcedByColumns(queryExecutor: QueryExecutor, conn: Connection) {
+        internal fun dropIsSourcedAndSourcedByColumns(queryExecutor: QueryExecutor, conn: Connection) =
             queryExecutor.executeSqlStatement(
                 sqlStmt = """ALTER TABLE gcd_story_credit
                                 DROP COLUMN IF EXISTS is_sourced,
@@ -158,7 +158,6 @@ class DBInitializer(
                             """.trimIndent(),
                 connection = conn
             )
-        }
 
         internal fun createDeleteViews(queryExecutor: QueryExecutor, conn: Connection) =
             queryExecutor.executeSqlScript(sqlScript = File(INIT_CREATE_BAD_VIEWS), conn = conn)
@@ -174,9 +173,8 @@ class DBInitializer(
          * @throws SQLException
          */
         @Throws(SQLException::class)
-        internal fun removeUnnecessaryRecords(queryExecutor: QueryExecutor, conn: Connection) {
+        internal fun removeUnnecessaryRecords(queryExecutor: QueryExecutor, conn: Connection) =
             queryExecutor.executeSqlScript(sqlScript = File(INIT_REMOVE_ITEMS), conn = conn)
-        }
 
 
         /**
@@ -189,17 +187,12 @@ class DBInitializer(
          * @throws SQLException
          */
         @Throws(SQLException::class)
-        internal fun addIssueSeriesColumnsAndConstraints(queryExecutor: QueryExecutor, conn: Connection) {
-            try {
-                conn.autoCommit = false
-                queryExecutor.executeSqlScript(sqlScript = File(ISSUE_SERIES_PATH), conn = conn)
-                conn.commit()
-                conn.autoCommit = true
-            } catch (sqlEx: SQLException) {
-                conn.rollback()
-                throw sqlEx
-            }
-        }
+        internal fun addIssueSeriesColumnsAndConstraints(queryExecutor: QueryExecutor, conn: Connection) =
+            queryExecutor.executeSqlScript(
+                sqlScript = File(ISSUE_SERIES_PATH),
+                runAsTransaction = true,
+                conn = conn
+            )
     }
 }
 
