@@ -64,7 +64,8 @@
 
  DELETE
  FROM gcd_issue
- WHERE series_id IN (SELECT id FROM bad_series);
+ WHERE series_id IN (SELECT id FROM bad_series)
+ OR indicia_publisher_id IN (SELECT id FROM bad_indicia_publishers);
 
  DELETE
  FROM gcd_series_bond
