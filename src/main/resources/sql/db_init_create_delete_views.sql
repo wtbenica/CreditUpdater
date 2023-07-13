@@ -10,6 +10,15 @@ CREATE OR REPLACE VIEW bad_publishers AS (
             )
     );
 
+CREATE OR REPLACE VIEW bad_indicia_publishers AS (
+        SELECT gip.id
+        FROM gcd_indicia_publisher gip
+        WHERE gip.parent_id IN (
+                SELECT id
+                FROM bad_publishers
+            )
+    );
+
 CREATE OR REPLACE VIEW bad_series AS (
         SELECT gs.id
         FROM gcd_series gs
@@ -29,6 +38,10 @@ CREATE OR REPLACE VIEW bad_issues AS (
                 SELECT id
                 FROM bad_series
             )
+        OR gi.indicia_publisher_id IN (
+                SELECT id
+                FROM bad_indicia_publishers
+            )
     );
 
 CREATE OR REPLACE VIEW bad_stories AS (
@@ -37,14 +50,5 @@ CREATE OR REPLACE VIEW bad_stories AS (
         WHERE gs.issue_id IN (
                 SELECT id
                 FROM bad_issues
-            )
-    );
-
-CREATE OR REPLACE VIEW bad_indicia_publishers AS (
-        SELECT gip.id
-        FROM gcd_indicia_publisher gip
-        WHERE gip.parent_id IN (
-                SELECT id
-                FROM bad_publishers
             )
     );
