@@ -9,16 +9,20 @@ import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import java.sql.Connection
 
+@TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class DBTaskTest {
     @Test
+    @Order(1)
     @DisplayName("extractCharactersAndAppearances")
     fun extractCharactersAndAppearances() {
         TestDatabaseSetup.setup(DBState.STEP_ONE_COMPLETE)
 
+        Thread.sleep(2000)
+
         DBTask(TEST_DATABASE).extractCharactersAndAppearances(schema = TEST_DATABASE, initial = true)
 
         // give db ops a chance to complete
-        Thread.sleep(3000)
+        Thread.sleep(2000)
 
         // verify that characters have been added to m_character
         verifyCharactersWereExtracted(conn)
@@ -26,7 +30,51 @@ class DBTaskTest {
         verifyCharacterAppearancesWereExtracted(conn)
     }
 
+    @Test
+    @Order(2)
+    @DisplayName("extractCredits")
+    fun extractCredits() {
+        TestDatabaseSetup.setup(DBState.STEP_TWO_COMPLETE)
+
+        Thread.sleep(2000)
+
+        DBTask(TEST_DATABASE).extractCredits(schema = TEST_DATABASE, initial = true)
+
+        // give db ops a chance to complete
+        Thread.sleep(2000)
+
+        // verify that credits have been added to m_credit
+        verifyCreditsWereExtracted(conn)
+    }
+
     companion object {
+        internal fun verifyCreditsWereExtracted(connection: Connection) {
+            connection.createStatement().use { stmt ->
+                stmt.executeQuery(
+                    """SELECT msc.creator_id, msc.story_id, msc.credit_type_id
+                        |FROM m_story_credit msc
+                    """.trimMargin()
+                ).use { rs ->
+                    assertTrue(rs.next())
+                    assertEquals(1, rs.getInt("creator_id"))
+                    assertEquals(1, rs.getInt("story_id"))
+                    assertEquals(1, rs.getInt("credit_type_id"))
+
+                    assertTrue(rs.next())
+                    assertEquals(1, rs.getInt("creator_id"))
+                    assertEquals(2, rs.getInt("story_id"))
+                    assertEquals(1, rs.getInt("credit_type_id"))
+
+                    assertTrue(rs.next())
+                    assertEquals(2, rs.getInt("creator_id"))
+                    assertEquals(2, rs.getInt("story_id"))
+                    assertEquals(2, rs.getInt("credit_type_id"))
+
+                    assertFalse(rs.next())
+                }
+            }
+        }
+
         internal fun verifyCharacterAppearancesWereExtracted(connection: Connection) {
             connection.createStatement().use { stmt ->
                 stmt.executeQuery(
