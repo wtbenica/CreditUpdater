@@ -2,12 +2,14 @@ package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.Credentials.Companion.INCOMING_DATABASE
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
-import dev.benica.creditupdater.di.DaggerDispatchersComponent
-import dev.benica.creditupdater.di.DispatchersComponent
+import dev.benica.creditupdater.db.QueryExecutor
+import dev.benica.creditupdater.di.*
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import mu.KLogger
 import mu.KotlinLogging
+import java.io.File
+import java.sql.Connection
 import java.sql.SQLException
 import javax.inject.Inject
 import javax.inject.Named
@@ -22,16 +24,15 @@ class DBMigrator(
     private val destSchema: String = PRIMARY_DATABASE,
     private val startAtStep: Int = 1,
     private val startingId: Int? = null,
-    dispatcherComponent: DispatchersComponent = DaggerDispatchersComponent.create(),
+    dispatcherComponent: DispatchAndExecuteComponent = DaggerDispatchAndExecuteComponent.create(),
 ) {
-    init {
-        dispatcherComponent.inject(this)
-    }
-
     // Dependencies
     @Inject
     @Named("IO")
     internal lateinit var ioDispatcher: CoroutineDispatcher
+
+    @Inject
+    internal lateinit var connectionSource: ConnectionSource
 
     // Private properties
     private val logger: KLogger
@@ -39,15 +40,22 @@ class DBMigrator(
 
     private val dbTask: DBTask = DBTask(sourceSchema)
 
+    init {
+        dispatcherComponent.inject(this)
+    }
+
     /** Migrate - migrates the data from the old database to the new database. */
     suspend fun migrate() {
+        val queryExecutor = QueryExecutor(sourceSchema)
+        val conn: Connection = connectionSource.getConnection(sourceSchema).connection
+
         withContext(ioDispatcher) {
             try {
                 logger.info { "Migrating to $destSchema from $sourceSchema" }
 
                 if (startAtStep == 1) {
                     logger.info { "starting tables..." }
-                    addTablesNew()
+                    addTablesNew(queryExecutor, conn)
                 }
 
                 if (startAtStep <= 2) {
@@ -70,13 +78,13 @@ class DBMigrator(
 
                 if (startAtStep <= 4) {
                     logger.info { "starting foreign keys updates" }
-                    addIssueSeriesToCreditsNew()
+                    addIssueSeriesToCreditsNew(queryExecutor, conn)
                     logger.info { "Done prepping $sourceSchema for migration" }
                 }
 
                 if (startAtStep <= 5) {
                     logger.info { "starting migration..." }
-                    migrateRecords()
+                    migrateRecords(queryExecutor, conn)
                     logger.info { "Done migrating records" }
                 }
             } catch (sqlEx: SQLException) {
@@ -84,22 +92,11 @@ class DBMigrator(
                 logger.error { sqlEx.message }
                 logger.error { sqlEx.stackTrace }
                 throw sqlEx
+            } finally {
+                conn.close()
             }
         }
     }
-
-    /** Migrate records - migrates the records from the old database to the new */
-    private fun migrateRecords() {
-        dbTask.runSqlScript(MIGRATE_PATH_NEW)
-    }
-
-    /** Add tables new - adds tables to the new database. */
-    internal fun addTablesNew() =
-        dbTask.runSqlScript(ADD_MODIFY_TABLES_PATH_NEW)
-
-    /** adds the issue_id and series_id columns */
-    internal fun addIssueSeriesToCreditsNew() =
-        dbTask.runSqlScript(ADD_ISSUE_SERIES_TO_CREDITS_PATH_NEW)
 
     companion object {
         /**
@@ -117,5 +114,14 @@ class DBMigrator(
             "src/main/resources/sql/add_issue_series_to_credits_new.sql"
 
         private const val MIGRATE_PATH_NEW = "src/main/resources/sql/migrate.sql"
+
+        internal fun migrateRecords(queryExecutor: QueryExecutor, conn: Connection) =
+            queryExecutor.executeSqlScript(File(MIGRATE_PATH_NEW), conn = conn)
+
+        internal fun addTablesNew(queryExecutor: QueryExecutor, conn: Connection) =
+            queryExecutor.executeSqlScript(File(ADD_MODIFY_TABLES_PATH_NEW), conn = conn)
+
+        internal fun addIssueSeriesToCreditsNew(queryExecutor: QueryExecutor, conn: Connection) =
+            queryExecutor.executeSqlScript(File(ADD_ISSUE_SERIES_TO_CREDITS_PATH_NEW), conn = conn)
     }
 }

@@ -1,7 +1,6 @@
 package dev.benica.creditupdater.db
 
 import dev.benica.creditupdater.di.*
-import java.sql.Connection
 import java.sql.SQLException
 import javax.inject.Inject
 
@@ -18,18 +17,13 @@ class CreditRepository(
     private val targetSchema: String,
     databaseComponent: DatabaseComponent? = DaggerDatabaseComponent.create(),
     private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
-) : Repository, AutoCloseable {
+) : Repository {
     // Dependencies
     @Inject
     internal lateinit var connectionSource: ConnectionSource
 
-    internal lateinit var conn: Connection
-
     init {
-        if (databaseComponent != null) {
-            databaseComponent.inject(this)
-            conn = connectionSource.getConnection(targetSchema).connection
-        }
+        databaseComponent?.inject(this)
     }
 
     // Public Methods
@@ -63,6 +57,8 @@ class CreditRepository(
      */
     @Throws(SQLException::class)
     internal fun lookupGcndId(extractedName: String): Int? {
+        val conn = connectionSource.getConnection(targetSchema).connection
+
         var gcndId: Int? = null
 
         try {
@@ -84,6 +80,8 @@ class CreditRepository(
         } catch (sqlEx: SQLException) {
             sqlEx.printStackTrace()
             throw sqlEx
+        } finally {
+            conn.close()
         }
 
         return gcndId
@@ -102,6 +100,8 @@ class CreditRepository(
      */
     @Throws(SQLException::class)
     internal fun lookupStoryCreditId(gcndId: Int, storyId: Int, roleId: Int): Int? {
+        val conn = connectionSource.getConnection(targetSchema).connection
+
         var storyCreditId: Int? = null
 
         try {
@@ -127,6 +127,7 @@ class CreditRepository(
             }
         } catch (sqlEx: SQLException) {
             sqlEx.printStackTrace()
+            conn.close()
             throw sqlEx
         }
 
@@ -154,6 +155,8 @@ class CreditRepository(
             } catch (sqlEx: SQLException) {
                 sqlEx.printStackTrace()
                 throw sqlEx
+            } finally {
+                conn.close()
             }
         }
 
@@ -174,19 +177,17 @@ class CreditRepository(
             """INSERT IGNORE INTO $targetSchema.m_story_credit(creator_id, credit_type_id, story_id)
                 VALUE (?, ?, ?)"""
 
-        queryExecutor.executePreparedStatement(
-            sql = insertStoryCreditSql,
-            conn = conn
-        ) { statement ->
-            statement.setInt(1, gcndId)
-            statement.setInt(2, roleId)
-            statement.setInt(3, storyId)
+        connectionSource.getConnection(targetSchema).connection.use { conn ->
+            queryExecutor.executePreparedStatement(
+                sql = insertStoryCreditSql,
+                conn = conn
+            ) { statement ->
+                statement.setInt(1, gcndId)
+                statement.setInt(2, roleId)
+                statement.setInt(3, storyId)
 
-            statement.executeUpdate()
+                statement.executeUpdate()
+            }
         }
-    }
-
-    override fun close() {
-        conn.close()
     }
 }

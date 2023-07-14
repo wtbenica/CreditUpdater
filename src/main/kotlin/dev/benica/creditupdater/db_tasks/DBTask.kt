@@ -9,7 +9,6 @@ import dev.benica.creditupdater.extractor.CreditExtractor
 import dev.benica.creditupdater.extractor.Extractor
 import mu.KLogger
 import mu.KotlinLogging
-import java.io.File
 import java.sql.Connection
 import java.sql.SQLException
 import javax.inject.Inject
@@ -32,8 +31,8 @@ class DBTask(
     @Inject
     internal lateinit var connectionSource: ConnectionSource
 
-    private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
-    protected val conn: Connection
+    internal val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
+    private val conn: Connection
 
     init {
         databaseComponent.inject(this)
@@ -76,7 +75,7 @@ class DBTask(
                 FROM $schema.$table g
                 JOIN $schema.gcd_issue gi on gi.id = g.issue_id
                 JOIN $schema.gcd_series gs on gs.id = gi.series_id
-                where g.id > $lastIdCompleted
+                WHERE g.id > $lastIdCompleted
                 ORDER BY g.id """.trimIndent()
 
         logger.debug { "SelectStoriesQuery: $selectStoriesQuery" }
@@ -142,7 +141,7 @@ class DBTask(
      * @throws SQLException if an error occurs
      */
     @Throws(SQLException::class)
-    private fun extractAndInsertItems(
+    internal fun extractAndInsertItems(
         selectItemsQuery: String,
         extractor: Extractor,
         batchSize: Int = DEFAULT_BATCH_SIZE
@@ -198,13 +197,4 @@ class DBTask(
         logger.info { "END\n\n\n" }
         progressTracker.resetProgressInfo()
     }
-
-    @Throws(SQLException::class)
-    fun runSqlScript(
-        sqlScriptPath: String,
-        runAsTransaction: Boolean = false
-    ) = queryExecutor.executeSqlScript(
-        sqlScript = File(sqlScriptPath), runAsTransaction = runAsTransaction,
-        conn = conn
-    )
 }

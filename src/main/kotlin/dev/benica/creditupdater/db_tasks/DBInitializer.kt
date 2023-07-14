@@ -47,11 +47,8 @@ class DBInitializer(
 
     private val dbTask: DBTask = DBTask(targetSchema)
 
-    private val conn: Connection
-
     init {
         dispatcherComponent.inject(this)
-        conn = connectionSource.getConnection(targetSchema).connection
     }
 
 
@@ -66,6 +63,7 @@ class DBInitializer(
     @Throws(SQLException::class)
     suspend fun prepareDb() {
         val queryExecutor = QueryExecutor(targetSchema)
+        val conn: Connection = connectionSource.getConnection(targetSchema).connection
 
         withContext(ioDispatcher) {
             try {
@@ -117,6 +115,8 @@ class DBInitializer(
                 logger.error { sqlEx.message }
                 logger.error { sqlEx.stackTrace }
                 throw sqlEx
+            } finally {
+                conn.close()
             }
         }
     }

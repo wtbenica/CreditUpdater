@@ -5,7 +5,6 @@ import dev.benica.creditupdater.di.*
 import dev.benica.creditupdater.models.Appearance
 import mu.KLogger
 import mu.KotlinLogging
-import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.SQLException
 import java.sql.Statement.RETURN_GENERATED_KEYS
@@ -24,19 +23,13 @@ class CharacterRepository(
     private val targetSchema: String,
     databaseComponent: DatabaseComponent? = DaggerDatabaseComponent.create(),
     private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
-) : Repository, AutoCloseable {
+) : Repository {
     // Dependencies
     @Inject
     internal lateinit var connectionSource: ConnectionSource
 
-    // Private Properties
-    internal lateinit var conn: Connection
-
     init {
-        if (databaseComponent != null) {
-            databaseComponent.inject(this)
-            conn = connectionSource.getConnection(targetSchema).connection
-        }
+        databaseComponent?.inject(this)
     }
 
     // Private Properties
@@ -94,6 +87,8 @@ class CharacterRepository(
 
     /** Insert character appearances - inserts [appearances] into [targetSchema] */
     fun insertCharacterAppearances(appearances: Set<Appearance>) {
+        val conn = connectionSource.getConnection(targetSchema).connection
+
         try {
             val sql = """
                INSERT IGNORE INTO $targetSchema.m_character_appearance(id, details, character_id, story_id, notes, membership)
@@ -114,6 +109,8 @@ class CharacterRepository(
         } catch (e: SQLException) {
             logger.error("Error inserting character appearances", e)
             throw e
+        } finally {
+            conn.close()
         }
     }
 
@@ -139,6 +136,7 @@ class CharacterRepository(
            INSERT INTO ${targetSchema}.m_character(name, alter_ego, publisher_id)
            VALUE (?, ?, ?)
         """
+        val conn = connectionSource.getConnection(targetSchema).connection
 
         queryExecutor.executePreparedStatementBatch(sql, RETURN_GENERATED_KEYS, conn = conn) { s: PreparedStatement ->
             try {
@@ -154,8 +152,13 @@ class CharacterRepository(
                 }
             } catch (e: SQLException) {
                 logger.error("Error inserting character $name", e)
+                conn.close()
                 throw e
             }
+        }
+
+        if (!conn.isClosed) {
+            conn.close()
         }
 
         return characterId
@@ -182,6 +185,7 @@ class CharacterRepository(
         publisherId: Int,
         checkPrimary: Boolean = targetSchema != PRIMARY_DATABASE
     ): Int? {
+        val conn = connectionSource.getConnection(targetSchema).connection
         var characterId: Int? = null
         val db = if (checkPrimary) {
             PRIMARY_DATABASE
@@ -225,11 +229,10 @@ class CharacterRepository(
         } catch (sqlEx: SQLException) {
             logger.error("Error looking up character", sqlEx)
             throw sqlEx
+        } finally {
+            conn.close()
         }
-        return characterId
-    }
 
-    override fun close() {
-        conn.close()
+        return characterId
     }
 }

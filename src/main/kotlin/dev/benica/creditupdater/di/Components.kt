@@ -23,12 +23,7 @@ interface DatabaseComponent {
 interface DispatchAndExecuteComponent {
     fun inject(tracker: ExtractionProgressTracker)
     fun inject(dbInitializer: DBInitializer)
-}
-
-@Component(modules = [DispatchersModule::class])
-@Singleton
-fun interface DispatchersComponent {
-    fun inject(migrator: DBMigrator)
+    fun inject(dbMigrator: DBMigrator)
 }
 
 @Component(modules = [CharacterRepositoryModule::class])

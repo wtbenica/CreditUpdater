@@ -28,7 +28,7 @@ import javax.inject.Inject
 class CharacterExtractor(
     schema: String,
     repositoryComponent: CharacterRepositoryComponent = DaggerCharacterRepositoryComponent.create()
-) : Extractor(schema), AutoCloseable {
+) : Extractor(schema) {
     override val extractTable: String = "gcd_story"
     override val extractedItem: String = "Character"
     override val fromValue: String = "StoryId"
@@ -103,9 +103,5 @@ class CharacterExtractor(
             logger.error("Error in extract and insert characters", sqlEx)
             throw sqlEx
         }
-    }
-
-    override fun close() {
-        repository.close()
     }
 }
