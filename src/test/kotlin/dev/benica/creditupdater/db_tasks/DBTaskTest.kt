@@ -1,12 +1,17 @@
 package dev.benica.creditupdater.db_tasks
 
+import dev.benica.creditupdater.Credentials
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.db.DBState
 import dev.benica.creditupdater.db.TestDatabaseSetup
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
+import dev.benica.creditupdater.extractor.CharacterExtractor
+import dev.benica.creditupdater.extractor.CreditExtractor
 import org.junit.jupiter.api.*
-
 import org.junit.jupiter.api.Assertions.*
+import org.mockito.ArgumentMatchers.contains
+import org.mockito.kotlin.*
+import java.io.File
 import java.sql.Connection
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
@@ -15,6 +20,25 @@ class DBTaskTest {
     @Order(1)
     @DisplayName("extractCharactersAndAppearances")
     fun extractCharactersAndAppearances() {
+        TestDatabaseSetup.setup(DBState.STEP_ONE_COMPLETE)
+
+        Thread.sleep(2000)
+
+        DBTask(TEST_DATABASE).extractCharactersAndAppearances(schema = TEST_DATABASE, initial = true, startingId = 0)
+
+        // give db ops a chance to complete
+        Thread.sleep(2000)
+
+        // verify that characters have been added to m_character
+        verifyCharactersWereExtracted(conn)
+
+        verifyCharacterAppearancesWereExtracted(conn)
+    }
+
+    @Test
+    @Order(1)
+    @DisplayName("extractCharactersAndAppearances when startingId is null/default")
+    fun extractCharactersAndAppearancesWithDefaultStartingId() {
         TestDatabaseSetup.setup(DBState.STEP_ONE_COMPLETE)
 
         Thread.sleep(2000)
@@ -31,9 +55,26 @@ class DBTaskTest {
     }
 
     @Test
-    @Order(2)
+    @Order(3)
     @DisplayName("extractCredits")
     fun extractCredits() {
+        TestDatabaseSetup.setup(DBState.STEP_TWO_COMPLETE)
+
+        Thread.sleep(2000)
+
+        DBTask(TEST_DATABASE).extractCredits(schema = TEST_DATABASE, initial = true, startingId = 0)
+
+        // give db ops a chance to complete
+        Thread.sleep(2000)
+
+        // verify that credits have been added to m_credit
+        verifyCreditsWereExtracted(conn)
+    }
+
+    @Test
+    @Order(4)
+    @DisplayName("extractCredits when startingId is null/default")
+    fun extractCreditsWithDefaultStartingId() {
         TestDatabaseSetup.setup(DBState.STEP_TWO_COMPLETE)
 
         Thread.sleep(2000)
@@ -45,6 +86,68 @@ class DBTaskTest {
 
         // verify that credits have been added to m_credit
         verifyCreditsWereExtracted(conn)
+    }
+
+    @Test
+    @Order(6)
+    @DisplayName("extractCharactersAndAppearances where progress.json file dne")
+    fun extractCharactersAndAppearancesWhereProgressFileDne() {
+        TestDatabaseSetup.setup(DBState.STEP_ONE_COMPLETE)
+
+        // rename progress.json file if exists
+        val progressFile = File("progress.json")
+        if (progressFile.exists()) {
+            progressFile.renameTo(File("progress.json.bak"))
+        }
+
+        // Arrange
+        val mockDBTask = spy(DBTask(TEST_DATABASE))
+
+        // Act
+        mockDBTask.extractCharactersAndAppearances(schema = TEST_DATABASE, initial = true, startingId = null)
+
+        // Assert
+        verify(mockDBTask).extractAndInsertItems(
+            selectItemsQuery = contains("WHERE g.id > ${Credentials.CHARACTER_STORY_START_ID}"),
+            extractor = any<CharacterExtractor>(),
+            batchSize = any()
+        )
+
+        // rename progress.json.bak file back to progress.json
+        if (progressFile.exists()) {
+            progressFile.renameTo(File("progress.json"))
+        }
+    }
+
+    @Test
+    @Order(7)
+    @DisplayName("extractCredits where progress.json file dne")
+    fun extractCreditsWhereProgressFileDne() {
+        TestDatabaseSetup.setup(DBState.STEP_TWO_COMPLETE)
+
+        // rename progress.json file if exists
+        val progressFile = File("progress.json")
+        if (progressFile.exists()) {
+            progressFile.renameTo(File("progress.json.bak"))
+        }
+
+        // Arrange
+        val mockDBTask = spy(DBTask(TEST_DATABASE))
+
+        // Act
+        mockDBTask.extractCredits(schema = TEST_DATABASE, initial = true, startingId = null)
+
+        // Assert
+        verify(mockDBTask).extractAndInsertItems(
+            selectItemsQuery = contains("WHERE g.id > ${Credentials.CREDITS_STORY_START_ID}"),
+            extractor = any<CreditExtractor>(),
+            batchSize = any()
+        )
+
+        // rename progress.json.bak file back to progress.json
+        if (progressFile.exists()) {
+            progressFile.renameTo(File("progress.json"))
+        }
     }
 
     companion object {

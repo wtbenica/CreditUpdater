@@ -227,10 +227,6 @@ class CharacterParserTest {
     }
 
     @Test
-    fun splitString() {
-    }
-
-    @Test
     @DisplayName("parseBracketedText handles the a team")
     fun `parseBracketedText$CreditUpdater`() {
         val string = "Batman; Superman; Martian Manhunter [J'onn J'onnz]"

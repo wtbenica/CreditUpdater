@@ -8,6 +8,7 @@ import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnecti
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import java.sql.Connection
@@ -123,7 +124,9 @@ class DBInitializerTest {
             DBInitializer(TEST_DATABASE, startAtStep = 1).prepareDb()
 
             // give db ops a chance to finish
-            Thread.sleep(1000)
+            withContext(Dispatchers.IO) {
+                Thread.sleep(1000)
+            }
 
             verifyUnusedTables(exist = false)
             verifySourcedColumns(exist = false)

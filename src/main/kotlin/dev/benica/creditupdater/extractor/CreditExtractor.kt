@@ -21,7 +21,7 @@ import kotlin.jvm.Throws
 class CreditExtractor(
     schema: String,
     repositoryComponent: CreditRepositoryComponent = DaggerCreditRepositoryComponent.create()
-) : Extractor(schema), AutoCloseable {
+) : Extractor(schema) {
     override val extractTable: String = "gcd_story"
     override val extractedItem = "Credit"
     override val fromValue = "StoryId"
@@ -109,8 +109,4 @@ class CreditExtractor(
         .replace(Regex("\\s*\\?\\s*"), "")
         .replace(Regex("^\\s*"), "")
         .cleanup()
-
-    override fun close() {
-        repository.close()
-    }
 }
