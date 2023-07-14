@@ -20,7 +20,7 @@ class ExtractionProgressTrackerTest {
 
     private val loggerMock: KLogger = mock<KLogger>()
 
-    //private lateinit var mockEpt: ExtractionProgressTracker
+    private lateinit var file: File
 
     @BeforeEach
     fun beforeEach() {
@@ -28,37 +28,35 @@ class ExtractionProgressTrackerTest {
 
         parser = CLIParser()
 
-        // Create a test_progress.json file
-        getDbConnection(TEST_DATABASE_EPT).use { conn ->
+        // reset db
+        getDbConnection(TEST_DATABASE).use { conn ->
             conn.createStatement().use { stmt ->
-                // truncate
                 stmt.execute("TRUNCATE TABLE gcd_story")
 
-                // Insert 10 rows into the table
                 for (i in 1..10) {
                     stmt.execute("INSERT INTO gcd_story VALUES ($i)")
                 }
             }
         }
 
-        //mockEpt = spy(
-        //    ExtractionProgressTracker(
-        //        extractedType = "Credit",
-        //        targetSchema = TEST_DATABASE_EPT,
-        //        totalItems = 10,
-        //        progressInfoMap = ProgressInfoMap(TEST_PROGRESS_FILE),
-        //        logger = loggerMock
-        //    )
-        //)
+        file = createTestProgressFile()
+    }
 
-        //whenever(mockEpt.getItemsCompleted()).thenReturn(ITEMS_COMPLETED)
+    @AfterEach
+    fun afterEach() {
+        file.delete()
     }
 
     // loadProgressInfo
     @Test
     @DisplayName("should load progress info correctly when there is an existing progress file")
     fun shouldLoadProgressInfoCorrectly() {
-        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE_EPT, 10, ProgressInfoMap(TEST_PROGRESS_FILE))
+        val ept = ExtractionProgressTracker(
+            extractedType = "Credit",
+            targetSchema = TEST_DATABASE,
+            totalItems = 10,
+            progressInfoMap = ProgressInfoMap(TEST_PROGRESS_FILE)
+        )
 
         val progressInfoMap = ept.progressInfoMap
         assertEquals(2, progressInfoMap.get("Credit").lastProcessedItemId)
@@ -74,8 +72,12 @@ class ExtractionProgressTrackerTest {
     @Test
     @DisplayName("should load progress info correctly when there is no existing progress file")
     fun shouldLoadProgressInfoCorrectlyWhenThereIsNoExistingProgressFile() {
-        val ept =
-            ExtractionProgressTracker("Credit", TEST_DATABASE_EPT, 10, ProgressInfoMap("nonexistent_progress.json"))
+        val ept = ExtractionProgressTracker(
+            extractedType = "Credit",
+            targetSchema = TEST_DATABASE,
+            totalItems = 10,
+            progressInfoMap = ProgressInfoMap("nonexistent_progress.json")
+        )
         val progressInfoMap = ept.progressInfoMap
         assertEquals(0, progressInfoMap.get("Credit").lastProcessedItemId)
         assertEquals(0, progressInfoMap.get("Credit").totalTimeMillis)
@@ -96,15 +98,12 @@ class ExtractionProgressTrackerTest {
     @Test
     @DisplayName("should update progress info correctly")
     fun shouldUpdateProgressInfoCorrectly() {
-        val testFile = "test_progress_1.json"
-        val file = createTestProgressFile(testFile)
-
         val mockEpt = spy(
             ExtractionProgressTracker(
                 extractedType = "Credit",
-                targetSchema = TEST_DATABASE_EPT,
+                targetSchema = TEST_DATABASE,
                 totalItems = 10,
-                progressInfoMap = ProgressInfoMap(testFile),
+                progressInfoMap = ProgressInfoMap(TEST_PROGRESS_FILE),
                 logger = loggerMock
             )
         )
@@ -146,18 +145,21 @@ class ExtractionProgressTrackerTest {
         val actual = gson.toJson(file.readText())
 
         assertEquals(expected, actual)
-        file.delete()
     }
 
     // resetProgressInfo
     @Test
-    @DisplayName("should reset progress info correctly")
-    fun shouldResetProgressInfoCorrectly() {
-        val fileName = "test_progress_2.json"
-        val file = createTestProgressFile(fileName)
+    @DisplayName("should reset progress info and update progress file correctly")
+    fun shouldResetProgressInfoAndUpdateProgressFileCorrectly() {
+        val ept = ExtractionProgressTracker(
+            extractedType = "Credit",
+            targetSchema = TEST_DATABASE,
+            totalItems = 10,
+            progressInfoMap = ProgressInfoMap(TEST_PROGRESS_FILE)
+        )
 
-        val ept = ExtractionProgressTracker("Credit", TEST_DATABASE_EPT, 10, ProgressInfoMap(fileName))
         ept.resetProgressInfo()
+
         val progressInfoMap = ept.progressInfoMap
         assertEquals(0, progressInfoMap.get("Credit").lastProcessedItemId)
         assertEquals(0, progressInfoMap.get("Credit").totalTimeMillis)
@@ -172,7 +174,6 @@ class ExtractionProgressTrackerTest {
         assertEquals(0, progressInfo.numCompleted)
 
         // verify saved file
-
         val gson = Gson()
 
         @Language("JSON")
@@ -195,62 +196,21 @@ class ExtractionProgressTrackerTest {
 
         assertEquals(expected, actual)
 
-        file.delete()
-    }
 
-    // saveProgressInfo
-    @Test
-    @DisplayName("should save progress info correctly")
-    fun shouldSaveProgressInfoCorrectly() {
-        val fileName = "test_progress_3.json"
-        val file = createTestProgressFile(fileName)
-
-        val mockEpt = spy(
-            ExtractionProgressTracker(
-                extractedType = "Credit",
-                targetSchema = TEST_DATABASE_EPT,
-                totalItems = 10,
-                progressInfoMap = ProgressInfoMap(fileName),
-                logger = loggerMock
-            )
-        )
-
-        whenever(mockEpt.getItemsCompleted()).thenReturn(ITEMS_COMPLETED)
-
-        doReturn("Credit").whenever(mockEpt).extractedType
-
-        mockEpt.resetProgressInfo()
-
-        // Verify the progress info is reset correctly
-        val progressInfoMap = mockEpt.progressInfoMap
-        assertEquals(0, progressInfoMap.get("Credit").lastProcessedItemId)
-        assertEquals(0, progressInfoMap.get("Credit").totalTimeMillis)
-        assertEquals(0, progressInfoMap.get("Credit").numCompleted)
-        assertEquals(3, progressInfoMap.get("Character").lastProcessedItemId)
-        assertEquals(3000, progressInfoMap.get("Character").totalTimeMillis)
-        assertEquals(0, progressInfoMap.get("Character").numCompleted)
-
-        val progressInfo = mockEpt.progressInfo
-        assertEquals(0, progressInfo.lastProcessedItemId)
-        assertEquals(0, progressInfo.totalTimeMillis)
-        assertEquals(0, progressInfo.numCompleted)
-
-        file.delete()
     }
 
     // printProgressInfo
     @Test
     @DisplayName("should print progress info correctly")
     fun shouldPrintProgressInfoCorrectly() {
-        val fileName = "test_progress_4.json"
-        val file = createTestProgressFile(fileName)
+        val file = createTestProgressFile()
 
         val mockEpt = spy(
             ExtractionProgressTracker(
                 extractedType = "Credit",
-                targetSchema = TEST_DATABASE_EPT,
+                targetSchema = TEST_DATABASE,
                 totalItems = 10,
-                progressInfoMap = ProgressInfoMap(fileName),
+                progressInfoMap = ProgressInfoMap(TEST_PROGRESS_FILE),
                 logger = loggerMock
             )
         )
@@ -277,15 +237,14 @@ class ExtractionProgressTrackerTest {
     @Test
     @DisplayName("should get progress bar correctly A (24.6)")
     fun shouldGetProgressBarCorrectlyA() {
-        val fileName = "test_progress_5.json"
-        val file = createTestProgressFile(fileName)
+        val file = createTestProgressFile()
 
         val mockEpt = spy(
             ExtractionProgressTracker(
                 extractedType = "Credit",
-                targetSchema = TEST_DATABASE_EPT,
+                targetSchema = TEST_DATABASE,
                 totalItems = 10,
-                progressInfoMap = ProgressInfoMap(fileName),
+                progressInfoMap = ProgressInfoMap(TEST_PROGRESS_FILE),
                 logger = loggerMock
             )
         )
@@ -304,15 +263,14 @@ class ExtractionProgressTrackerTest {
     @Test
     @DisplayName("should get progress bar correctly B (100)")
     fun shouldGetProgressBarCorrectlyB() {
-        val fileName = "test_progress_6.json"
-        val file = createTestProgressFile(fileName)
+        val file = createTestProgressFile()
 
         val mockEpt = spy(
             ExtractionProgressTracker(
                 extractedType = "Credit",
-                targetSchema = TEST_DATABASE_EPT,
+                targetSchema = TEST_DATABASE,
                 totalItems = 10,
-                progressInfoMap = ProgressInfoMap(fileName),
+                progressInfoMap = ProgressInfoMap(TEST_PROGRESS_FILE),
                 logger = loggerMock
             )
         )
@@ -357,31 +315,42 @@ class ExtractionProgressTrackerTest {
     @Test
     @DisplayName("should return correct last processed item id when file does not contain itemType")
     fun shouldReturnCorrectLastProcessedItemIdWhenFileIsEmpty() {
-        val fileName = "test_progress_file_empty.json"
-        val file = File(fileName)
+        val file = File(TEST_PROGRESS_FILE)
         file.writeText("{}")
 
-        assertEquals(0, ExtractionProgressTracker.getLastProcessedItemId("Credit", fileName))
+        assertEquals(0, ExtractionProgressTracker.getLastProcessedItemId("Credit", TEST_PROGRESS_FILE))
 
-        file.delete()
+
     }
 
     @Test
     @DisplayName("should return correct last processed item id when no progress info is saved")
     fun shouldReturnCorrectLastProcessedItemIdWhenNoProgressInfoIsSaved() {
-        val fileName = "test_progress_file_no_progress_info.json"
-        val file = File(fileName)
+        val file = File(TEST_PROGRESS_FILE)
         file.writeText("""{"Credit": {}}""")
 
-        assertEquals(0, ExtractionProgressTracker.getLastProcessedItemId("Credit", fileName))
+        assertEquals(0, ExtractionProgressTracker.getLastProcessedItemId("Credit", TEST_PROGRESS_FILE))
 
-        file.delete()
+
     }
 
     @Test
     @DisplayName("should return correct last processed item id with fileName default parameter")
     fun shouldReturnCorrectLastProcessedItemIdWithFileNameDefaultParameter() {
+        // rename file 'progress.json' if exists
+        val file = File("progress.json")
+        if (file.exists()) {
+            file.renameTo(File("progress.bak"))
+        }
+
+        // create new 'progress.json' file
+        val file2 = File("progress.json")
+        file2.writeText("""{"Credit": {"lastProcessedItemId": 2}}""")
+
         assertEquals(2, ExtractionProgressTracker.getLastProcessedItemId("Credit"))
+
+        file2.delete()
+        File("progress.bak").renameTo(File("progress.json"))
     }
 
     // toPercent
@@ -485,9 +454,10 @@ class ExtractionProgressTrackerTest {
     }
 
     companion object {
-        private const val TEST_DATABASE_EPT = "credit_updater_test_ept"
+        private const val TEST_DATABASE = "credit_updater_test_ept"
         private const val ITEMS_COMPLETED = 2
         private const val TEST_PROGRESS_FILE = "test_progress.json"
+
         @Language("JSON")
         private const val DEFAULT_PROGRESS_MAP = """{
             "Credit": {
@@ -506,27 +476,24 @@ class ExtractionProgressTrackerTest {
         @JvmStatic
         fun setup() {
             // Create a database table 'gcd_story' with a single column 'id'
-            getDbConnection(TEST_DATABASE_EPT).use { conn ->
+            getDbConnection(TEST_DATABASE).use { conn ->
                 conn.createStatement().use { stmt ->
                     stmt.execute("CREATE TABLE IF NOT EXISTS gcd_story (id INT)")
                 }
             }
 
-            createTestProgressFile(TEST_PROGRESS_FILE)
+            createTestProgressFile()
         }
 
-        private fun createTestProgressFile(fileName: String): File {
+        /**
+         * Creates a test progress file [TEST_PROGRESS_FILE] with the default progress map.
+         */
+        private fun createTestProgressFile(): File {
             // create TEST_PROGRESS_FILE and add DEFAULT_PROGRESS_MAP to it
-            val file = File(fileName)
+            val file = File(TEST_PROGRESS_FILE)
             file.writer().use { testProgressFile ->
                 testProgressFile.write(DEFAULT_PROGRESS_MAP)
             }
-            // Rename progress.json to progress.bak, create a new progress.json file with test data
-            val progressFile = File("progress.json")
-            if (progressFile.exists()) {
-                progressFile.renameTo(File("progress.bak"))
-            }
-            progressFile.writeText(DEFAULT_PROGRESS_MAP)
             return file
         }
 
@@ -534,18 +501,11 @@ class ExtractionProgressTrackerTest {
         @JvmStatic
         fun teardownAll() {
             // Delete the database table 'gcd_story'
-            getDbConnection(TEST_DATABASE_EPT).use { conn ->
+            getDbConnection(TEST_DATABASE).use { conn ->
                 conn.createStatement().use { stmt ->
                     stmt.execute("DROP TABLE IF EXISTS gcd_story")
                 }
             }
-
-            // Delete progress.json, rename progress.bak to progress.json
-            val progressFile = File("progress.json")
-            if (progressFile.exists()) {
-                progressFile.delete()
-            }
-            File("progress.bak").renameTo(progressFile)
         }
     }
 }

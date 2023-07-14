@@ -21,8 +21,8 @@ import javax.inject.Inject
  * and creates linked entries for them in the 'm_character' and
  * 'm_character_appearance' tables.
  *
- * @param schema the database to which to write the extracted character
- *     and appearance data.
+ * @param schema the database to which to write the extracted character and
+ *     appearance data.
  * @note The caller is responsible for closing the extractor.
  */
 class CharacterExtractor(
@@ -56,9 +56,7 @@ class CharacterExtractor(
      * @throws SQLException
      */
     @Throws(SQLException::class)
-    override fun extractAndInsert(
-        resultSet: ResultSet,
-    ): Int {
+    override fun extractAndInsert(resultSet: ResultSet): Int {
         try {
             val storyId = resultSet.getInt("id")
             val characters = resultSet.getString("characters")

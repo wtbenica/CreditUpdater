@@ -1,5 +1,6 @@
 package dev.benica.creditupdater.db
 
+import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import dev.benica.creditupdater.models.Appearance
@@ -22,7 +23,7 @@ class CharacterRepositoryTest {
             stmt.execute("DELETE FROM $tableName")
         }
 
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
         val id = repo.upsertCharacter("Test Character", null, 1)
         assertNotNull(id)
         assertEquals(1, id)
@@ -49,7 +50,7 @@ class CharacterRepositoryTest {
             stmt.execute("INSERT INTO $tableName (name, alter_ego, publisher_id) VALUES ('Test Character', NULL, 1)")
         }
 
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
         val id = repo.upsertCharacter("Test Character", null, 1, false)
         assertNotNull(id)
         assertEquals(1, id)
@@ -64,7 +65,7 @@ class CharacterRepositoryTest {
             stmt.execute("DELETE FROM $tableName")
         }
 
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
         val id = repo.upsertCharacter("Test Character", "a".repeat(300), 1)
         assertNotNull(id)
         assertEquals(1, id)
@@ -91,7 +92,7 @@ class CharacterRepositoryTest {
             stmt.execute("DELETE FROM $tableName")
         }
 
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
         val id = repo.upsertCharacter("a".repeat(300), null, 1)
         assertNotNull(id)
         assertEquals(1, id)
@@ -119,7 +120,7 @@ class CharacterRepositoryTest {
             stmt.execute("DELETE FROM $tableName")
         }
 
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
         val characterId = repo.lookupCharacter("Test Character", null, 1)
         assertNull(characterId)
     }
@@ -133,7 +134,7 @@ class CharacterRepositoryTest {
             stmt.execute("INSERT INTO $tableName (name, alter_ego, publisher_id) VALUES ('Test Character', NULL, 1)")
         }
 
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
         val characterId = repo.lookupCharacter("Test Character", null, 1)
         assertNotNull(characterId)
         assertEquals(1, characterId)
@@ -147,7 +148,7 @@ class CharacterRepositoryTest {
 
         // Create the repository
         val repo = CharacterRepository(
-            targetSchema = TEST_DATABASE_CHAR_REPO,
+            targetSchema = TEST_DATABASE,
             queryExecutor = queryExecutorMock
         )
 
@@ -170,7 +171,7 @@ class CharacterRepositoryTest {
             stmt.execute("DELETE FROM $tableName")
         }
 
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
         val appearances = setOf(
             Appearance(1, 1, "appearanceInfo1", "notes1", "members1"),
             Appearance(1, 2, "appearanceInfo2", "notes2", "members2"),
@@ -252,7 +253,7 @@ class CharacterRepositoryTest {
 
         // Create the repository
         val repo = CharacterRepository(
-            targetSchema = TEST_DATABASE_CHAR_REPO,
+            targetSchema = TEST_DATABASE,
             queryExecutor = queryExecutorMock
         )
 
@@ -276,7 +277,7 @@ class CharacterRepositoryTest {
 
         // Create the repository
         val repo = CharacterRepository(
-            targetSchema = TEST_DATABASE_CHAR_REPO,
+            targetSchema = TEST_DATABASE,
             queryExecutor = queryExecutorMock
         )
 
@@ -311,7 +312,7 @@ class CharacterRepositoryTest {
     @DisplayName("insert character with nonexistent publisher id should throw SQLException")
     fun insertCharacterWithNonexistentPublisherIdShouldThrowSQLException() {
         // Create the repository
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
 
         assertThrows<SQLException> {
             repo.insertCharacter(
@@ -338,18 +339,18 @@ class CharacterRepositoryTest {
     }
 
     companion object {
-        private const val TEST_DATABASE_CHAR_REPO = "credit_updater_test_char_repo"
         internal lateinit var conn: Connection
 
         @BeforeAll
         @JvmStatic
         fun setUp() {
-            conn = getDbConnection(TEST_DATABASE_CHAR_REPO)
+            conn = getDbConnection(TEST_DATABASE)
             setUpDatabase(conn)
         }
 
         fun setUpDatabase(conn: Connection) {
             conn.createStatement().use { stmt ->
+                TestDatabaseSetup.teardown()
                 // create publishers table
                 stmt.execute(
                     """CREATE TABLE IF NOT EXISTS gcd_publisher
@@ -397,7 +398,7 @@ class CharacterRepositoryTest {
         @AfterAll
         @JvmStatic
         fun breakDown() {
-            dropAllTables(conn, TEST_DATABASE_CHAR_REPO)
+            dropAllTables(conn, TEST_DATABASE)
             conn.close()
         }
     }
