@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import dev.benica.creditupdater.TerminalUtil
+import dev.benica.creditupdater.db.ExtractionProgressTracker.Companion.ProgressInfo
 import dev.benica.creditupdater.di.*
 import kotlinx.coroutines.*
 import mu.KLogger
@@ -188,8 +189,11 @@ internal fun Float.toPercent(): String {
 }
 
 
+/**
+ * A map of [ProgressInfo] objects for each item type, Credits or Characters.
+ */
 class ProgressInfoMap(private val fileName: String = "progress.json") {
-    internal val mProgressInfoMap: MutableMap<String, ExtractionProgressTracker.Companion.ProgressInfo>
+    internal val mProgressInfoMap: MutableMap<String, ProgressInfo>
 
     init {
         val file = File(fileName)
@@ -199,7 +203,7 @@ class ProgressInfoMap(private val fileName: String = "progress.json") {
                     Gson().fromJson(
                         reader,
                         object :
-                            TypeToken<MutableMap<String, ExtractionProgressTracker.Companion.ProgressInfo>>() {}.type
+                            TypeToken<MutableMap<String, ProgressInfo>>() {}.type
                     )
             }
         } else {
@@ -207,14 +211,14 @@ class ProgressInfoMap(private val fileName: String = "progress.json") {
         }
     }
 
-    fun get(key: String) = mProgressInfoMap.getOrDefault(key, ExtractionProgressTracker.Companion.ProgressInfo())
+    fun get(key: String) = mProgressInfoMap.getOrDefault(key, ProgressInfo())
 
     /**
      * Saves [progress] to the progress file. If [progress] is null, saves the
      * current progress information.
      */
     internal fun saveProgressInfo(
-        progress: ExtractionProgressTracker.Companion.ProgressInfo,
+        progress: ProgressInfo,
         extractedType: String
     ) {
         mProgressInfoMap[extractedType] = progress
