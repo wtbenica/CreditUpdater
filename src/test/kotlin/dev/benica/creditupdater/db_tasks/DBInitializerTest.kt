@@ -8,7 +8,6 @@ import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnecti
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import java.sql.Connection
@@ -118,24 +117,32 @@ class DBInitializerTest {
     @Test
     @DisplayName("should prepare database when startAtStep is 1")
     fun shouldPrepareDbFromStep1() {
-        TestDatabaseSetup.setup(DBState.INITIAL)
+        TestDatabaseSetup.setup(dbState = DBState.INITIAL)
 
         CoroutineScope(Dispatchers.IO).launch {
-            DBInitializer(TEST_DATABASE, startAtStep = 1).prepareDb()
+            Thread.sleep(6000)
+
+            try {
+                DBInitializer(
+                    targetSchema = TEST_DATABASE,
+                    startAtStep = 1
+                ).prepareDb()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                fail("Exception thrown: ${e.message}")
+            }
 
             // give db ops a chance to finish
-            withContext(Dispatchers.IO) {
-                Thread.sleep(1000)
-            }
+            Thread.sleep(2000)
 
             verifyUnusedTables(exist = false)
             verifySourcedColumns(exist = false)
             verifyDeleteViewsExist()
             verifyDeleteViewsContain(isEmpty = true)
             verifyRecordCounts(unculled = false)
-            verifyIssueAndSeriesIdsAreSet()
             DBTaskTest.verifyCharactersWereExtracted(conn)
             DBTaskTest.verifyCharacterAppearancesWereExtracted(conn)
+            verifyIssueAndSeriesIdsAreSet()
         }
     }
 

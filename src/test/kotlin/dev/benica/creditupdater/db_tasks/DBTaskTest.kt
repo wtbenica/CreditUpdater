@@ -22,7 +22,7 @@ class DBTaskTest {
     fun extractCharactersAndAppearances() {
         TestDatabaseSetup.setup(DBState.STEP_ONE_COMPLETE)
 
-        Thread.sleep(2000)
+        Thread.sleep(6000)
 
         DBTask(TEST_DATABASE).extractCharactersAndAppearances(schema = TEST_DATABASE, initial = true, startingId = 0)
 
