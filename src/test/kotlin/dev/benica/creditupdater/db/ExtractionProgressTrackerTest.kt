@@ -2,6 +2,7 @@ package dev.benica.creditupdater.db
 
 import com.google.gson.Gson
 import com.zaxxer.hikari.HikariDataSource
+import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.cli_parser.CLIParser
 import dev.benica.creditupdater.db.ExtractionProgressTracker.Companion.ProgressInfo
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
@@ -454,7 +455,6 @@ class ExtractionProgressTrackerTest {
     }
 
     companion object {
-        private const val TEST_DATABASE = "credit_updater_test_ept"
         private const val ITEMS_COMPLETED = 2
         private const val TEST_PROGRESS_FILE = "test_progress.json"
 
