@@ -388,7 +388,7 @@ class QueryExecutorTest {
 
         // Check if table exists
         val query =
-            "SELECT table_name FROM information_schema.tables WHERE table_schema = '$TEST_DATABASE_QUERY_EXECUTOR' AND table_name = '$tableName'"
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = '$TEST_DATABASE' AND table_name = '$tableName'"
         mConn.createStatement().use { stmt ->
             stmt.executeQuery(query).use { resultSet ->
                 assertTrue(resultSet.next(), "Table $tableName should exist")
@@ -424,10 +424,10 @@ class QueryExecutorTest {
         val statementMock: Statement = mock()
         val resultSetMock = mock<ResultSet>()
 
-        val queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
+        val queryExecutor = QueryExecutor(TEST_DATABASE)
 
         // Mock the behavior of the mocked objects
-        whenever(connectionSourceMock.getConnection(TEST_DATABASE_QUERY_EXECUTOR)).thenReturn(hikariDataSourceMock)
+        whenever(connectionSourceMock.getConnection(TEST_DATABASE)).thenReturn(hikariDataSourceMock)
         whenever(hikariDataSourceMock.connection).thenReturn(connectionMock)
         whenever(connectionMock.createStatement()).thenReturn(statementMock)
         whenever(statementMock.executeQuery(any())).thenReturn(resultSetMock)
@@ -465,10 +465,10 @@ class QueryExecutorTest {
         val resultSetMock = mock<ResultSet>()
 
         // Create a QueryExecutor instance with the mocked objects
-        val queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
+        val queryExecutor = QueryExecutor(TEST_DATABASE)
 
         // Mock the behavior of the mocked objects
-        whenever(connectionSourceMock.getConnection(TEST_DATABASE_QUERY_EXECUTOR)).thenReturn(hikariDataSourceMock)
+        whenever(connectionSourceMock.getConnection(TEST_DATABASE)).thenReturn(hikariDataSourceMock)
         whenever(hikariDataSourceMock.connection).thenReturn(connectionMock)
         whenever(connectionMock.createStatement()).thenReturn(statementMock)
         whenever(statementMock.executeQuery(any())).thenReturn(resultSetMock)
@@ -577,7 +577,7 @@ class QueryExecutorTest {
         whenever(preparedStatement.executeBatch()).thenReturn(intArrayOf(1, 1))
 
         // Call the method under test
-        val result = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR).executePreparedStatementBatch(
+        val result = QueryExecutor(TEST_DATABASE).executePreparedStatementBatch(
             sql,
             Statement.RETURN_GENERATED_KEYS,
             connection,
@@ -616,7 +616,7 @@ class QueryExecutorTest {
         whenever(connection.prepareStatement(any(), any<Int>())).thenReturn(preparedStatement)
 
         // Create an instance of QueryExecutor
-        val queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
+        val queryExecutor = QueryExecutor(TEST_DATABASE)
 
         // Define the SQL statement and the batch action
         val sql = "INSERT INTO users (name, age) VALUES (?, ?)"
@@ -660,7 +660,7 @@ class QueryExecutorTest {
         whenever(connection.prepareStatement(any())).thenReturn(preparedStatement)
 
         // Create an instance of QueryExecutor
-        val queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
+        val queryExecutor = QueryExecutor(TEST_DATABASE)
 
         // Define the SQL statement and the action
         val sql = "INSERT INTO users (name, age) VALUES (?, ?)"
@@ -689,27 +689,26 @@ class QueryExecutorTest {
 
     @AfterEach
     fun tearDown() {
-        dropAllTables(mConn, TEST_DATABASE_QUERY_EXECUTOR)
+        dropAllTables(mConn, TEST_DATABASE)
     }
 
     companion object {
         private lateinit var queryExecutor: QueryExecutor
-        internal const val TEST_DATABASE_QUERY_EXECUTOR = "credit_updater_test_qe"
         private lateinit var mConn: Connection
 
         @BeforeAll
         @JvmStatic
         fun setUp() {
-            mConn = getDbConnection(TEST_DATABASE_QUERY_EXECUTOR)
-            queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
+            mConn = getDbConnection(TEST_DATABASE)
+            queryExecutor = QueryExecutor(TEST_DATABASE)
 
-            dropAllTables(mConn, TEST_DATABASE_QUERY_EXECUTOR)
+            dropAllTables(mConn, TEST_DATABASE)
         }
 
         @AfterAll
         @JvmStatic
         fun breakDown() {
-            dropAllTables(mConn, TEST_DATABASE_QUERY_EXECUTOR)
+            dropAllTables(mConn, TEST_DATABASE)
             mConn.close()
             removeSqlScriptFiles()
         }
