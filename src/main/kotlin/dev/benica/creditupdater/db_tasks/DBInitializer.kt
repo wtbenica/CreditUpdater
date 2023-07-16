@@ -62,7 +62,7 @@ class DBInitializer(
      */
     @Throws(SQLException::class)
     suspend fun prepareDb() {
-        val queryExecutor = QueryExecutor(targetSchema)
+        val queryExecutor = QueryExecutor()
         val conn: Connection = connectionSource.getConnection(targetSchema).connection
 
         withContext(ioDispatcher) {
@@ -76,7 +76,7 @@ class DBInitializer(
                     dropIsSourcedAndSourcedByColumns(queryExecutor, conn)
 
                     DBInitAddTables(
-                        queryExecutor = QueryExecutor(targetSchema),
+                        queryExecutor = QueryExecutor(),
                         targetSchema = targetSchema,
                         conn = conn
                     ).addTablesAndConstraints()

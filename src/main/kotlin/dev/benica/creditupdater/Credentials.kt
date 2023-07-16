@@ -12,6 +12,7 @@ class Credentials {
         const val PRIMARY_DATABASE = "inf_lb_test"
         const val INCOMING_DATABASE = "gcdb_temp"
         const val TEST_DATABASE = "credit_updater_test"
+        const val TEST_DATABASE_UPDATE = "credit_updater_test_update"
 
         // dev.benica.CreditUpdater.PrimaryDatabaseInitializer
         const val CHARACTER_STORY_START_ID: Long = 0

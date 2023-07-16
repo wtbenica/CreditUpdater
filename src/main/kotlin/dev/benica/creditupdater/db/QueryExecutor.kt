@@ -7,12 +7,8 @@ import java.sql.*
 
 /**
  * A collection of functions that execute SQL queries.
- *
- * @param schema the name of the database to use
  */
-class QueryExecutor(
-    private val schema: String,
-) {
+class QueryExecutor() {
     // Private Properties
     private val logger: KLogger
         get() = KotlinLogging.logger(this::class.java.simpleName)
@@ -44,7 +40,6 @@ class QueryExecutor(
             connection.createStatement().use { stmt ->
                 when {
                     sqlStmt.startsWithAny(listOf("INSERT", "UPDATE", "DELETE")) -> stmt.executeUpdate(sqlStmt)
-                    //sqlStmt.startsWithAny(listOf("SELECT")) -> throw SQLException("Use executeQueryAndDo for SELECT statements")
                     else -> stmt.execute(sqlStmt)
                 }
             }
@@ -76,12 +71,16 @@ class QueryExecutor(
      * Statements must be separated by a semicolon \(;). If the script is run
      * as a transaction, the script will be rolled back if an exception is
      * thrown.
-     * - Note: This function does not handle semicolons in strings.
+     *
+     * - Note: Semicolons in single-quoted strings are ignored.
      * - Note: Comments must be followed by a semicolon. If not, the following
      *   statement will be commented out.
      *
      * @param sqlScript the SQL script to run
      * @param runAsTransaction whether to run the script as a transaction
+     * @param conn the [Connection] to use (does not close the connection)
+     * @param sourceSchema the source schema to use, or null to use the default
+     * @param targetSchema the target schema to use, or null to use the default
      * @throws SQLException if an error occurs
      */
     @Throws(SQLException::class)
@@ -89,15 +88,20 @@ class QueryExecutor(
         sqlScript: File,
         runAsTransaction: Boolean = false,
         conn: Connection,
+        sourceSchema: String? = null,
+        targetSchema: String? = null
     ) {
         try {
-            val statements: List<String> = sqlScript.parseSqlScript(schema)
+            val statements: List<String> = sqlScript.parseSqlScript(
+                targetSchema = targetSchema,
+                sourceSchema = sourceSchema
+            )
             if (runAsTransaction) {
                 conn.autoCommit = false
-                executeStatements(statements, conn)
+                executeStatements(statements = statements, conn = conn)
                 conn.commit()
             } else {
-                executeStatements(statements, conn)
+                executeStatements(statements = statements, conn = conn)
             }
         } catch (sqlEx: SQLException) {
             logger.error("Error running SQL script", sqlEx)
@@ -117,6 +121,7 @@ class QueryExecutor(
      * Executes a list of SQL statements.
      *
      * @param statements the list of statements
+     * @param conn the [Connection] to use
      */
     internal fun executeStatements(statements: List<String>, conn: Connection) {
         logger.info { "executeStatements: ${statements.size} statements" }
@@ -201,17 +206,27 @@ class QueryExecutor(
  *
  * The script is split on semicolons and then each statement is trimmed and
  * appended to a list. The list is then returned.
- * - Note: This function does not handle semicolons in strings.
+ * - Note: Semicolons in single-quote strings are ignored.
  * - Note: Comments must be followed by a semicolon. If not, the following
  *   statement will be commented out.
  *
- * @param schema will replace {{targetSchema}} in the script with the schema
+ * @param targetSchema will replace {{targetSchema}} in the script with the
+ *     schema
+ * @param sourceSchema will replace {{sourceSchema}} in the script with the
+ *     schema
  * @return the list of statements
  */
-internal fun File.parseSqlScript(schema: String): List<String> =
+internal fun File.parseSqlScript(targetSchema: String? = null, sourceSchema: String? = null): List<String> =
     useLines(Charsets.UTF_8) { lines: Sequence<String> ->
         val sql = lines.filter { it.isNotBlank() }
-            .map { it.replace("{{targetSchema}}", schema).trim() }
+            .map {
+                it.replace("{{targetSchema}}.", targetSchema?.let { "$it." } ?: "")
+                    .replace("{{sourceSchema}}.", sourceSchema?.let { "$it." } ?: "").trim()
+            }
+            .map {
+                it.replace("{{targetSchema}}", targetSchema ?: "")
+                    .replace("{{sourceSchema}}", sourceSchema ?: "").trim()
+            }
             .joinToString(separator = " ")
 
         val regex = Regex(""";(?=(?:[^']*'[^']*')*[^']*$)""")

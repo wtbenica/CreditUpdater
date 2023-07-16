@@ -14,7 +14,7 @@ import java.sql.Connection
 class DBInitAddTablesTest {
 
     private lateinit var dbInit: DBInitAddTables
-    private val queryExecutor = QueryExecutor(TEST_DATABASE)
+    private val queryExecutor = QueryExecutor()
 
     @BeforeEach
     fun setUp() {

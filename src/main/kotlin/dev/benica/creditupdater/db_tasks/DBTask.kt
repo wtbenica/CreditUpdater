@@ -31,7 +31,7 @@ class DBTask(
     @Inject
     internal lateinit var connectionSource: ConnectionSource
 
-    internal val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
+    internal val queryExecutor: QueryExecutor = QueryExecutor()
     private val conn: Connection
 
     init {
