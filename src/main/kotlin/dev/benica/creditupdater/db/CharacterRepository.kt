@@ -22,7 +22,7 @@ import javax.inject.Inject
 class CharacterRepository(
     private val targetSchema: String,
     databaseComponent: DatabaseComponent? = DaggerDatabaseComponent.create(),
-    private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
+    private val queryExecutor: QueryExecutor = QueryExecutor()
 ) : Repository {
     // Dependencies
     @Inject

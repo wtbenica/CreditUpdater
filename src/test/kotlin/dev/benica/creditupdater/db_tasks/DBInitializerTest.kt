@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Assertions.*
 import java.sql.Connection
 
 class DBInitializerTest {
-    private val queryExecutor = QueryExecutor(TEST_DATABASE)
+    private val queryExecutor = QueryExecutor()
 
     @Test
     @DisplayName("should drop unused tables")
@@ -24,7 +24,7 @@ class DBInitializerTest {
 
         DBInitializer.dropUnusedTables(queryExecutor, conn)
 
-        verifyUnusedTables(false)
+        verifyUnusedTables(exist = false)
     }
 
     @Test
@@ -135,22 +135,26 @@ class DBInitializerTest {
             // give db ops a chance to finish
             Thread.sleep(2000)
 
-            verifyUnusedTables(exist = false)
-            verifySourcedColumns(exist = false)
-            verifyDeleteViewsExist()
-            verifyDeleteViewsContain(isEmpty = true)
-            verifyRecordCounts(unculled = false)
-            DBTaskTest.verifyCharactersWereExtracted(conn)
-            DBTaskTest.verifyCharacterAppearancesWereExtracted(conn)
-            verifyIssueAndSeriesIdsAreSet()
+            verifyDbPrepared()
         }
     }
 
-    private fun verifyUnusedTables(exist: Boolean = true) {
+    private fun verifyDbPrepared() {
+        verifyUnusedTables(exist = false)
+        verifySourcedColumns(exist = false)
+        verifyDeleteViewsExist()
+        verifyDeleteViewsContain(isEmpty = true)
+        verifyRecordCounts(unculled = false)
+        DBTaskTest.verifyCharactersWereExtracted(conn)
+        DBTaskTest.verifyCharacterAppearancesWereExtracted(conn)
+        verifyIssueAndSeriesIdsAreSet()
+    }
+
+    private fun verifyUnusedTables(exist: Boolean = true, targetSchema: String = TEST_DATABASE) {
         val query = """
                 SELECT COUNT(*)
                 FROM information_schema.tables
-                WHERE table_schema = '$TEST_DATABASE'
+                WHERE table_schema = '$targetSchema'
                 AND table_name IN ('django_content_type', 'gcd_award', 'gcd_brand_group', 'gcd_biblio_entry',
                     'gcd_brand_use', 'gcd_brand_emblem_use', 'gcd_creator_art_influence', 'gcd_creator_degree',
                     'gcd_creator_membership', 'gcd_creator_non_comic_work', 'gcd_creator_relation',
@@ -172,13 +176,13 @@ class DBInitializerTest {
         }
     }
 
-    private fun verifySourcedColumns(exist: Boolean = true) {
+    private fun verifySourcedColumns(exist: Boolean = true, targetSchema: String = TEST_DATABASE ) {
         val expected = if (exist) 2 else 0
 
         val query = """
                     SELECT COUNT(*)
                     FROM information_schema.columns
-                    WHERE table_schema = '$TEST_DATABASE'
+                    WHERE table_schema = '$targetSchema'
                     AND table_name = 'gcd_story_credit'
                     AND column_name IN ('is_sourced', 'sourced_by');
                 """.trimIndent()
@@ -190,14 +194,14 @@ class DBInitializerTest {
         }
     }
 
-    private fun verifyDeleteViewsExist() {
+    private fun verifyDeleteViewsExist(targetSchema: String = TEST_DATABASE) {
         fun verifyBadPublishers() {
             // verify bad_publishers view was created
             val query = """
                 SELECT EXISTS (
                     SELECT 1
                     FROM information_schema.views
-                    WHERE table_schema = '$TEST_DATABASE'
+                    WHERE table_schema = '$targetSchema'
                     AND table_name = 'bad_publishers'
                 );
             """.trimIndent()
@@ -214,7 +218,7 @@ class DBInitializerTest {
                 SELECT EXISTS (
                     SELECT 1
                     FROM information_schema.views
-                    WHERE table_schema = '$TEST_DATABASE'
+                    WHERE table_schema = '$targetSchema'
                     AND table_name = 'bad_series'
                 );
             """.trimIndent()
@@ -232,7 +236,7 @@ class DBInitializerTest {
                 SELECT EXISTS (
                     SELECT 1
                     FROM information_schema.views
-                    WHERE table_schema = '$TEST_DATABASE'
+                    WHERE table_schema = '$targetSchema'
                     AND table_name = 'bad_issues'
                 );
             """.trimIndent()
@@ -250,7 +254,7 @@ class DBInitializerTest {
                 SELECT EXISTS (
                     SELECT 1
                     FROM information_schema.views
-                    WHERE table_schema = '$TEST_DATABASE'
+                    WHERE table_schema = '$targetSchema'
                     AND table_name = 'bad_stories'
                 );
             """.trimIndent()
@@ -268,7 +272,7 @@ class DBInitializerTest {
                 SELECT EXISTS (
                     SELECT 1
                     FROM information_schema.views
-                    WHERE table_schema = '$TEST_DATABASE'
+                    WHERE table_schema = '$targetSchema'
                     AND table_name = 'bad_indicia_publishers'
                 );
             """.trimIndent()

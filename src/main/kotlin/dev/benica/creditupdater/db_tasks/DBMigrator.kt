@@ -21,7 +21,7 @@ import javax.inject.Named
  */
 class DBMigrator(
     private val sourceSchema: String = INCOMING_DATABASE,
-    private val destSchema: String = PRIMARY_DATABASE,
+    private val targetSchema: String = PRIMARY_DATABASE,
     private val startAtStep: Int = 1,
     private val startingId: Int? = null,
     dispatcherComponent: DispatchAndExecuteComponent = DaggerDispatchAndExecuteComponent.create(),
@@ -46,16 +46,16 @@ class DBMigrator(
 
     /** Migrate - migrates the data from the old database to the new database. */
     suspend fun migrate() {
-        val queryExecutor = QueryExecutor(sourceSchema)
+        val queryExecutor = QueryExecutor()
         val conn: Connection = connectionSource.getConnection(sourceSchema).connection
 
         withContext(ioDispatcher) {
             try {
-                logger.info { "Migrating to $destSchema from $sourceSchema" }
+                logger.info { "Migrating to $targetSchema from $sourceSchema" }
 
                 if (startAtStep == 1) {
                     logger.info { "starting tables..." }
-                    addTablesNew(queryExecutor, conn)
+                    addTablesNew(queryExecutor, conn, sourceSchema, targetSchema)
                 }
 
                 if (startAtStep <= 2) {
@@ -88,7 +88,7 @@ class DBMigrator(
                     logger.info { "Done migrating records" }
                 }
             } catch (sqlEx: SQLException) {
-                logger.error { "Error migrating to $destSchema from $sourceSchema" }
+                logger.error { "Error migrating to $targetSchema from $sourceSchema" }
                 logger.error { sqlEx.message }
                 logger.error { sqlEx.stackTrace }
                 throw sqlEx
@@ -118,8 +118,18 @@ class DBMigrator(
         internal fun migrateRecords(queryExecutor: QueryExecutor, conn: Connection) =
             queryExecutor.executeSqlScript(File(MIGRATE_PATH_NEW), conn = conn)
 
-        internal fun addTablesNew(queryExecutor: QueryExecutor, conn: Connection) =
-            queryExecutor.executeSqlScript(File(ADD_MODIFY_TABLES_PATH_NEW), conn = conn)
+        internal fun addTablesNew(
+            queryExecutor: QueryExecutor,
+            conn: Connection,
+            sourceSchema: String? = null,
+            targetSchema: String? = null
+        ) =
+            queryExecutor.executeSqlScript(
+                File(ADD_MODIFY_TABLES_PATH_NEW),
+                conn = conn,
+                sourceSchema = sourceSchema,
+                targetSchema = targetSchema
+            )
 
         internal fun addIssueSeriesToCreditsNew(queryExecutor: QueryExecutor, conn: Connection) =
             queryExecutor.executeSqlScript(File(ADD_ISSUE_SERIES_TO_CREDITS_PATH_NEW), conn = conn)

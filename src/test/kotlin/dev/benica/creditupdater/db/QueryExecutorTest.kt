@@ -424,7 +424,7 @@ class QueryExecutorTest {
         val statementMock: Statement = mock()
         val resultSetMock = mock<ResultSet>()
 
-        val queryExecutor = QueryExecutor(TEST_DATABASE)
+        val queryExecutor = QueryExecutor()
 
         // Mock the behavior of the mocked objects
         whenever(connectionSourceMock.getConnection(TEST_DATABASE)).thenReturn(hikariDataSourceMock)
@@ -465,7 +465,7 @@ class QueryExecutorTest {
         val resultSetMock = mock<ResultSet>()
 
         // Create a QueryExecutor instance with the mocked objects
-        val queryExecutor = QueryExecutor(TEST_DATABASE)
+        val queryExecutor = QueryExecutor()
 
         // Mock the behavior of the mocked objects
         whenever(connectionSourceMock.getConnection(TEST_DATABASE)).thenReturn(hikariDataSourceMock)
@@ -577,7 +577,7 @@ class QueryExecutorTest {
         whenever(preparedStatement.executeBatch()).thenReturn(intArrayOf(1, 1))
 
         // Call the method under test
-        val result = QueryExecutor(TEST_DATABASE).executePreparedStatementBatch(
+        val result = QueryExecutor().executePreparedStatementBatch(
             sql,
             Statement.RETURN_GENERATED_KEYS,
             connection,
@@ -616,7 +616,7 @@ class QueryExecutorTest {
         whenever(connection.prepareStatement(any(), any<Int>())).thenReturn(preparedStatement)
 
         // Create an instance of QueryExecutor
-        val queryExecutor = QueryExecutor(TEST_DATABASE)
+        val queryExecutor = QueryExecutor()
 
         // Define the SQL statement and the batch action
         val sql = "INSERT INTO users (name, age) VALUES (?, ?)"
@@ -660,7 +660,7 @@ class QueryExecutorTest {
         whenever(connection.prepareStatement(any())).thenReturn(preparedStatement)
 
         // Create an instance of QueryExecutor
-        val queryExecutor = QueryExecutor(TEST_DATABASE)
+        val queryExecutor = QueryExecutor()
 
         // Define the SQL statement and the action
         val sql = "INSERT INTO users (name, age) VALUES (?, ?)"
@@ -700,7 +700,7 @@ class QueryExecutorTest {
         @JvmStatic
         fun setUp() {
             mConn = getDbConnection(TEST_DATABASE)
-            queryExecutor = QueryExecutor(TEST_DATABASE)
+            queryExecutor = QueryExecutor()
 
             dropAllTables(mConn, TEST_DATABASE)
         }

@@ -11,7 +11,6 @@ import java.sql.SQLException
 
 class TestDatabaseSetup {
     companion object {
-
         private fun dropAllTablesAndViews(schema: String = TEST_DATABASE) {
             getDbConnection(schema).use { connection ->
                 connection.createStatement().use { stmt ->
@@ -83,7 +82,7 @@ class TestDatabaseSetup {
 
         private fun populateTestDatabaseGood(schema: String = TEST_DATABASE) {
             val statements =
-                File("src/main/resources/sql/populate_test_database_good.sql").parseSqlScript(TEST_DATABASE)
+                File("src/main/resources/sql/populate_test_database_good.sql").parseSqlScript(schema)
             getDbConnection(schema).use { connection ->
                 statements.filter { it.isNotBlank() }.forEach { statement ->
                     connection.createStatement().use { stmt ->
@@ -94,7 +93,18 @@ class TestDatabaseSetup {
         }
 
         private fun populateTestDatabaseBad(schema: String = TEST_DATABASE) {
-            val statements = File("src/main/resources/sql/populate_test_database_bad.sql").parseSqlScript(TEST_DATABASE)
+            val statements = File("src/main/resources/sql/populate_test_database_bad.sql").parseSqlScript(schema)
+            getDbConnection(schema).use { connection ->
+                statements.filter { it.isNotBlank() }.forEach { statement ->
+                    connection.createStatement().use { stmt ->
+                        stmt.execute(statement)
+                    }
+                }
+            }
+        }
+
+        private fun populateTestDatabaseNew(schema: String = TEST_DATABASE) {
+            val statements = File("src/main/resources/sql/populate_test_database_new.sql").parseSqlScript(schema)
             getDbConnection(schema).use { connection ->
                 statements.filter { it.isNotBlank() }.forEach { statement ->
                     connection.createStatement().use { stmt ->
@@ -105,7 +115,7 @@ class TestDatabaseSetup {
         }
 
         private fun createExtractedTables(schema: String = TEST_DATABASE) {
-            val statements = File("src/main/resources/sql/create_extracted_tables.sql").parseSqlScript(TEST_DATABASE)
+            val statements = File("src/main/resources/sql/create_extracted_tables.sql").parseSqlScript(schema)
             getDbConnection(schema).use { connection ->
                 statements.filter { it.isNotBlank() }.forEach { statement ->
                     connection.createStatement().use { stmt ->
@@ -117,7 +127,7 @@ class TestDatabaseSetup {
 
         private fun populateCharacterTables(schema: String = TEST_DATABASE) {
             val statements =
-                File("src/main/resources/sql/populate_extracted_character_tables.sql").parseSqlScript(TEST_DATABASE)
+                File("src/main/resources/sql/populate_extracted_character_tables.sql").parseSqlScript(schema)
             getDbConnection(schema).use { connection ->
                 statements.filter { it.isNotBlank() }.forEach { statement ->
                     connection.createStatement().use { stmt ->
@@ -129,7 +139,7 @@ class TestDatabaseSetup {
 
         private fun populateCreditTables(schema: String = TEST_DATABASE) {
             val statements =
-                File("src/main/resources/sql/populate_extracted_credits_tables.sql").parseSqlScript(TEST_DATABASE)
+                File("src/main/resources/sql/populate_extracted_credits_tables.sql").parseSqlScript(schema)
             getDbConnection(schema).use { connection ->
                 statements.filter { it.isNotBlank() }.forEach { statement ->
                     connection.createStatement().use { stmt ->
@@ -140,7 +150,7 @@ class TestDatabaseSetup {
         }
 
         private fun createBadViews(schema: String = TEST_DATABASE) {
-            val statements = File(INIT_CREATE_BAD_VIEWS).parseSqlScript(TEST_DATABASE)
+            val statements = File(INIT_CREATE_BAD_VIEWS).parseSqlScript(schema)
             getDbConnection(schema).use { connection ->
                 statements.filter { it.isNotBlank() }.forEach { statement ->
                     connection.createStatement().use { stmt ->
@@ -151,7 +161,7 @@ class TestDatabaseSetup {
         }
 
         private fun addIssueSeriesId(schema: String = TEST_DATABASE) {
-            val statements = File(ISSUE_SERIES_PATH).parseSqlScript(TEST_DATABASE)
+            val statements = File(ISSUE_SERIES_PATH).parseSqlScript(schema)
             getDbConnection(schema).use { connection ->
                 statements.filter { it.isNotBlank() }.forEach { statement ->
                     connection.createStatement().use { stmt ->
@@ -177,6 +187,13 @@ class TestDatabaseSetup {
                     addUnusedTables(schema)
                     populateTestDatabaseGood(schema)
                     populateTestDatabaseBad(schema)
+                }
+
+                DBState.INITIAL_PLUS_NEW_RECORDS -> {
+                    populateTestDatabaseGood(schema)
+                    populateTestDatabaseBad(schema)
+                    populateTestDatabaseNew(schema)
+                    addUnusedTables(schema)
                 }
 
                 DBState.UNUSED_TABLES_DROPPED -> {
@@ -329,5 +346,6 @@ enum class DBState {
     STEP_ONE_COMPLETE,
     STEP_TWO_COMPLETE,
     STEP_THREE_COMPLETE,
-    PREPARED
+    PREPARED,
+    INITIAL_PLUS_NEW_RECORDS
 }

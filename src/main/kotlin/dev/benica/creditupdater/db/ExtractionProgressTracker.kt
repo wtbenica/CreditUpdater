@@ -46,7 +46,7 @@ class ExtractionProgressTracker(
     @Inject
     internal lateinit var connectionSource: ConnectionSource
 
-    private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
+    private val queryExecutor: QueryExecutor = QueryExecutor()
     internal lateinit var conn: Connection
 
     @Inject

@@ -16,7 +16,7 @@ import javax.inject.Inject
 class CreditRepository(
     private val targetSchema: String,
     databaseComponent: DatabaseComponent? = DaggerDatabaseComponent.create(),
-    private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
+    private val queryExecutor: QueryExecutor = QueryExecutor()
 ) : Repository {
     // Dependencies
     @Inject
