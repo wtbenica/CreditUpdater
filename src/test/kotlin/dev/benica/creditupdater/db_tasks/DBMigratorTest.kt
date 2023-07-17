@@ -81,24 +81,25 @@ class DBMigratorTest {
                 "good_story_credit"
             )
 
-                queryExecutor.executeQueryAndDo("""SELECT COUNT(*) 
+            queryExecutor.executeQueryAndDo(
+                """SELECT COUNT(*) 
                     |FROM information_schema.tables
                     |WHERE table_schema = '$TEST_DATABASE_UPDATE'
                     |AND table_name IN (${goodTables.joinToString(",") { "'$it'" }})
-                """.trimMargin(), conn) { rs ->
-                    assertTrue(rs.next())
-                    assertEquals(goodTables.size, rs.getInt(1))
-                }
+                """.trimMargin(), conn
+            ) { rs ->
+                assertTrue(rs.next())
+                assertEquals(goodTables.size, rs.getInt(1))
+            }
 
             verifyGoodTables()
+            verifyMigrateTables()
 
             // - has gcd_story_credit, m_character_appearance, and m_character tables with constraints and indexes added
         }
     }
 
-    /**
-     * verifies that good tables contain the expected records
-     */
+    /** verifies that good tables contain the expected records */
     private fun verifyGoodTables() {
         fun verifyGoodPublishers() {
             val query = """
@@ -175,12 +176,335 @@ class DBMigratorTest {
             }
         }
 
+        fun verifyGoodIssue() {
+            val query = """
+                SELECT * 
+                FROM $TEST_DATABASE_UPDATE.good_issue
+                ORDER BY id
+            """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query, conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals(35, rs.getInt("number"))
+                assertEquals(1, rs.getInt("series_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(2, rs.getInt("id"))
+                assertEquals(114, rs.getInt("number"))
+                assertEquals(2, rs.getInt("series_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(9, rs.getInt("id"))
+                assertEquals(11, rs.getInt("number"))
+                assertEquals(1, rs.getInt("series_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(10, rs.getInt("id"))
+                assertEquals(12, rs.getInt("number"))
+                assertEquals(11, rs.getInt("series_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        fun verifyGoodIndiciaPublishers() {
+            val query = """
+                SELECT * 
+                FROM $TEST_DATABASE_UPDATE.good_indicia_publishers
+                ORDER BY id
+            """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query, conn) {
+                assertTrue(it.next())
+                assertEquals(1, it.getInt("id"))
+                assertEquals("Marvel Comics", it.getString("name"))
+                assertEquals("2023-06-01 19:56:37", it.getString("modified"))
+                assertEquals(1, it.getInt("parent_id"))
+                assertTrue(it.next())
+                assertEquals(2, it.getInt("id"))
+                assertEquals("DC Comics", it.getString("name"))
+                assertEquals("2004-06-01 19:56:37", it.getString("modified"))
+                assertEquals(2, it.getInt("parent_id"))
+                assertTrue(it.next())
+                assertEquals(5, it.getInt("id"))
+                assertEquals("GOOD existing publisher", it.getString("name"))
+                assertEquals("2023-06-01 19:56:37", it.getString("modified"))
+                assertEquals(1, it.getInt("parent_id"))
+                assertTrue(it.next())
+                assertEquals(6, it.getInt("id"))
+                assertEquals("GOOD new publisher", it.getString("name"))
+                assertEquals("2023-06-01 19:56:37", it.getString("modified"))
+                assertEquals(6, it.getInt("parent_id"))
+                assertFalse(it.next())
+            }
+        }
+
+        fun verifyGoodStory() {
+            val query = """
+                SELECT * 
+                FROM $TEST_DATABASE_UPDATE.good_story
+                ORDER BY id
+            """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query, conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals("Crawling from the Wreckage", rs.getString("title"))
+                assertEquals(1, rs.getInt("issue_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(2, rs.getInt("id"))
+                assertEquals("E for Extinction", rs.getString("title"))
+                assertEquals(2, rs.getInt("issue_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(8, rs.getInt("id"))
+                assertEquals("GOOD issue 1", rs.getString("title"))
+                assertEquals(1, rs.getInt("issue_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(9, rs.getInt("id"))
+                assertEquals("GOOD issue 9", rs.getString("title"))
+                assertEquals(9, rs.getInt("issue_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        fun verifyGoodStoryCredits() {
+            val query = """
+                SELECT * 
+                FROM $TEST_DATABASE_UPDATE.good_story_credit
+                ORDER BY id
+            """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query, conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals(1, rs.getInt("story_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(2, rs.getInt("id"))
+                assertEquals(2, rs.getInt("story_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(3, rs.getInt("id"))
+                assertEquals(2, rs.getInt("story_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(4, rs.getInt("id"))
+                assertEquals(2, rs.getInt("story_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(5, rs.getInt("id"))
+                assertEquals(2, rs.getInt("story_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(11, rs.getInt("id"))
+                assertEquals(8, rs.getInt("story_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(12, rs.getInt("id"))
+                assertEquals(9, rs.getInt("story_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
         verifyGoodPublishers()
         verifyGoodSeries()
+        verifyGoodIssue()
+        verifyGoodIndiciaPublishers()
+        verifyGoodStory()
+        verifyGoodStoryCredits()
+    }
+
+    /** verifies that migrate tables contain the expected records */
+    private fun verifyMigrateTables() {
+        fun verifyMigratePublishers() {
+            val query = """
+                SELECT * 
+                FROM $TEST_DATABASE_UPDATE.migrate_publishers
+                ORDER BY id
+            """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query, conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals("Marvel", rs.getString("name"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(5, rs.getInt("id"))
+                assertEquals("GOOD old pub, series >= 1900", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(6, rs.getInt("id"))
+                assertEquals("GOOD New publisher", rs.getString("name"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        fun verifyMigrateSeries() {
+            val query = """
+                    SELECT * 
+                    FROM $TEST_DATABASE_UPDATE.migrate_series
+                    ORDER BY id
+                """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query, conn) {
+                assertTrue(it.next())
+                assertEquals(1, it.getInt("id"))
+                assertEquals("Doom Patrol", it.getString("name"))
+                assertEquals("2023-06-01 19:56:37", it.getString("modified"))
+                assertEquals(2, it.getInt("publisher_id"))
+                assertTrue(it.next())
+                assertEquals(8, it.getInt("id"))
+                assertEquals("GOOD >= 1900, old pub", it.getString("name"))
+                assertEquals("2004-06-01 19:56:37", it.getString("modified"))
+                assertEquals(5, it.getInt("publisher_id"))
+                assertTrue(it.next())
+                assertEquals(9, it.getInt("id"))
+                assertEquals("GOOD bad first_issue_id", it.getString("name"))
+                assertEquals("2004-06-01 19:56:37", it.getString("modified"))
+                assertEquals(2, it.getInt("publisher_id"))
+                assertTrue(it.next())
+                assertEquals(10, it.getInt("id"))
+                assertEquals("GOOD bad last_issue_id", it.getString("name"))
+                assertEquals("2004-06-01 19:56:37", it.getString("modified"))
+                assertEquals(2, it.getInt("publisher_id"))
+                assertTrue(it.next())
+                assertEquals(11, it.getInt("id"))
+                assertEquals("GOOD New series existing publisher", it.getString("name"))
+                assertEquals("2023-06-01 19:56:37", it.getString("modified"))
+                assertEquals(1, it.getInt("publisher_id"))
+                assertTrue(it.next())
+                assertEquals(12, it.getInt("id"))
+                assertEquals("GOOD New series new publisher", it.getString("name"))
+                assertEquals("2023-06-01 19:56:37", it.getString("modified"))
+                assertEquals(6, it.getInt("publisher_id"))
+                assertFalse(it.next())
+            }
+        }
+
+        fun verifyMigrateIssue() {
+            val query = """
+                    SELECT * 
+                    FROM $TEST_DATABASE_UPDATE.migrate_issues
+                    ORDER BY id
+                """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query, conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals(35, rs.getInt("number"))
+                assertEquals(1, rs.getInt("series_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(9, rs.getInt("id"))
+                assertEquals(11, rs.getInt("number"))
+                assertEquals(1, rs.getInt("series_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(10, rs.getInt("id"))
+                assertEquals(12, rs.getInt("number"))
+                assertEquals(11, rs.getInt("series_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        fun verifyMigrateIndiciaPublishers() {
+            val query = """
+                    SELECT * 
+                    FROM $TEST_DATABASE_UPDATE.migrate_indicia_publishers
+                    ORDER BY id
+                """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query, conn) {
+                assertTrue(it.next())
+                assertEquals(1, it.getInt("id"))
+                assertEquals("Marvel Comics", it.getString("name"))
+                assertEquals("2023-06-01 19:56:37", it.getString("modified"))
+                assertEquals(1, it.getInt("parent_id"))
+                assertTrue(it.next())
+                assertEquals(5, it.getInt("id"))
+                assertEquals("GOOD existing publisher", it.getString("name"))
+                assertEquals("2023-06-01 19:56:37", it.getString("modified"))
+                assertEquals(1, it.getInt("parent_id"))
+                assertTrue(it.next())
+                assertEquals(6, it.getInt("id"))
+                assertEquals("GOOD new publisher", it.getString("name"))
+                assertEquals("2023-06-01 19:56:37", it.getString("modified"))
+                assertEquals(6, it.getInt("parent_id"))
+                assertFalse(it.next())
+
+            }
+        }
+
+        fun verifyMigrateStory() {
+            val query = """
+                    SELECT * 
+                    FROM $TEST_DATABASE_UPDATE.migrate_stories
+                    ORDER BY id
+                """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query, conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals("Crawling from the Wreckage", rs.getString("title"))
+                assertEquals(1, rs.getInt("issue_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(8, rs.getInt("id"))
+                assertEquals("GOOD issue 1", rs.getString("title"))
+                assertEquals(1, rs.getInt("issue_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(9, rs.getInt("id"))
+                assertEquals("GOOD issue 9", rs.getString("title"))
+                assertEquals(9, rs.getInt("issue_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        fun verifyMigrateStoryCredits() {
+            val query = """
+                    SELECT * 
+                    FROM $TEST_DATABASE_UPDATE.migrate_story_credits
+                    ORDER BY id
+                """.trimIndent()
+
+            queryExecutor.executeQueryAndDo(query, conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals(1, rs.getInt("story_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(11, rs.getInt("id"))
+                assertEquals(8, rs.getInt("story_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(12, rs.getInt("id"))
+                assertEquals(9, rs.getInt("story_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        verifyMigratePublishers()
+        verifyMigrateSeries()
+        verifyMigrateIssue()
+        verifyMigrateIndiciaPublishers()
+        verifyMigrateStory()
+        verifyMigrateStoryCredits()
     }
 
     companion object {
         private lateinit var conn: Connection
+
         @BeforeAll
         @JvmStatic
         fun setupAll() {

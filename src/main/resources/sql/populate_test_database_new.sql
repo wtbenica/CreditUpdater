@@ -19,21 +19,21 @@ VALUES (11, 'GOOD New series existing publisher', 2000, 1, 225, 25, 1, 2, '2023-
 INSERT IGNORE INTO `gcd_indicia_publisher` (`id`, `name`, `parent_id`, `modified`)
 VALUES (3, 'BAD parent_id', 3, '2023-06-01 19:56:37'),
     (4, 'BAD parent_id', 4, '2023-06-01 19:56:37'),
-    (5, 'GOOD indicia publisher existing publisher', 1, '2023-06-01 19:56:37'),
-    (6, 'GOOD indicia publisher new publisher', 6, '2023-06-01 19:56:37'),
-    (7, 'BAD parent_id', 5, '2023-06-01 19:56:37');
+    (5, 'GOOD existing publisher', 1, '2023-06-01 19:56:37'),
+    (6, 'GOOD new publisher', 6, '2023-06-01 19:56:37'),
+    (7, 'BAD parent_id', 4, '2023-06-01 19:56:37');
 
-# 9 - good - existing series
-# 10 - good - new series
-# 11 - bad - bad series
-# 12 - bad - bad indicia_publisher_id
+# 9 - good - existing series;
+# 10 - good - new series;
+# 11 - bad - bad series;
+# 12 - bad - bad indicia_publisher_id;
 INSERT IGNORE INTO `gcd_issue` (`id`, `number`, `series_id`, `indicia_publisher_id`, `modified`)
 VALUES (9, 11, 1, 1, '2023-06-01 19:56:37'),
     (10, 12, 11, 6, '2023-06-01 19:56:37'),
     (11, 13, 4, 1, '2023-06-01 19:56:37'),
     (12, 14, 7, 3, '2023-06-01 19:56:37');
 
-# 8 - good old series origin, good new series target
+# 8 - good old series origin, good new series target;
 INSERT IGNORE INTO `gcd_series_bond` (`id`, `origin_id`, `target_id`, `origin_issue_id`, `target_issue_id`, `modified`)
 VALUES (8, 1, 9, 1, 2, '2023-06-01 19:56:37');
 

@@ -52,7 +52,7 @@ SET series_id = (
 WHERE gsc.series_id IS NULL;
 
 -- Create a view of stories with missing issue_id;
-CREATE VIEW story_with_missing_issue AS
+CREATE VIEW IF NOT EXISTS story_with_missing_issue AS
 SELECT sy.id
 FROM gcd_story sy
 WHERE sy.issue_id NOT IN (

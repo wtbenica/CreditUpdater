@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS {{sourceSchema}}.m_story_credit LIKE {{targetSchema}}
 CREATE TABLE IF NOT EXISTS {{sourceSchema}}.m_character LIKE {{targetSchema}}.m_character;
 
 # ###########################################################################
-# Create views of 'good' items: publisher is US && has series >= 1900       #
+# Create views of 'good' publishers: publisher is US && has series >= 1900       #
 # ##########################################################################;
 DROP TABLE IF EXISTS {{sourceSchema}}.good_publishers;
 
@@ -72,7 +72,7 @@ WHERE new.id NOT IN (
   OR new.modified != old.modified;
 
 # ##############################################################################
-# Create views of 'good' items: indicia publisher parent_id is good_publishers #
+# Create views of 'good' indicia publishers: indicia publisher parent_id is good_publishers #
 # #############################################################################;
 
 DROP TABLE IF EXISTS {{sourceSchema}}.good_indicia_publishers;
@@ -98,7 +98,7 @@ WHERE new.id NOT IN (
   OR new.modified != old.modified;
 
 # ##############################################################################
-# Create views of 'good' items: series publisher_id is good_publishers and     #
+# Create views of 'good' series: series publisher_id is good_publishers and     #
 # series year_began >= 1900, language_id = 25, and country_id = 225            #
 # #############################################################################;
 
@@ -128,7 +128,7 @@ WHERE new.id NOT IN (
   OR new.modified != old.modified;
 
 # ##############################################################################
-# Create views of 'good' items: issue series_id is good_series and             #
+# Create views of 'good' issues: issue series_id is good_series and             #
 # indicia_publisher_id is good_indicia_publishers                              #
 # #############################################################################;
 
@@ -140,7 +140,12 @@ FROM {{sourceSchema}}.gcd_issue
 WHERE series_id IN (
     SELECT id
     FROM {{sourceSchema}}.good_series
-  );
+  )
+AND (indicia_publisher_id IN (
+    SELECT id
+    FROM {{sourceSchema}}.good_indicia_publishers
+    )
+OR indicia_publisher_id IS NULL);
 
 DROP TABLE IF EXISTS {{sourceSchema}}.migrate_issues;
 
