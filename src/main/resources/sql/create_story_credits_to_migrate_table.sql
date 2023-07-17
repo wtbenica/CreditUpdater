@@ -49,6 +49,10 @@ FROM <schema>.gcd_issue
 WHERE series_id IN (
     SELECT id
     FROM <schema>.good_series
+)
+AND indicia_publisher_id IN (
+    SELECT id
+    FROM <schema>.gcd_indicia_publisher
 );
 
 DROP TABLE IF EXISTS <schema>.issues_to_migrate;
