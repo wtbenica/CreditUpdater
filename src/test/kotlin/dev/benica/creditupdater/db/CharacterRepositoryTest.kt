@@ -1,7 +1,7 @@
 package dev.benica.creditupdater.db
 
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTablesAndViews
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import dev.benica.creditupdater.models.Appearance
 import org.junit.jupiter.api.*
@@ -398,7 +398,7 @@ class CharacterRepositoryTest {
         @AfterAll
         @JvmStatic
         fun breakDown() {
-            dropAllTables(conn, TEST_DATABASE)
+            dropAllTablesAndViews()
             conn.close()
         }
     }

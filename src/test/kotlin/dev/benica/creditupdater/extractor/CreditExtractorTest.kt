@@ -110,7 +110,7 @@ class CreditExtractorTest {
         @JvmStatic
         fun setUpAll() {
             mConn = getTestDbConnection()
-            TestDatabaseSetup.setup(dbState = DBState.STEP_TWO_COMPLETE)
+            TestDatabaseSetup.setup(dbState = DBState.INIT_STEP_2_COMPLETE)
         }
 
         @AfterAll
