@@ -72,17 +72,20 @@ class DBInitializer(
                 if (startAtStep == 1) {
                     logger.info { "Starting Table Updates..." }
                     dropUnusedTables(queryExecutor, conn)
-
+                    // step 1A
                     dropIsSourcedAndSourcedByColumns(queryExecutor, conn)
 
+                    // step 1B
                     DBInitAddTables(
                         queryExecutor = QueryExecutor(),
                         targetSchema = targetSchema,
                         conn = conn
                     ).addTablesAndConstraints()
 
+                    // step 1C
                     createDeleteViews(queryExecutor, conn)
 
+                    // step 1D
                     removeUnnecessaryRecords(queryExecutor, conn)
                 }
 
@@ -122,24 +125,10 @@ class DBInitializer(
     }
 
     companion object {
-
-        /**
-         * This SQL query updates the gcd_story_credit and m_story_credit
-         * tables by setting the issue_id and series_id columns to the
-         * corresponding values from the gcd_issue and gcd_story tables. It
-         * then creates a temporary table called story_with_missing_issue that
-         * contains the IDs of stories with missing issue IDs. It deletes
-         * all rows from the m_character_appearance table where the story_id
-         * is in the story_with_missing_issue table. Finally, it updates the
-         * m_character_appearance table by setting the issue_id and series_id
-         * columns to the corresponding values from the gcd_issue and gcd_story
-         * tables. The comments in the code provide a summary of each section of
-         * the query.
-         */
-        const val ISSUE_SERIES_PATH = "src/main/resources/sql/add_issue_series_to_credits.sql"
+        const val ISSUE_SERIES_PATH = "src/main/resources/sql/init_add_issue_series_to_credits.sql"
         const val INIT_REMOVE_ITEMS = "src/main/resources/sql/init_remove_items.sql"
-        const val INIT_DROP_UNUSED_TABLES = "src/main/resources/sql/drop_unused_tables.sql"
-        const val INIT_CREATE_BAD_VIEWS = "src/main/resources/sql/db_init_create_delete_views.sql"
+        const val INIT_DROP_UNUSED_TABLES = "src/main/resources/sql/init_drop_unused_tables.sql"
+        const val INIT_CREATE_BAD_VIEWS = "src/main/resources/sql/init_create_bad_views.sql"
 
         /**
          * Drop is sourced and sourced by columns - this function drops the
@@ -178,11 +167,10 @@ class DBInitializer(
 
 
         /**
-         * Add issue series to credits - this function adds the 'issue' and
-         * 'series' columns to the 'gcd_story_credit', 'm_story_credit', and
-         * 'm_character_appearance' tables. It also adds the appropriate foreign
-         * key constraints to the 'gcd_story_credit', 'm_character_appearance', and
-         * 'm_story_credit' tables.
+         * Adds the 'issue' and 'series' columns to the 'gcd_story_credit',
+         * 'm_story_credit', and 'm_character_appearance' tables. It also adds
+         * the appropriate foreign key constraints to the 'gcd_story_credit',
+         * 'm_character_appearance', and 'm_story_credit' tables.
          *
          * @throws SQLException
          */

@@ -7,6 +7,7 @@ import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.db.TestDatabaseSetup
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
+import dev.benica.creditupdater.db_tasks.DBMigrator.Companion.addIssueSeriesToCreditsNew
 import dev.benica.creditupdater.db_tasks.DBMigrator.Companion.addTablesNew
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.*
@@ -18,17 +19,12 @@ import java.sql.Connection
 class DBMigratorTest {
     private val queryExecutor = QueryExecutor()
 
-    @Test
-    fun shouldSetupTestDatabaseUpdateWithNewRecords() {
-        TestDatabaseSetup.setup(dbState = DBState.INITIAL_PLUS_NEW_RECORDS, schema = TEST_DATABASE_UPDATE)
-    }
-
     // addTablesNew()
     @Test
     @DisplayName("should add tables and constraints as appropriate")
     fun testAddTablesNew() {
-        TestDatabaseSetup.setup(dbState = DBState.INITIAL_PLUS_NEW_RECORDS, schema = TEST_DATABASE_UPDATE)
-        TestDatabaseSetup.setup(dbState = DBState.PREPARED, schema = TEST_DATABASE)
+        TestDatabaseSetup.setup(dbState = DBState.INITIALIZED, schema = TEST_DATABASE)
+        TestDatabaseSetup.setup(dbState = DBState.MIGRATE_INITIAL, schema = TEST_DATABASE, sourceSchema = TEST_DATABASE_UPDATE)
 
         Thread.sleep(2000)
 
@@ -94,8 +90,123 @@ class DBMigratorTest {
 
             verifyGoodTables()
             verifyMigrateTables()
+        }
+    }
 
-            // - has gcd_story_credit, m_character_appearance, and m_character tables with constraints and indexes added
+    // addIssueSeriesToCreditsNew
+    @Test
+    @DisplayName("should add issue_id and series_id to gcd_story_credit, m_story_credit, and m_character_appearance tables")
+    fun shouldAddIssueAndSeriesIdColumns() {
+        TestDatabaseSetup.setup(dbState = DBState.INITIALIZED, schema = TEST_DATABASE)
+
+        TestDatabaseSetup.setup(
+            dbState = DBState.MIGRATE_STEP_3_COMPLETE,
+            schema = TEST_DATABASE,
+            sourceSchema = TEST_DATABASE_UPDATE
+        )
+
+
+        addIssueSeriesToCreditsNew(
+            queryExecutor = queryExecutor,
+            conn = conn,
+            sourceSchema = TEST_DATABASE_UPDATE,
+            targetSchema = TEST_DATABASE
+        )
+
+        verifyIssueAndSeriesColumnsExist()
+        verifyIssueAndSeriesColumnsValues()
+    }
+
+    /**
+     * Verify that issue/series id columns have been added to gcd_story_credit,
+     * m_story_credit, and m_character_appearance tables
+     */
+    private fun verifyIssueAndSeriesColumnsExist() {
+        val query = """
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = '$TEST_DATABASE_UPDATE'
+                AND table_name IN ('gcd_story_credit', 'm_story_credit', 'm_character_appearance')
+                AND column_name IN ('issue_id', 'series_id')
+            """.trimIndent()
+
+        queryExecutor.executeQueryAndDo(query, conn) { rs ->
+            assertTrue(rs.next())
+            assertEquals(6, rs.getInt(1))
+        }
+    }
+
+    /**  */
+    private fun verifyIssueAndSeriesColumnsValues() {
+        fun query(table: String): String {
+            return """SELECT * 
+                        |FROM $TEST_DATABASE_UPDATE.$table 
+                        |WHERE issue_id IS NOT NULL OR series_id IS NOT NULL
+                        |""".trimMargin()
+        }
+
+        queryExecutor.executeQueryAndDo(query("gcd_story_credit"), conn) { rs ->
+            assertTrue(rs.next())
+            assertEquals(1, rs.getInt("id"))
+            assertEquals(1, rs.getInt("issue_id"))
+            assertEquals(1, rs.getInt("series_id"))
+            assertTrue(rs.next())
+            assertEquals(11, rs.getInt("id"))
+            assertEquals(1, rs.getInt("issue_id"))
+            assertEquals(1, rs.getInt("series_id"))
+            assertTrue(rs.next())
+            assertEquals(12, rs.getInt("id"))
+            assertEquals(9, rs.getInt("issue_id"))
+            assertEquals(1, rs.getInt("series_id"))
+            assertFalse(rs.next())
+        }
+
+        queryExecutor.executeQueryAndDo(query("m_story_credit"), conn) { rs ->
+            assertTrue(rs.next())
+            assertEquals(1, rs.getInt("id"))
+            assertEquals(1, rs.getInt("issue_id"))
+            assertEquals(1, rs.getInt("series_id"))
+            assertTrue(rs.next())
+            assertEquals(2, rs.getInt("id"))
+            assertEquals(2, rs.getInt("issue_id"))
+            assertEquals(2, rs.getInt("series_id"))
+            assertTrue(rs.next())
+            assertEquals(3, rs.getInt("id"))
+            assertEquals(2, rs.getInt("issue_id"))
+            assertEquals(2, rs.getInt("series_id"))
+            assertTrue(rs.next())
+            assertEquals(4, rs.getInt("id"))
+            assertEquals(1, rs.getInt("issue_id"))
+            assertEquals(1, rs.getInt("series_id"))
+            assertFalse(rs.next())
+        }
+
+        queryExecutor.executeQueryAndDo(query("m_character_appearance"), conn) { rs ->
+            assertTrue(rs.next())
+            assertEquals(1, rs.getInt("id"))
+            assertEquals(1, rs.getInt("issue_id"))
+            assertEquals(1, rs.getInt("series_id"))
+            assertTrue(rs.next())
+            assertEquals(2, rs.getInt("id"))
+            assertEquals(1, rs.getInt("issue_id"))
+            assertEquals(1, rs.getInt("series_id"))
+            assertTrue(rs.next())
+            assertEquals(3, rs.getInt("id"))
+            assertEquals(1, rs.getInt("issue_id"))
+            assertEquals(1, rs.getInt("series_id"))
+            assertTrue(rs.next())
+            assertEquals(4, rs.getInt("id"))
+            assertEquals(1, rs.getInt("issue_id"))
+            assertEquals(1, rs.getInt("series_id"))
+            assertTrue(rs.next())
+            assertEquals(5, rs.getInt("id"))
+            assertEquals(1, rs.getInt("issue_id"))
+            assertEquals(1, rs.getInt("series_id"))
+            assertTrue(rs.next())
+            assertEquals(7, rs.getInt("id"))
+            assertEquals(9, rs.getInt("issue_id"))
+            assertEquals(1, rs.getInt("series_id"))
+            assertFalse(rs.next())
         }
     }
 

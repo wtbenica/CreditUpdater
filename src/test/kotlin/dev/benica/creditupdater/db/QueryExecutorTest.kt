@@ -2,7 +2,7 @@ package dev.benica.creditupdater.db
 
 import com.zaxxer.hikari.HikariDataSource
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTablesAndViews
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import dev.benica.creditupdater.di.ConnectionSource
 import org.junit.jupiter.api.*
@@ -689,7 +689,7 @@ class QueryExecutorTest {
 
     @AfterEach
     fun tearDown() {
-        dropAllTables(mConn, TEST_DATABASE)
+        dropAllTablesAndViews()
     }
 
     companion object {
@@ -702,13 +702,13 @@ class QueryExecutorTest {
             mConn = getDbConnection(TEST_DATABASE)
             queryExecutor = QueryExecutor()
 
-            dropAllTables(mConn, TEST_DATABASE)
+            dropAllTablesAndViews()
         }
 
         @AfterAll
         @JvmStatic
         fun breakDown() {
-            dropAllTables(mConn, TEST_DATABASE)
+            dropAllTablesAndViews()
             mConn.close()
             removeSqlScriptFiles()
         }

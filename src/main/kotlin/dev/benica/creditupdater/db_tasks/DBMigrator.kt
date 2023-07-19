@@ -55,33 +55,42 @@ class DBMigrator(
 
                 if (startAtStep == 1) {
                     logger.info { "starting tables..." }
-                    addTablesNew(queryExecutor, conn, sourceSchema, targetSchema)
+                    addTablesNew(
+                        queryExecutor = queryExecutor,
+                        conn = conn,
+                        sourceSchema = sourceSchema,
+                        targetSchema = targetSchema
+                    )
                 }
 
+                // step 1 complete
                 if (startAtStep <= 2) {
                     logger.info { "starting characters..." }
                     dbTask.extractCharactersAndAppearances(
                         schema = sourceSchema,
-                        initial = true,
+                        initial = false,
                         startingId = startingId
                     )
                 }
 
+                // step 2 complete
                 if (startAtStep <= 3) {
                     logger.info { "starting credits..." }
                     dbTask.extractCredits(
                         schema = sourceSchema,
-                        initial = true,
+                        initial = false,
                         startingId = startingId.takeIf { startAtStep == 3 }
                     )
                 }
 
+                // step 3 complete
                 if (startAtStep <= 4) {
                     logger.info { "starting foreign keys updates" }
-                    addIssueSeriesToCreditsNew(queryExecutor, conn)
+                    addIssueSeriesToCreditsNew(queryExecutor = queryExecutor, conn = conn)
                     logger.info { "Done prepping $sourceSchema for migration" }
                 }
 
+                // step 4 complete
                 if (startAtStep <= 5) {
                     logger.info { "starting migration..." }
                     migrateRecords(queryExecutor, conn)
@@ -99,25 +108,15 @@ class DBMigrator(
     }
 
     companion object {
+        private const val MIGRATE_ADD_TABLES = "src/main/resources/sql/migrate_add_tables.sql"
+        private const val MIGRATE_FILL_ID_COLUMNS = "src/main/resources/sql/migrate_fill_id_columns.sql"
+        private const val MIGRATE_RECORDS = "src/main/resources/sql/migrate.sql"
+
         /**
-         * This SQL script adds issue_id and series_id columns to the
-         * gcd_story_credit and m_character_appearance tables if they don't already
-         * exist. It then creates the m_story_credit, m_character_appearance, and
-         * m_character tables. The script also creates several views of "good"
-         * items based on certain criteria, and creates tables for items that need
-         * to be migrated to the new database. Finally, the script adds constraints
-         * and indexes to the m_character and m_character_appearance tables.
+         * Adds issue/series columns to gcd_story_credit table. Creates
+         * m_character, m_character_appearance, and m_story_credit
+         * tables if they don't exist. Creates "good" views.
          */
-        private const val ADD_MODIFY_TABLES_PATH_NEW = "src/main/resources/sql/my_tables_new.sql"
-
-        private const val ADD_ISSUE_SERIES_TO_CREDITS_PATH_NEW =
-            "src/main/resources/sql/add_issue_series_to_credits_new.sql"
-
-        private const val MIGRATE_PATH_NEW = "src/main/resources/sql/migrate.sql"
-
-        internal fun migrateRecords(queryExecutor: QueryExecutor, conn: Connection) =
-            queryExecutor.executeSqlScript(File(MIGRATE_PATH_NEW), conn = conn)
-
         internal fun addTablesNew(
             queryExecutor: QueryExecutor,
             conn: Connection,
@@ -125,13 +124,40 @@ class DBMigrator(
             targetSchema: String? = null
         ) =
             queryExecutor.executeSqlScript(
-                File(ADD_MODIFY_TABLES_PATH_NEW),
+                File(MIGRATE_ADD_TABLES),
                 conn = conn,
                 sourceSchema = sourceSchema,
                 targetSchema = targetSchema
             )
 
-        internal fun addIssueSeriesToCreditsNew(queryExecutor: QueryExecutor, conn: Connection) =
-            queryExecutor.executeSqlScript(File(ADD_ISSUE_SERIES_TO_CREDITS_PATH_NEW), conn = conn)
+        /**
+         * Fills in issue/series id columns in gcd_story_credit, m_story_credit,
+         * and m_character_appearance tables.
+         */
+        internal fun addIssueSeriesToCreditsNew(
+            queryExecutor: QueryExecutor,
+            conn: Connection,
+            sourceSchema: String? = null,
+            targetSchema: String? = null
+        ) =
+            queryExecutor.executeSqlScript(
+                sqlScript = File(MIGRATE_FILL_ID_COLUMNS),
+                conn = conn,
+                sourceSchema = sourceSchema,
+                targetSchema = targetSchema
+            )
+
+        internal fun migrateRecords(
+            queryExecutor: QueryExecutor,
+            conn: Connection,
+            sourceSchema: String? = null,
+            targetSchema: String? = null
+        ) =
+            queryExecutor.executeSqlScript(
+                sqlScript = File(MIGRATE_RECORDS),
+                conn = conn,
+                sourceSchema = sourceSchema,
+                targetSchema = targetSchema
+            )
     }
 }

@@ -20,7 +20,7 @@ class DBTaskTest {
     @Order(1)
     @DisplayName("extractCharactersAndAppearances")
     fun extractCharactersAndAppearances() {
-        TestDatabaseSetup.setup(DBState.STEP_ONE_COMPLETE)
+        TestDatabaseSetup.setup(DBState.INIT_STEP_1_COMPLETE)
 
         Thread.sleep(6000)
 
@@ -39,7 +39,7 @@ class DBTaskTest {
     @Order(1)
     @DisplayName("extractCharactersAndAppearances when startingId is null/default")
     fun extractCharactersAndAppearancesWithDefaultStartingId() {
-        TestDatabaseSetup.setup(DBState.STEP_ONE_COMPLETE)
+        TestDatabaseSetup.setup(DBState.INIT_STEP_1_COMPLETE)
 
         Thread.sleep(2000)
 
@@ -58,7 +58,7 @@ class DBTaskTest {
     @Order(3)
     @DisplayName("extractCredits")
     fun extractCredits() {
-        TestDatabaseSetup.setup(DBState.STEP_TWO_COMPLETE)
+        TestDatabaseSetup.setup(DBState.INIT_STEP_2_COMPLETE)
 
         Thread.sleep(2000)
 
@@ -75,7 +75,7 @@ class DBTaskTest {
     @Order(4)
     @DisplayName("extractCredits when startingId is null/default")
     fun extractCreditsWithDefaultStartingId() {
-        TestDatabaseSetup.setup(DBState.STEP_TWO_COMPLETE)
+        TestDatabaseSetup.setup(DBState.INIT_STEP_2_COMPLETE)
 
         Thread.sleep(2000)
 
@@ -92,7 +92,7 @@ class DBTaskTest {
     @Order(6)
     @DisplayName("extractCharactersAndAppearances where progress.json file dne")
     fun extractCharactersAndAppearancesWhereProgressFileDne() {
-        TestDatabaseSetup.setup(DBState.STEP_ONE_COMPLETE)
+        TestDatabaseSetup.setup(DBState.INIT_STEP_1_COMPLETE)
 
         // rename progress.json file if exists
         val progressFile = File("progress.json")
@@ -123,7 +123,7 @@ class DBTaskTest {
     @Order(7)
     @DisplayName("extractCredits where progress.json file dne")
     fun extractCreditsWhereProgressFileDne() {
-        TestDatabaseSetup.setup(DBState.STEP_TWO_COMPLETE)
+        TestDatabaseSetup.setup(DBState.INIT_STEP_2_COMPLETE)
 
         // rename progress.json file if exists
         val progressFile = File("progress.json")

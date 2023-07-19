@@ -12,9 +12,10 @@ INSERT IGNORE INTO `gcd_series` (
         `last_issue_id`,
         `modified`
     )
-VALUES (11, 'GOOD New series existing publisher', 2000, 1, 225, 25, 1, 2, '2023-06-01 19:56:37'),
-    (12, 'GOOD New series new publisher', 2000, 6, 225, 25, 1, 2, '2023-06-01 19:56:37'),
-    (13, 'BAD publisher_id', 2000, 3, 225, 25, 1, 2, '2023-06-01 19:56:37');
+VALUES
+    (11, 'GOOD New series existing publisher',  2000, 1, 225, 25, 1, 2, '2023-06-01 19:56:37'),
+    (12, 'GOOD New series new publisher',       2000, 6, 225, 25, 1, 2, '2023-06-01 19:56:37'),
+    (13, 'BAD publisher_id',                    2000, 3, 225, 25, 1, 2, '2023-06-01 19:56:37');
 
 INSERT IGNORE INTO `gcd_indicia_publisher` (`id`, `name`, `parent_id`, `modified`)
 VALUES (3, 'BAD parent_id', 3, '2023-06-01 19:56:37'),
@@ -37,11 +38,71 @@ VALUES (9, 11, 1, 1, '2023-06-01 19:56:37'),
 INSERT IGNORE INTO `gcd_series_bond` (`id`, `origin_id`, `target_id`, `origin_issue_id`, `target_issue_id`, `modified`)
 VALUES (8, 1, 9, 1, 2, '2023-06-01 19:56:37');
 
-INSERT IGNORE INTO `gcd_story` (`id`, `title`, `issue_id`, `modified`)
-VALUES (8, 'GOOD issue 1', 1, '2023-06-01 19:56:37'),
-    (9, 'GOOD issue 9', 9, '2023-06-01 19:56:37'),
-    (10, 'BAD issue 3', 3, '2023-06-01 19:56:37'),
-    (11, 'BAD issue 11', 11, '2023-06-01 19:56:37');
+INSERT IGNORE INTO `gcd_story` (
+        `id`,
+        `title`,
+        `issue_id`,
+        `script`,
+        `pencils`,
+        `inks`,
+        `colors`,
+        `letters`,
+        `editing`,
+        `characters`,
+        `modified`
+    )
+VALUES (
+        8,
+        'GOOD issue 1',
+        1,
+        'Grant Morrison',
+        'Richard Case',
+        'John Nyberg',
+        'Daniel Vozzo',
+        'John Workman',
+        'Art Young',
+        'Individual [Alter Ego] (detail); Team [Member 1 [AE 1] (detail 1); Member 2 [AE 2] (detail 2)]',
+        '2023-06-01 19:56:37'
+    ),
+    (
+        9,
+        'GOOD issue 9',
+        9,
+        'Neil Gaiman',
+        'Chris Bachalo',
+        'Mark Buckingham',
+        'Steve Oliff',
+        'Todd Klein',
+        'Karen Berger',
+        'Individual [Alter Ego] (detail); Team [Member 1 [AE 1] (detail 1); Member 2 [AE 2] (detail 2)]',
+        '2023-06-01 19:56:37'
+    ),
+    (
+        10,
+        'BAD issue 3',
+        3,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        '2023-06-01 19:56:37'
+    ),
+    (
+        11,
+        'BAD issue 11',
+        11,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        '2023-06-01 19:56:37'
+    );
 
 INSERT IGNORE INTO `gcd_story_credit` (`id`, `creator_id`, `credit_type_id`, `story_id`, `modified`)
 VALUES (11, 4, 1, 8, '2023-06-01 19:56:37'),

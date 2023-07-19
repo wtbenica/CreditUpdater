@@ -520,7 +520,7 @@ class DBInitAddTablesTest {
     @Order(4)
     @DisplayName("should add tables and constraints")
     fun shouldAddTablesAndConstraints() {
-        TestDatabaseSetup.setup(DBState.SOURCED_COLUMNS_DROPPED)
+        TestDatabaseSetup.setup(DBState.INIT_STEP_1B)
         dbInit.addTablesAndConstraints()
 
         // verify the m_character, m_character_appearance, and m_story_credit tables were added
@@ -651,7 +651,7 @@ class DBInitAddTablesTest {
         @JvmStatic
         fun setupAll() {
             conn = TestDatabaseSetup.getTestDbConnection()
-            TestDatabaseSetup.setup(DBState.SOURCED_COLUMNS_DROPPED)
+            TestDatabaseSetup.setup(DBState.INIT_STEP_1B)
         }
 
         @AfterAll

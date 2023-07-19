@@ -386,7 +386,7 @@ class CreditRepositoryTest {
         @BeforeAll
         @JvmStatic
         internal fun setupAll() {
-            TestDatabaseSetup.setup(DBState.STEP_TWO_COMPLETE)
+            TestDatabaseSetup.setup(DBState.INIT_STEP_2_COMPLETE)
         }
 
         @AfterAll

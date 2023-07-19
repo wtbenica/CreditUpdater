@@ -30,7 +30,7 @@ class DBInitializerTest {
     @Test
     @DisplayName("should drop is_sourced and sourced_by columns")
     fun shouldDropIsSourcedAndSourcedByColumns() {
-        TestDatabaseSetup.setup(dbState = DBState.UNUSED_TABLES_DROPPED)
+        TestDatabaseSetup.setup(dbState = DBState.INIT_STEP_1A)
 
         // verify columns exist in gcd_story_credit table
         verifySourcedColumns()
@@ -43,7 +43,7 @@ class DBInitializerTest {
     @Test
     @DisplayName("should create the delete views correctly")
     fun shouldCreateDeleteViewsCorrectly() {
-        TestDatabaseSetup.setup(dbState = DBState.EXTRACTED_TABLES_ADDED)
+        TestDatabaseSetup.setup(dbState = DBState.INIT_STEP_1C)
 
         DBInitializer.createDeleteViews(queryExecutor, conn)
 
@@ -54,7 +54,7 @@ class DBInitializerTest {
     @Test
     @DisplayName("should remove unnecessary records correctly")
     fun shouldRemoveUnnecessaryRecordsCorrectly() {
-        TestDatabaseSetup.setup(DBState.DELETE_VIEWS_CREATED)
+        TestDatabaseSetup.setup(DBState.INIT_STEP_1D)
 
         verifyRecordCounts()
 
@@ -66,7 +66,7 @@ class DBInitializerTest {
     @Test
     @DisplayName("should add issue_id and series_id columns and constraints to gcd_story_credit, m_story_credit, m_character_appearance")
     fun shouldAddIssueAndSeriesIdColumns() {
-        TestDatabaseSetup.setup(DBState.STEP_THREE_COMPLETE)
+        TestDatabaseSetup.setup(DBState.INIT_STEP_3_COMPLETE)
 
         // verify that issue_id and series_id are all null for gcd_story_credit, m_story_credit, m_character_appearance
         fun verifyIssueAndSeriesIdsAreSetToNull() {
