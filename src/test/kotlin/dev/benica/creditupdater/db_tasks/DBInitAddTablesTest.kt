@@ -657,8 +657,8 @@ class DBInitAddTablesTest {
         @AfterAll
         @JvmStatic
         fun teardownAll() {
+            TestDatabaseSetup.teardown(conn = conn)
             conn.close()
-            TestDatabaseSetup.teardown()
         }
     }
 }

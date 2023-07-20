@@ -1,5 +1,6 @@
 package dev.benica.creditupdater.extractor
 
+import java.sql.Connection
 import java.sql.ResultSet
 
 /**
@@ -31,6 +32,7 @@ abstract class Extractor(
      */
     abstract fun extractAndInsert(
         resultSet: ResultSet,
+        conn: Connection
     ): Int
 }
 

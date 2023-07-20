@@ -20,9 +20,8 @@ class CreditRepositoryTest {
         val roleId = 1
 
         // verify that the story credit does not exist
-        getTestDbConnection().use { conn ->
-            conn.prepareStatement(
-                """
+        conn.prepareStatement(
+            """
                 SELECT * 
                 FROM gcd_story_credit sc
                 WHERE sc.creator_id = (
@@ -33,22 +32,22 @@ class CreditRepositoryTest {
                 AND sc.story_id = ?
                 AND sc.credit_type_id = ?
                 """.trimIndent()
-            ).use { statement ->
-                statement.setString(1, extractedName)
-                statement.setInt(2, storyId)
-                statement.setInt(3, roleId)
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
 
-                statement.executeQuery().use { resultSet ->
-                    assertFalse(resultSet.next())
-                }
+            statement.executeQuery().use { resultSet ->
+                assertFalse(resultSet.next())
             }
+        }
 
-            // Act
-            creditRepository.insertStoryCreditIfNotExists(extractedName, storyId, roleId)
+        // Act
+        creditRepository.insertStoryCreditIfNotExists(extractedName, storyId, roleId, conn)
 
-            // Assert that the story credit was inserted
-            conn.prepareStatement(
-                """
+        // Assert that the story credit was inserted
+        conn.prepareStatement(
+            """
                 SELECT * 
                 FROM m_story_credit sc
                 WHERE sc.creator_id = (
@@ -59,18 +58,17 @@ class CreditRepositoryTest {
                 AND sc.story_id = ?
                 AND sc.credit_type_id = ?
                 """.trimIndent()
-            ).use { statement ->
-                statement.setString(1, extractedName)
-                statement.setInt(2, storyId)
-                statement.setInt(3, roleId)
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
 
-                statement.executeQuery().use { resultSet ->
-                    assertTrue(resultSet.next())
-                    assertEquals(1, resultSet.getInt("creator_id"))
-                    assertEquals(storyId, resultSet.getInt("story_id"))
-                    assertEquals(roleId, resultSet.getInt("credit_type_id"))
-                    assertFalse(resultSet.next())
-                }
+            statement.executeQuery().use { resultSet ->
+                assertTrue(resultSet.next())
+                assertEquals(1, resultSet.getInt("creator_id"))
+                assertEquals(storyId, resultSet.getInt("story_id"))
+                assertEquals(roleId, resultSet.getInt("credit_type_id"))
+                assertFalse(resultSet.next())
             }
         }
     }
@@ -85,9 +83,8 @@ class CreditRepositoryTest {
         val storyId = 1
 
         // verify that the story credit exists in gcd_story_credit
-        getTestDbConnection().use { conn ->
-            conn.prepareStatement(
-                """
+        conn.prepareStatement(
+            """
                 SELECT * 
                 FROM gcd_story_credit sc
                 WHERE sc.creator_id = (
@@ -98,23 +95,23 @@ class CreditRepositoryTest {
                 AND sc.story_id = ?
                 AND sc.credit_type_id = ?
                 """.trimIndent()
-            ).use { statement ->
-                statement.setString(1, extractedName)
-                statement.setInt(2, storyId)
-                statement.setInt(3, roleId)
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
 
-                statement.executeQuery().use { resultSet ->
-                    assertTrue(resultSet.next())
-                }
+            statement.executeQuery().use { resultSet ->
+                assertTrue(resultSet.next())
             }
+        }
 
 
-            // Act
-            creditRepository.insertStoryCreditIfNotExists(extractedName, storyId, roleId)
+        // Act
+        creditRepository.insertStoryCreditIfNotExists(extractedName, storyId, roleId, conn)
 
-            // Assert that the story credit still exists in gcd_story_credit unchanged
-            conn.prepareStatement(
-                """
+        // Assert that the story credit still exists in gcd_story_credit unchanged
+        conn.prepareStatement(
+            """
                 SELECT * 
                 FROM gcd_story_credit sc
                 WHERE sc.creator_id = (
@@ -125,19 +122,19 @@ class CreditRepositoryTest {
                 AND sc.story_id = ?
                 AND sc.credit_type_id = ?
                 """.trimIndent()
-            ).use { statement ->
-                statement.setString(1, extractedName)
-                statement.setInt(2, storyId)
-                statement.setInt(3, roleId)
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
 
-                statement.executeQuery().use { resultSet ->
-                    assertTrue(resultSet.next())
-                }
+            statement.executeQuery().use { resultSet ->
+                assertTrue(resultSet.next())
             }
+        }
 
-            // Assert that the story credit was not inserted into m_story_credit
-            conn.prepareStatement(
-                """
+        // Assert that the story credit was not inserted into m_story_credit
+        conn.prepareStatement(
+            """
                 SELECT * 
                 FROM m_story_credit sc
                 WHERE sc.creator_id = (
@@ -148,14 +145,13 @@ class CreditRepositoryTest {
                 AND sc.story_id = ?
                 AND sc.credit_type_id = ?
                 """.trimIndent()
-            ).use { statement ->
-                statement.setString(1, extractedName)
-                statement.setInt(2, storyId)
-                statement.setInt(3, roleId)
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
 
-                statement.executeQuery().use { resultSet ->
-                    assertFalse(resultSet.next())
-                }
+            statement.executeQuery().use { resultSet ->
+                assertFalse(resultSet.next())
             }
         }
     }
@@ -171,9 +167,8 @@ class CreditRepositoryTest {
         val roleId = 1
 
         // insert a new story credit into m_story_credit
-        getTestDbConnection().use { conn ->
-            conn.prepareStatement(
-                """
+        conn.prepareStatement(
+            """
                 INSERT INTO m_story_credit (id, creator_id, story_id, credit_type_id)
                 VALUES (
                     ?,
@@ -184,18 +179,18 @@ class CreditRepositoryTest {
                     ?
                 )
                 """.trimIndent()
-            ).use { statement ->
-                statement.setInt(1, id)
-                statement.setString(2, extractedName)
-                statement.setInt(3, storyId)
-                statement.setInt(4, roleId)
+        ).use { statement ->
+            statement.setInt(1, id)
+            statement.setString(2, extractedName)
+            statement.setInt(3, storyId)
+            statement.setInt(4, roleId)
 
-                statement.executeUpdate()
-            }
+            statement.executeUpdate()
+        }
 
-            // verify that the story credit exists in m_story_credit
-            conn.prepareStatement(
-                """
+        // verify that the story credit exists in m_story_credit
+        conn.prepareStatement(
+            """
                 SELECT * 
                 FROM m_story_credit sc
                 WHERE sc.creator_id = (
@@ -206,19 +201,19 @@ class CreditRepositoryTest {
                 AND sc.story_id = ?
                 AND sc.credit_type_id = ?
                 """.trimIndent()
-            ).use { statement ->
-                statement.setString(1, extractedName)
-                statement.setInt(2, storyId)
-                statement.setInt(3, roleId)
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
 
-                statement.executeQuery().use { resultSet ->
-                    assertTrue(resultSet.next())
-                }
+            statement.executeQuery().use { resultSet ->
+                assertTrue(resultSet.next())
             }
+        }
 
-            // verify that the story credit dne in gcd_story_credit
-            conn.prepareStatement(
-                """
+        // verify that the story credit dne in gcd_story_credit
+        conn.prepareStatement(
+            """
                 SELECT * 
                 FROM gcd_story_credit sc
                 WHERE sc.creator_id = (
@@ -229,22 +224,22 @@ class CreditRepositoryTest {
                 AND sc.story_id = ?
                 AND sc.credit_type_id = ?
                 """.trimIndent()
-            ).use { statement ->
-                statement.setString(1, extractedName)
-                statement.setInt(2, storyId)
-                statement.setInt(3, roleId)
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
 
-                statement.executeQuery().use { resultSet ->
-                    assertFalse(resultSet.next())
-                }
+            statement.executeQuery().use { resultSet ->
+                assertFalse(resultSet.next())
             }
+        }
 
-            // Act
-            creditRepository.insertStoryCreditIfNotExists(extractedName, storyId, roleId)
+        // Act
+        creditRepository.insertStoryCreditIfNotExists(extractedName, storyId, roleId, conn)
 
-            // Assert that the story credit in m_story_credit is unchanged
-            conn.prepareStatement(
-                """
+        // Assert that the story credit in m_story_credit is unchanged
+        conn.prepareStatement(
+            """
                 SELECT * 
                 FROM m_story_credit sc
                 WHERE sc.creator_id = (
@@ -255,19 +250,19 @@ class CreditRepositoryTest {
                 AND sc.story_id = ?
                 AND sc.credit_type_id = ?
                 """.trimIndent()
-            ).use { statement ->
-                statement.setString(1, extractedName)
-                statement.setInt(2, storyId)
-                statement.setInt(3, roleId)
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
 
-                statement.executeQuery().use { resultSet ->
-                    assertTrue(resultSet.next())
-                }
+            statement.executeQuery().use { resultSet ->
+                assertTrue(resultSet.next())
             }
+        }
 
-            // Assert that the story credit was not inserted into gcd_story_credit
-            conn.prepareStatement(
-                """
+        // Assert that the story credit was not inserted into gcd_story_credit
+        conn.prepareStatement(
+            """
                 SELECT * 
                 FROM gcd_story_credit sc
                 WHERE sc.creator_id = (
@@ -278,14 +273,13 @@ class CreditRepositoryTest {
                 AND sc.story_id = ?
                 AND sc.credit_type_id = ?
                 """.trimIndent()
-            ).use { statement ->
-                statement.setString(1, extractedName)
-                statement.setInt(2, storyId)
-                statement.setInt(3, roleId)
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
 
-                statement.executeQuery().use { resultSet ->
-                    assertFalse(resultSet.next())
-                }
+            statement.executeQuery().use { resultSet ->
+                assertFalse(resultSet.next())
             }
         }
     }
@@ -299,7 +293,7 @@ class CreditRepositoryTest {
         val extractedName = "Grant Morrison"
 
         // Act
-        val gcndId = creditRepository.lookupGcndId(extractedName)
+        val gcndId = creditRepository.lookupGcndId(extractedName, conn)
 
         // Assert
         assertTrue(gcndId == 1)
@@ -313,7 +307,7 @@ class CreditRepositoryTest {
         val extractedName = "Bob"
 
         // Act
-        val gcndId = creditRepository.lookupGcndId(extractedName)
+        val gcndId = creditRepository.lookupGcndId(extractedName, conn)
 
         // Assert
         assertTrue(gcndId == null)
@@ -336,7 +330,7 @@ class CreditRepositoryTest {
         val extractedName = "Grant Morrison"
 
         // Assert
-        assertThrows<SQLException> { creditRepository.lookupGcndId(extractedName) }
+        assertThrows<SQLException> { creditRepository.lookupGcndId(extractedName, conn) }
     }
 
     // lookupStoryCreditId
@@ -360,7 +354,7 @@ class CreditRepositoryTest {
         val roleId = 1
 
         // Assert
-        assertThrows<SQLException> { creditRepository.lookupStoryCreditId(extractedName, storyId, roleId) }
+        assertThrows<SQLException> { creditRepository.lookupStoryCreditId(extractedName, storyId, roleId, conn) }
     }
 
     @Test
@@ -379,20 +373,24 @@ class CreditRepositoryTest {
         val roleId = 1
 
         // Assert
-        assertThrows<SQLException> { creditRepository.lookupStoryCreditId(extractedName, storyId, roleId) }
+        assertThrows<SQLException> { creditRepository.lookupStoryCreditId(extractedName, storyId, roleId, conn) }
     }
 
     companion object {
+        private lateinit var conn: Connection
+
         @BeforeAll
         @JvmStatic
         internal fun setupAll() {
+            conn = getTestDbConnection()
             TestDatabaseSetup.setup(DBState.INIT_STEP_2_COMPLETE)
         }
 
         @AfterAll
         @JvmStatic
         internal fun teardownAll() {
-            TestDatabaseSetup.teardown()
+            TestDatabaseSetup.teardown(conn = conn)
+            conn.close()
         }
     }
 }

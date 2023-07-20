@@ -11,6 +11,7 @@ import dev.benica.creditupdater.models.Individual
 import dev.benica.creditupdater.models.Team
 import mu.KLogger
 import mu.KotlinLogging
+import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
 import javax.inject.Inject
@@ -27,7 +28,7 @@ import javax.inject.Inject
  */
 class CharacterExtractor(
     schema: String,
-    repositoryComponent: CharacterRepositoryComponent = DaggerCharacterRepositoryComponent.create()
+    repositoryComponent: CharacterRepositoryComponent = DaggerCharacterRepositoryComponent.create(),
 ) : Extractor(schema) {
     override val extractTable: String = "gcd_story"
     override val extractedItem: String = "Character"
@@ -56,7 +57,7 @@ class CharacterExtractor(
      * @throws SQLException
      */
     @Throws(SQLException::class)
-    override fun extractAndInsert(resultSet: ResultSet): Int {
+    override fun extractAndInsert(resultSet: ResultSet, conn: Connection): Int {
         try {
             val storyId = resultSet.getInt("id")
             val characters = resultSet.getString("characters")
@@ -94,7 +95,7 @@ class CharacterExtractor(
                 appearance?.let { appearanceSet.add(it) }
             }
 
-            repository.insertCharacterAppearances(appearanceSet)
+            repository.insertCharacterAppearances(appearanceSet, conn)
 
             return storyId
         } catch (sqlEx: SQLException) {

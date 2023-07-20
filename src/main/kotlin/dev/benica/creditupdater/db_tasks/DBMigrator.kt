@@ -2,6 +2,7 @@ package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.Credentials.Companion.INCOMING_DATABASE
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
+import dev.benica.creditupdater.db.ConnectionProvider
 import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.di.*
 import kotlinx.coroutines.CoroutineDispatcher
@@ -10,7 +11,6 @@ import mu.KLogger
 import mu.KotlinLogging
 import java.io.File
 import java.sql.Connection
-import java.sql.SQLException
 import javax.inject.Inject
 import javax.inject.Named
 
@@ -31,9 +31,6 @@ class DBMigrator(
     @Named("IO")
     internal lateinit var ioDispatcher: CoroutineDispatcher
 
-    @Inject
-    internal lateinit var connectionSource: ConnectionSource
-
     // Private properties
     private val logger: KLogger
         get() = KotlinLogging.logger(this::class.java.simpleName)
@@ -47,10 +44,8 @@ class DBMigrator(
     /** Migrate - migrates the data from the old database to the new database. */
     suspend fun migrate() {
         val queryExecutor = QueryExecutor()
-        val conn: Connection = connectionSource.getConnection(sourceSchema).connection
-
-        withContext(ioDispatcher) {
-            try {
+        ConnectionProvider.getConnection(sourceSchema).connection.use { conn ->
+            withContext(ioDispatcher) {
                 logger.info { "Migrating to $targetSchema from $sourceSchema" }
 
                 if (startAtStep == 1) {
@@ -96,13 +91,6 @@ class DBMigrator(
                     migrateRecords(queryExecutor, conn)
                     logger.info { "Done migrating records" }
                 }
-            } catch (sqlEx: SQLException) {
-                logger.error { "Error migrating to $targetSchema from $sourceSchema" }
-                logger.error { sqlEx.message }
-                logger.error { sqlEx.stackTrace }
-                throw sqlEx
-            } finally {
-                conn.close()
             }
         }
     }

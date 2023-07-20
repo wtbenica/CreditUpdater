@@ -1,12 +1,10 @@
 package dev.benica.creditupdater.db
 
 import com.google.gson.Gson
-import com.zaxxer.hikari.HikariDataSource
 import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.cli_parser.CLIParser
 import dev.benica.creditupdater.db.ExtractionProgressTracker.Companion.ProgressInfo
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
-import dev.benica.creditupdater.di.ConnectionSource
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import mu.KLogger
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.*
@@ -30,13 +28,11 @@ class ExtractionProgressTrackerTest {
         parser = CLIParser()
 
         // reset db
-        getDbConnection(TEST_DATABASE).use { conn ->
-            conn.createStatement().use { stmt ->
-                stmt.execute("TRUNCATE TABLE gcd_story")
+        conn.createStatement().use { stmt ->
+            stmt.execute("TRUNCATE TABLE gcd_story")
 
-                for (i in 1..10) {
-                    stmt.execute("INSERT INTO gcd_story VALUES ($i)")
-                }
+            for (i in 1..10) {
+                stmt.execute("INSERT INTO gcd_story VALUES ($i)")
             }
         }
 
@@ -428,35 +424,11 @@ class ExtractionProgressTrackerTest {
         assertEquals("0.01%", result)
     }
 
-    @Test
-    @DisplayName("should call close() and conn.close() when used in try-with-resources")
-    fun shouldCallCloseAndConnCloseWhenUsedInTryWithResources() {
-        // Create the repository
-        val repoMock = spy(ExtractionProgressTracker("mock type", "mock target", dispatchAndExecuteComponent = null))
-        val connectionSourceMock = mock<ConnectionSource>()
-        val hikariDataSourceMock = mock<HikariDataSource>()
-        val connectionMock = mock<Connection>()
-
-        repoMock.connectionSource = connectionSourceMock
-        repoMock.conn = connectionMock
-
-        whenever(repoMock.connectionSource).thenReturn(connectionSourceMock)
-        whenever(connectionSourceMock.getConnection(any())).thenReturn(hikariDataSourceMock)
-        whenever(hikariDataSourceMock.connection).thenReturn(connectionMock)
-        doCallRealMethod().whenever(repoMock).close()
-        doNothing().whenever(connectionMock).close()
-
-        // Use in try-with-resources
-        repoMock.use { }
-
-        // Verify that close() and conn.close() were called
-        verify(repoMock, times(1)).close()
-        verify(connectionMock, times(1)).close()
-    }
-
     companion object {
         private const val ITEMS_COMPLETED = 2
         private const val TEST_PROGRESS_FILE = "test_progress.json"
+
+        private lateinit var conn: Connection
 
         @Language("JSON")
         private const val DEFAULT_PROGRESS_MAP = """{
@@ -475,18 +447,18 @@ class ExtractionProgressTrackerTest {
         @BeforeAll
         @JvmStatic
         fun setup() {
+            conn = getTestDbConnection()
             // Create a database table 'gcd_story' with a single column 'id'
-            getDbConnection(TEST_DATABASE).use { conn ->
-                conn.createStatement().use { stmt ->
-                    stmt.execute("CREATE TABLE IF NOT EXISTS gcd_story (id INT)")
-                }
+            conn.createStatement().use { stmt ->
+                stmt.execute("CREATE TABLE IF NOT EXISTS gcd_story (id INT)")
             }
 
             createTestProgressFile()
         }
 
         /**
-         * Creates a test progress file [TEST_PROGRESS_FILE] with the default progress map.
+         * Creates a test progress file [TEST_PROGRESS_FILE] with the default
+         * progress map.
          */
         private fun createTestProgressFile(): File {
             // create TEST_PROGRESS_FILE and add DEFAULT_PROGRESS_MAP to it
@@ -501,11 +473,11 @@ class ExtractionProgressTrackerTest {
         @JvmStatic
         fun teardownAll() {
             // Delete the database table 'gcd_story'
-            getDbConnection(TEST_DATABASE).use { conn ->
-                conn.createStatement().use { stmt ->
-                    stmt.execute("DROP TABLE IF EXISTS gcd_story")
-                }
+            conn.createStatement().use { stmt ->
+                stmt.execute("DROP TABLE IF EXISTS gcd_story")
             }
+
+            conn.close()
         }
     }
 }
