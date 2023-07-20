@@ -32,10 +32,10 @@ class InteractiveStartup {
             // Prompt the user for the required information.
             val databaseTask = prompt("(I)nitialize database or (M)igrate database?", "I").uppercase()
             if (databaseTask == "I") {
-                extractedType = if (prompt("C(h)aracters or C(r)edits", "h").uppercase() == "H") {
-                    ExtractedType.CHARACTERS
-                } else {
-                    ExtractedType.CREDIT
+                extractedType = when (prompt("(N)ew, C(h)aracters or C(r)edits", "n").uppercase()) {
+                    "H" -> ExtractedType.CHARACTERS
+                    "R" -> ExtractedType.CREDIT
+                    else -> ExtractedType.NEW
                 }
                 databaseName = prompt("Database name", Credentials.PRIMARY_DATABASE)
                 targetDatabaseName = null
@@ -93,6 +93,7 @@ enum class DatabaseTask {
 }
 
 enum class ExtractedType(val text: String, val stepNumber: Int) {
+    NEW("New", 1),
     CHARACTERS("Character", 2),
     CREDIT("Credit", 3)
 }

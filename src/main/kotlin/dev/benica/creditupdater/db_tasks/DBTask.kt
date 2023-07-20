@@ -1,6 +1,7 @@
 package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.Credentials
+import dev.benica.creditupdater.db.ConnectionProvider
 import dev.benica.creditupdater.db.ExtractionProgressTracker
 import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.di.*
@@ -9,9 +10,7 @@ import dev.benica.creditupdater.extractor.CreditExtractor
 import dev.benica.creditupdater.extractor.Extractor
 import mu.KLogger
 import mu.KotlinLogging
-import java.sql.Connection
 import java.sql.SQLException
-import javax.inject.Inject
 import kotlin.system.measureTimeMillis
 
 /**
@@ -20,24 +19,13 @@ import kotlin.system.measureTimeMillis
  */
 class DBTask(
     private val targetSchema: String,
-    databaseComponent: DatabaseComponent = DaggerDatabaseComponent.create()
 ) {
     // Constants
     companion object {
         private const val DEFAULT_BATCH_SIZE = 75000
     }
 
-    // Dependencies
-    @Inject
-    internal lateinit var connectionSource: ConnectionSource
-
     internal val queryExecutor: QueryExecutor = QueryExecutor()
-    private val conn: Connection
-
-    init {
-        databaseComponent.inject(this)
-        conn = connectionSource.getConnection(targetSchema).connection
-    }
 
     // Private Properties
     private val logger: KLogger
@@ -146,24 +134,24 @@ class DBTask(
         extractor: Extractor,
         batchSize: Int = DEFAULT_BATCH_SIZE
     ) {
-        logger.debug { "Extracting and inserting items..." }
-        val progressTracker = ExtractionProgressTracker(
-            extractedType = extractor.extractedItem,
-            targetSchema = targetSchema,
-            totalItems = queryExecutor.getItemCount(
-                tableName = extractor.extractTable,
-                conn = conn
-            ),
-        )
-        logger.debug { "Progress tracker: $progressTracker" }
+        ConnectionProvider.getConnection(targetSchema).connection.use { conn ->
+            logger.debug { "Extracting and inserting items..." }
+            val progressTracker = ExtractionProgressTracker(
+                extractedType = extractor.extractedItem,
+                targetSchema = targetSchema,
+                totalItems = queryExecutor.getItemCount(
+                    tableName = extractor.extractTable,
+                    conn = conn
+                ),
+            )
+            logger.debug { "Progress tracker: $progressTracker" }
 
-        val initialProgress = progressTracker.progressInfo
-        var totalTimeMillis: Long = initialProgress.totalTimeMillis
+            val initialProgress = progressTracker.progressInfo
+            var totalTimeMillis: Long = initialProgress.totalTimeMillis
 
-        var offset = 0
-        var done = false
+            var offset = 0
+            var done = false
 
-        try {
             while (!done) {
                 val queryWithLimitAndOffset =
                     "$selectItemsQuery LIMIT $batchSize OFFSET ${offset * batchSize}"
@@ -180,7 +168,7 @@ class DBTask(
                     } else {
                         do {
                             totalTimeMillis += measureTimeMillis {
-                                val processedItemId = extractor.extractAndInsert(resultSet)
+                                val processedItemId = extractor.extractAndInsert(resultSet, conn)
                                 progressTracker.updateProgressInfo(processedItemId, totalTimeMillis)
                             }
                         } while (resultSet.next())
@@ -189,12 +177,9 @@ class DBTask(
 
                 offset++
             }
-        } catch (ex: SQLException) {
-            logger.error("Error updating items", ex)
-            throw ex
-        }
 
-        logger.info { "END\n\n\n" }
-        progressTracker.resetProgressInfo()
+            logger.info { "END\n\n\n" }
+            progressTracker.resetProgressInfo()
+        }
     }
 }

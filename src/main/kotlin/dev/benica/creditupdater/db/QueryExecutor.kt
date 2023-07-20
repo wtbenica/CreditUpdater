@@ -146,6 +146,7 @@ class QueryExecutor() {
      *
      * @param tableName the table name
      * @param condition the condition
+     * @param conn the [Connection] to use (does not close the connection)
      * @return the item count
      */
     @Throws(SQLException::class)

@@ -8,6 +8,7 @@ import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnecti
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import java.sql.Connection
@@ -119,18 +120,25 @@ class DBInitializerTest {
     fun shouldPrepareDbFromStep1() {
         TestDatabaseSetup.setup(dbState = DBState.INITIAL)
 
-        CoroutineScope(Dispatchers.IO).launch {
-            Thread.sleep(6000)
+        Thread.sleep(3000)
 
-            try {
-                DBInitializer(
-                    targetSchema = TEST_DATABASE,
-                    startAtStep = 1
-                ).prepareDb()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                fail("Exception thrown: ${e.message}")
+        runBlocking {
+            val dbInitializer = DBInitializer(
+                targetSchema = TEST_DATABASE,
+                startAtStep = 0,
+                startingId = 0
+            )
+
+            val job = CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    dbInitializer.prepareDb()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    fail("Exception thrown: ${e.message}")
+                }
             }
+
+            job.join()
 
             // give db ops a chance to finish
             Thread.sleep(2000)
@@ -176,7 +184,7 @@ class DBInitializerTest {
         }
     }
 
-    private fun verifySourcedColumns(exist: Boolean = true, targetSchema: String = TEST_DATABASE ) {
+    private fun verifySourcedColumns(exist: Boolean = true, targetSchema: String = TEST_DATABASE) {
         val expected = if (exist) 2 else 0
 
         val query = """

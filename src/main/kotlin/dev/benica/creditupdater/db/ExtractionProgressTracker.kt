@@ -11,7 +11,6 @@ import mu.KLogger
 import mu.KotlinLogging
 import java.io.File
 import java.io.FileWriter
-import java.sql.Connection
 import javax.inject.Inject
 import javax.inject.Named
 
@@ -33,31 +32,24 @@ import javax.inject.Named
  */
 class ExtractionProgressTracker(
     internal val extractedType: String,
-    targetSchema: String,
+    val targetSchema: String,
     private val totalItems: Int = 0,
     internal val progressInfoMap: ProgressInfoMap = ProgressInfoMap(),
     dispatchAndExecuteComponent: DispatchAndExecuteComponent? = DaggerDispatchAndExecuteComponent.create(),
     private val logger: KLogger = KotlinLogging.logger(this::class.java.simpleName)
-) : AutoCloseable {
+) {
     @Volatile
     var progressInfo: ProgressInfo
         private set
 
-    @Inject
-    internal lateinit var connectionSource: ConnectionSource
-
     private val queryExecutor: QueryExecutor = QueryExecutor()
-    internal lateinit var conn: Connection
 
     @Inject
     @Named("IO")
     internal lateinit var ioDispatcher: CoroutineDispatcher
 
     init {
-        if (dispatchAndExecuteComponent != null) {
-            dispatchAndExecuteComponent.inject(this)
-            conn = connectionSource.getConnection(targetSchema).connection
-        }
+        dispatchAndExecuteComponent?.inject(this)
 
         logger.debug { "Progress tracker initialized for $extractedType" }
         progressInfo = progressInfoMap.get(extractedType)
@@ -131,15 +123,14 @@ class ExtractionProgressTracker(
         return progressBar.toString()
     }
 
-    internal fun getItemsCompleted(): Int =
-        queryExecutor.getItemCount(
-            tableName = "gcd_story",
-            condition = "id <= ${progressInfo.lastProcessedItemId}",
-            conn = conn
-        )
-
-    override fun close() {
-        conn.close()
+    internal fun getItemsCompleted(): Int {
+        ConnectionProvider.getConnection(targetSchema).connection.use { conn ->
+            return queryExecutor.getItemCount(
+                tableName = "gcd_story",
+                condition = "id <= ${progressInfo.lastProcessedItemId}",
+                conn = conn
+            )
+        }
     }
 
     companion object {
@@ -190,7 +181,8 @@ internal fun Float.toPercent(): String {
 
 
 /**
- * A map of [ProgressInfo] objects for each item type, Credits or Characters.
+ * A map of [ProgressInfo] objects for each item type, Credits or
+ * Characters.
  */
 class ProgressInfoMap(private val fileName: String = "progress.json") {
     internal val mProgressInfoMap: MutableMap<String, ProgressInfo>

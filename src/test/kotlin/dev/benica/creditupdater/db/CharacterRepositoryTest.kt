@@ -181,7 +181,7 @@ class CharacterRepositoryTest {
             Appearance(2, 3, "appearanceInfo6", "notes6", "members6")
         )
 
-        repo.insertCharacterAppearances(appearances)
+        repo.insertCharacterAppearances(appearances, conn)
 
         // Check that the appearances were inserted
         conn.createStatement().use { stmt ->
@@ -265,7 +265,7 @@ class CharacterRepositoryTest {
             Appearance(1, 1, null, null, null),
         )
 
-        assertThrows<SQLException> { repo.insertCharacterAppearances(appearances) }
+        assertThrows<SQLException> { repo.insertCharacterAppearances(appearances, conn) }
     }
 
     // insertCharacter
@@ -350,7 +350,7 @@ class CharacterRepositoryTest {
 
         fun setUpDatabase(conn: Connection) {
             conn.createStatement().use { stmt ->
-                TestDatabaseSetup.teardown()
+                TestDatabaseSetup.teardown(conn = conn)
                 // create publishers table
                 stmt.execute(
                     """CREATE TABLE IF NOT EXISTS gcd_publisher
@@ -398,7 +398,7 @@ class CharacterRepositoryTest {
         @AfterAll
         @JvmStatic
         fun breakDown() {
-            dropAllTablesAndViews()
+            dropAllTablesAndViews(TEST_DATABASE, conn)
             conn.close()
         }
     }

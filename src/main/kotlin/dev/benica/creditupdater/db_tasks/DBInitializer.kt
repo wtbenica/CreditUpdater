@@ -1,6 +1,7 @@
 package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
+import dev.benica.creditupdater.db.ConnectionProvider
 import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.di.*
 import kotlinx.coroutines.*
@@ -38,9 +39,6 @@ class DBInitializer(
     @Named("IO")
     internal lateinit var ioDispatcher: CoroutineDispatcher
 
-    @Inject
-    internal lateinit var connectionSource: ConnectionSource
-
     // Private properties
     private val logger: KLogger
         get() = KotlinLogging.logger(this::class.java.simpleName)
@@ -63,63 +61,62 @@ class DBInitializer(
     @Throws(SQLException::class)
     suspend fun prepareDb() {
         val queryExecutor = QueryExecutor()
-        val conn: Connection = connectionSource.getConnection(targetSchema).connection
 
         withContext(ioDispatcher) {
-            try {
-                logger.info { "Updating $targetSchema" }
+            ConnectionProvider.getConnection(targetSchema).connection.use { conn ->
+                try {
+                    logger.info { "Updating $targetSchema" }
 
-                if (startAtStep == 1) {
-                    logger.info { "Starting Table Updates..." }
-                    dropUnusedTables(queryExecutor, conn)
-                    // step 1A
-                    dropIsSourcedAndSourcedByColumns(queryExecutor, conn)
+                    if (startAtStep <= 1) {
+                        logger.info { "Starting Table Updates..." }
+                        dropUnusedTables(queryExecutor, conn)
+                        // step 1A
+                        dropIsSourcedAndSourcedByColumns(queryExecutor, conn)
 
-                    // step 1B
-                    DBInitAddTables(
-                        queryExecutor = QueryExecutor(),
-                        targetSchema = targetSchema,
-                        conn = conn
-                    ).addTablesAndConstraints()
+                        // step 1B
+                        DBInitAddTables(
+                            queryExecutor = QueryExecutor(),
+                            targetSchema = targetSchema,
+                            conn = conn
+                        ).addTablesAndConstraints()
 
-                    // step 1C
-                    createDeleteViews(queryExecutor, conn)
+                        // step 1C
+                        createDeleteViews(queryExecutor, conn)
 
-                    // step 1D
-                    removeUnnecessaryRecords(queryExecutor, conn)
+                        // step 1D
+                        removeUnnecessaryRecords(queryExecutor, conn)
+                    }
+
+                    if (startAtStep <= 2) {
+                        logger.info { "Starting Character Updates..." }
+                        dbTask.extractCharactersAndAppearances(
+                            schema = targetSchema,
+                            initial = true,
+                            startingId = startingId,
+                        )
+                    }
+
+                    if (startAtStep <= 3) {
+                        logger.info { "Starting Credit Updates..." }
+                        dbTask.extractCredits(
+                            schema = targetSchema,
+                            initial = true,
+                            startingId = startingId.takeIf { startAtStep == 3 },
+                        )
+                    }
+
+                    if (startAtStep <= 4) {
+                        logger.info { "Starting foreign key updates" }
+                        addIssueSeriesColumnsAndConstraints(queryExecutor, conn)
+                    }
+
+                    logger.info { "Successfully updated $targetSchema" }
+                } catch (sqlEx: SQLException) {
+                    logger.error { "Failed to update $targetSchema" }
+                    logger.error { sqlEx.message }
+                    logger.error { sqlEx.stackTrace }
+                    throw sqlEx
                 }
-
-                if (startAtStep <= 2) {
-                    logger.info { "Starting Character Updates..." }
-                    dbTask.extractCharactersAndAppearances(
-                        schema = targetSchema,
-                        initial = true,
-                        startingId = startingId,
-                    )
-                }
-
-                if (startAtStep <= 3) {
-                    logger.info { "Starting Credit Updates..." }
-                    dbTask.extractCredits(
-                        schema = targetSchema,
-                        initial = true,
-                        startingId = startingId.takeIf { startAtStep == 3 },
-                    )
-                }
-
-                if (startAtStep <= 4) {
-                    logger.info { "Starting foreign key updates" }
-                    addIssueSeriesColumnsAndConstraints(queryExecutor, conn)
-                }
-
-                logger.info { "Successfully updated $targetSchema" }
-            } catch (sqlEx: SQLException) {
-                logger.error { "Failed to update $targetSchema" }
-                logger.error { sqlEx.message }
-                logger.error { sqlEx.stackTrace }
-                throw sqlEx
-            } finally {
-                conn.close()
             }
         }
     }

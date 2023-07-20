@@ -6,10 +6,10 @@ import dev.benica.creditupdater.di.DaggerCreditRepositoryComponent
 import dev.benica.creditupdater.di.RepoSource
 import mu.KLogger
 import mu.KotlinLogging
+import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
 import javax.inject.Inject
-import kotlin.jvm.Throws
 
 /**
  * Credit extractor - creates linked credits from named credits
@@ -49,7 +49,7 @@ class CreditExtractor(
      * @throws SQLException
      */
     @Throws(SQLException::class)
-    override fun extractAndInsert(resultSet: ResultSet): Int {
+    override fun extractAndInsert(resultSet: ResultSet, conn: Connection): Int {
         try {
             val storyId = resultSet.getInt("id")
 
@@ -60,12 +60,12 @@ class CreditExtractor(
             val lettersNames = resultSet.getString("letters").split(';').filter { it.isNotBlank() }
             val editingNames = resultSet.getString("editing").split(';').filter { it.isNotBlank() }
 
-            createCreditsForNames(scriptNames, storyId, 1)
-            createCreditsForNames(pencilsNames, storyId, 2)
-            createCreditsForNames(inksNames, storyId, 3)
-            createCreditsForNames(colorsNames, storyId, 4)
-            createCreditsForNames(lettersNames, storyId, 5)
-            createCreditsForNames(editingNames, storyId, 6)
+            createCreditsForNames(scriptNames, storyId, 1, conn)
+            createCreditsForNames(pencilsNames, storyId, 2, conn)
+            createCreditsForNames(inksNames, storyId, 3, conn)
+            createCreditsForNames(colorsNames, storyId, 4, conn)
+            createCreditsForNames(lettersNames, storyId, 5, conn)
+            createCreditsForNames(editingNames, storyId, 6, conn)
             return storyId
         } catch (sqlEx: SQLException) {
             logger.error("Error extracting credits from story: ${sqlEx.message}")
@@ -85,13 +85,15 @@ class CreditExtractor(
     private fun createCreditsForNames(
         scriptNames: List<String>,
         storyId: Int,
-        roleId: Int
+        roleId: Int,
+        conn: Connection
     ) {
         scriptNames.forEach { name ->
             repository.insertStoryCreditIfNotExists(
                 extractedName = name.prepareName(),
                 storyId = storyId,
-                roleId = roleId
+                roleId = roleId,
+                conn = conn
             )
         }
     }
