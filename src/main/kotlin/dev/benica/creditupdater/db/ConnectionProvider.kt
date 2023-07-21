@@ -6,7 +6,7 @@ import dev.benica.creditupdater.Credentials
 
 class ConnectionProvider {
     companion object {
-        private var connectionMap: MutableMap<String, HikariDataSource> = mutableMapOf()
+        private val connectionMap: MutableMap<String, HikariDataSource> = mutableMapOf()
 
         fun getConnection(targetSchema: String): HikariDataSource {
             if (!connectionMap.containsKey(targetSchema) || connectionMap[targetSchema]?.isClosed == true) {
@@ -16,7 +16,7 @@ class ConnectionProvider {
             return connectionMap[targetSchema]!!
         }
 
-        fun createConnection(targetSchema: String): HikariDataSource = HikariDataSource(
+        private fun createConnection(targetSchema: String): HikariDataSource = HikariDataSource(
             HikariConfig().apply {
                 jdbcUrl = "jdbc:mysql://localhost:3306/$targetSchema"
                 username = Credentials.USERNAME_INITIALIZER
