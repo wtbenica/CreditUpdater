@@ -105,6 +105,8 @@ class ExtractionProgressTrackerTest {
             )
         )
 
+        Thread.sleep(2000)
+
         whenever(mockEpt.getItemsCompleted()).thenReturn(ITEMS_COMPLETED)
 
         // verify progressInfo
