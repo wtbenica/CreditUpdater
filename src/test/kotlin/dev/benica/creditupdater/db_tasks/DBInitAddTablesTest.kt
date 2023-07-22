@@ -100,42 +100,6 @@ class DBInitAddTablesTest {
     }
 
     @Test
-    @Order(3)
-    @DisplayName("should add issue_id foreign key to gcd_story_credit table if it does not exist")
-    fun addIssueIdForeignKeyIfNotExists() {
-        // verify there is no issue_id foreign key
-        val query =
-            """SELECT constraint_name
-                |FROM information_schema.key_column_usage 
-                |WHERE table_schema = '$TEST_DATABASE' 
-                |AND table_name = 'gcd_story_credit' 
-                |AND column_name = 'issue_id'
-                |AND referenced_table_name = 'gcd_issue'
-                |AND referenced_column_name = 'id'""".trimMargin()
-        queryExecutor.executeQueryAndDo(query, conn) {
-            assertFalse(it.next())
-        }
-
-        // add the foreign key
-        dbInit.addIssueIdForeignKeyIfNotExists()
-
-        // verify the foreign key was added
-        queryExecutor.executeQueryAndDo(query, conn) {
-            assertTrue(it.next())
-            assertFalse(it.next())
-        }
-
-        // add the foreign key again
-        dbInit.addIssueIdForeignKeyIfNotExists()
-
-        // verify the foreign key was not added again
-        queryExecutor.executeQueryAndDo(query, conn) {
-            assertTrue(it.next())
-            assertFalse(it.next())
-        }
-    }
-
-    @Test
     @Order(1)
     @DisplayName("should add series_id column to gcd_story_credit table if it does not exist")
     fun addSeriesColumnIfNotExists() {
@@ -162,6 +126,72 @@ class DBInitAddTablesTest {
         queryExecutor.executeQueryAndDo(query, conn) {
             it.next()
             assertEquals("series_id", it.getString("column_name"))
+            assertFalse(it.next())
+        }
+    }
+
+    @Test
+    @Order(1)
+    @DisplayName("should add m_character table if it does not exist")
+    fun createExtractedCharactersTableIfNotExists() {
+        // verify there is no m_character table
+        val query =
+            """SELECT table_name 
+                |FROM information_schema.tables 
+                |WHERE table_name = 'm_character' 
+                |AND table_schema = '$TEST_DATABASE'""".trimMargin()
+
+        queryExecutor.executeQueryAndDo(query, conn) {
+            assertFalse(it.next())
+        }
+
+        // add the table
+        dbInit.createExtractedCharactersTableIfNotExists()
+
+        // verify the table was added
+        queryExecutor.executeQueryAndDo(query, conn) {
+            it.next()
+            assertEquals("m_character", it.getString("table_name"))
+        }
+
+        // add the table again
+        dbInit.createExtractedCharactersTableIfNotExists()
+
+        // verify the table was not added again
+        queryExecutor.executeQueryAndDo(query, conn) {
+            it.next()
+            assertEquals("m_character", it.getString("table_name"))
+            assertFalse(it.next())
+        }
+    }
+
+    @Test
+    @Order(2)
+    @DisplayName("should create m_story_credit table if it does not exist")
+    fun createExtractedStoryCreditsTableIfNotExists() {
+        // verify there is no m_story_credit table
+        val query =
+            "SELECT table_name FROM information_schema.tables WHERE table_name = 'm_story_credit' AND table_schema = '$TEST_DATABASE'"
+        queryExecutor.executeQueryAndDo(query, conn) {
+            assertFalse(it.next())
+        }
+
+        // add the table
+        dbInit.createExtractedStoryCreditsTableIfNotExists()
+
+        // verify the table was added
+        queryExecutor.executeQueryAndDo(query, conn) {
+            it.next()
+            assertEquals("m_story_credit", it.getString("table_name"))
+        }
+
+        // add the table again
+        dbInit.createExtractedStoryCreditsTableIfNotExists()
+
+        // verify the table was not added again
+        queryExecutor.executeQueryAndDo(query, conn) {
+            it.next()
+            assertEquals("m_story_credit", it.getString("table_name"))
             assertFalse(it.next())
         }
     }
@@ -203,41 +233,6 @@ class DBInitAddTablesTest {
     }
 
     @Test
-    @Order(1)
-    @DisplayName("should add m_character table if it does not exist")
-    fun createExtractedCharactersTableIfNotExists() {
-        // verify there is no m_character table
-        val query =
-            """SELECT table_name 
-                |FROM information_schema.tables 
-                |WHERE table_name = 'm_character' 
-                |AND table_schema = '$TEST_DATABASE'""".trimMargin()
-
-        queryExecutor.executeQueryAndDo(query, conn) {
-            assertFalse(it.next())
-        }
-
-        // add the table
-        dbInit.createExtractedCharactersTableIfNotExists()
-
-        // verify the table was added
-        queryExecutor.executeQueryAndDo(query, conn) {
-            it.next()
-            assertEquals("m_character", it.getString("table_name"))
-        }
-
-        // add the table again
-        dbInit.createExtractedCharactersTableIfNotExists()
-
-        // verify the table was not added again
-        queryExecutor.executeQueryAndDo(query, conn) {
-            it.next()
-            assertEquals("m_character", it.getString("table_name"))
-            assertFalse(it.next())
-        }
-    }
-
-    @Test
     @Order(3)
     @DisplayName("should create m_character_appearance table if it does not exist")
     fun createCharacterAppearanceTableIfNotExists() {
@@ -270,32 +265,38 @@ class DBInitAddTablesTest {
     }
 
     @Test
-    @Order(2)
-    @DisplayName("should create m_story_credit table if it does not exist")
-    fun createExtractedStoryCreditsTableIfNotExists() {
-        // verify there is no m_story_credit table
+    @Order(3)
+    @DisplayName("should add issue_id foreign key to gcd_story_credit table if it does not exist")
+    fun addIssueIdForeignKeyIfNotExists() {
+        // verify there is no issue_id foreign key
         val query =
-            "SELECT table_name FROM information_schema.tables WHERE table_name = 'm_story_credit' AND table_schema = '$TEST_DATABASE'"
+            """SELECT constraint_name
+                |FROM information_schema.key_column_usage 
+                |WHERE table_schema = '$TEST_DATABASE' 
+                |AND table_name = 'gcd_story_credit' 
+                |AND column_name = 'issue_id'
+                |AND referenced_table_name = 'gcd_issue'
+                |AND referenced_column_name = 'id'""".trimMargin()
+
         queryExecutor.executeQueryAndDo(query, conn) {
             assertFalse(it.next())
         }
 
-        // add the table
-        dbInit.createExtractedStoryCreditsTableIfNotExists()
+        // add the foreign key
+        dbInit.addIssueIdForeignKeyIfNotExists()
 
-        // verify the table was added
+        // verify the foreign key was added
         queryExecutor.executeQueryAndDo(query, conn) {
-            it.next()
-            assertEquals("m_story_credit", it.getString("table_name"))
+            assertTrue(it.next())
+            assertFalse(it.next())
         }
 
-        // add the table again
-        dbInit.createExtractedStoryCreditsTableIfNotExists()
+        // add the foreign key again
+        dbInit.addIssueIdForeignKeyIfNotExists()
 
-        // verify the table was not added again
+        // verify the foreign key was not added again
         queryExecutor.executeQueryAndDo(query, conn) {
-            it.next()
-            assertEquals("m_story_credit", it.getString("table_name"))
+            assertTrue(it.next())
             assertFalse(it.next())
         }
     }
@@ -520,7 +521,7 @@ class DBInitAddTablesTest {
     @Order(4)
     @DisplayName("should add tables and constraints")
     fun shouldAddTablesAndConstraints() {
-        TestDatabaseSetup.setup(DBState.INIT_STEP_1B)
+        TestDatabaseSetup.setup(DBState.INIT_STEP_1B, schema = TEST_DATABASE, sourceSchema = null)
         dbInit.addTablesAndConstraints()
 
         // verify the m_character, m_character_appearance, and m_story_credit tables were added
@@ -651,13 +652,13 @@ class DBInitAddTablesTest {
         @JvmStatic
         fun setupAll() {
             conn = TestDatabaseSetup.getTestDbConnection()
-            TestDatabaseSetup.setup(DBState.INIT_STEP_1B)
+            TestDatabaseSetup.setup(dbState = DBState.INIT_STEP_1B, schema = TEST_DATABASE, sourceSchema = null)
         }
 
         @AfterAll
         @JvmStatic
         fun teardownAll() {
-            TestDatabaseSetup.teardown(conn = conn)
+            TestDatabaseSetup.teardown(schema = TEST_DATABASE, conn = conn)
             conn.close()
         }
     }

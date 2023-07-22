@@ -350,7 +350,7 @@ class CharacterRepositoryTest {
 
         fun setUpDatabase(conn: Connection) {
             conn.createStatement().use { stmt ->
-                TestDatabaseSetup.teardown(conn = conn)
+                TestDatabaseSetup.teardown(schema = TEST_DATABASE, conn = conn)
                 // create publishers table
                 stmt.execute(
                     """CREATE TABLE IF NOT EXISTS gcd_publisher

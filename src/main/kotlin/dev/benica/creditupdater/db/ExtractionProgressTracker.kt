@@ -23,7 +23,8 @@ import javax.inject.Named
  * @param dispatchAndExecuteComponent the [DispatchAndExecuteComponent] to
  *     use, defaults to a new [DaggerDispatchAndExecuteComponent]
  *       - Note: This is only used for testing
- *
+ * @param progressInfoMap the [ProgressInfoMap] to use, defaults to a new
+ *    [ProgressInfoMap]
  * @param logger the [KLogger] to use, defaults to a new [KotlinLogging]
  *     logger
  *    - Note: This is only used for testing
@@ -123,6 +124,9 @@ class ExtractionProgressTracker(
         return progressBar.toString()
     }
 
+    /**
+     * Returns the number of items that have been completed.
+     */
     internal fun getItemsCompleted(): Int {
         ConnectionProvider.getConnection(targetSchema).connection.use { conn ->
             return queryExecutor.getItemCount(

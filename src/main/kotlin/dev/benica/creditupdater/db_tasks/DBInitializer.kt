@@ -69,9 +69,13 @@ class DBInitializer(
 
                     if (startAtStep <= 1) {
                         logger.info { "Starting Table Updates..." }
-                        dropUnusedTables(queryExecutor, conn)
+                        dropUnusedTables(
+                            queryExecutor = queryExecutor,
+                            targetSchema = targetSchema,
+                            conn = conn
+                        )
                         // step 1A
-                        dropIsSourcedAndSourcedByColumns(queryExecutor, conn)
+                        dropIsSourcedAndSourcedByColumns(queryExecutor, targetSchema, conn)
 
                         // step 1B
                         DBInitAddTables(
@@ -81,10 +85,18 @@ class DBInitializer(
                         ).addTablesAndConstraints()
 
                         // step 1C
-                        createDeleteViews(queryExecutor, conn)
+                        createDeleteViews(
+                            queryExecutor = queryExecutor,
+                            targetSchema = targetSchema,
+                            conn = conn
+                        )
 
                         // step 1D
-                        removeUnnecessaryRecords(queryExecutor, conn)
+                        removeUnnecessaryRecords(
+                            queryExecutor = queryExecutor,
+                            targetSchema = targetSchema,
+                            conn = conn
+                        )
                     }
 
                     if (startAtStep <= 2) {
@@ -107,7 +119,11 @@ class DBInitializer(
 
                     if (startAtStep <= 4) {
                         logger.info { "Starting foreign key updates" }
-                        addIssueSeriesColumnsAndConstraints(queryExecutor, conn)
+                        addIssueSeriesColumnsAndConstraints(
+                            queryExecutor = queryExecutor,
+                            targetSchema = targetSchema,
+                            conn = conn
+                        )
                     }
 
                     logger.info { "Successfully updated $targetSchema" }
@@ -122,9 +138,24 @@ class DBInitializer(
     }
 
     companion object {
+        /**
+         * Target Schema:
+         * - Adds the 'issue' and 'series' columns to the 'gcd_story_credit',
+         *   'm_story_credit', and 'm_character_appearance' tables.
+         * - Removes any m_character_appearances whose story is missing an issue_id
+         * - Adds NOT NULL constraints to the 'issue' and 'series' columns in the
+         *   'gcd_story_credit', 'm_story_credit', and 'm_character_appearance'
+         *   tables.
+         */
         const val ISSUE_SERIES_PATH = "src/main/resources/sql/init_add_issue_series_to_credits.sql"
         const val INIT_REMOVE_ITEMS = "src/main/resources/sql/init_remove_items.sql"
         const val INIT_DROP_UNUSED_TABLES = "src/main/resources/sql/init_drop_unused_tables.sql"
+
+        /**
+         * Target Schema:
+         * - Creates views `bad_publishers`, `bad_indicia_publishers`,
+         *   `bad_series`, `bad_issues`, and `bad_stories`.
+         */
         const val INIT_CREATE_BAD_VIEWS = "src/main/resources/sql/init_create_bad_views.sql"
 
         /**
@@ -136,20 +167,28 @@ class DBInitializer(
          * @throws SQLException
          */
         @Throws(SQLException::class)
-        internal fun dropIsSourcedAndSourcedByColumns(queryExecutor: QueryExecutor, conn: Connection) =
+        internal fun dropIsSourcedAndSourcedByColumns(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
             queryExecutor.executeSqlStatement(
-                sqlStmt = """ALTER TABLE gcd_story_credit
+                sqlStmt = """ALTER TABLE $targetSchema.gcd_story_credit
                                 DROP COLUMN IF EXISTS is_sourced,
                                 DROP COLUMN IF EXISTS sourced_by;
                             """.trimIndent(),
                 connection = conn
             )
 
-        internal fun createDeleteViews(queryExecutor: QueryExecutor, conn: Connection) =
-            queryExecutor.executeSqlScript(sqlScript = File(INIT_CREATE_BAD_VIEWS), conn = conn)
+        internal fun createDeleteViews(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
+            queryExecutor.executeSqlScript(
+                sqlScript = File(INIT_CREATE_BAD_VIEWS),
+                conn = conn,
+                targetSchema = targetSchema
+            )
 
-        internal fun dropUnusedTables(queryExecutor: QueryExecutor, conn: Connection) =
-            queryExecutor.executeSqlScript(sqlScript = File(INIT_DROP_UNUSED_TABLES), conn = conn)
+        internal fun dropUnusedTables(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
+            queryExecutor.executeSqlScript(
+                sqlScript = File(INIT_DROP_UNUSED_TABLES),
+                conn = conn,
+                targetSchema = targetSchema
+            )
 
         /**
          * Shrink database - this function shrinks the database by removing a bunch
@@ -159,8 +198,12 @@ class DBInitializer(
          * @throws SQLException
          */
         @Throws(SQLException::class)
-        internal fun removeUnnecessaryRecords(queryExecutor: QueryExecutor, conn: Connection) =
-            queryExecutor.executeSqlScript(sqlScript = File(INIT_REMOVE_ITEMS), conn = conn)
+        internal fun removeUnnecessaryRecords(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
+            queryExecutor.executeSqlScript(
+                sqlScript = File(INIT_REMOVE_ITEMS),
+                conn = conn,
+                targetSchema = targetSchema
+            )
 
 
         /**
@@ -172,11 +215,16 @@ class DBInitializer(
          * @throws SQLException
          */
         @Throws(SQLException::class)
-        internal fun addIssueSeriesColumnsAndConstraints(queryExecutor: QueryExecutor, conn: Connection) =
+        internal fun addIssueSeriesColumnsAndConstraints(
+            queryExecutor: QueryExecutor,
+            targetSchema: String,
+            conn: Connection
+        ) =
             queryExecutor.executeSqlScript(
                 sqlScript = File(ISSUE_SERIES_PATH),
                 runAsTransaction = true,
-                conn = conn
+                conn = conn,
+                targetSchema = targetSchema
             )
     }
 }

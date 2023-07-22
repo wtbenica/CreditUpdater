@@ -4,6 +4,7 @@ import dev.benica.creditupdater.Credentials.Companion.INCOMING_DATABASE
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
 import dev.benica.creditupdater.db.ConnectionProvider
 import dev.benica.creditupdater.db.QueryExecutor
+import dev.benica.creditupdater.db_tasks.DBInitializer.Companion.dropIsSourcedAndSourcedByColumns
 import dev.benica.creditupdater.di.*
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -50,6 +51,12 @@ class DBMigrator(
 
                 if (startAtStep == 1) {
                     logger.info { "starting tables..." }
+                    dropIsSourcedAndSourcedByColumns(
+                        queryExecutor = queryExecutor,
+                        targetSchema = sourceSchema,
+                        conn = conn
+                    )
+
                     addTablesNew(
                         queryExecutor = queryExecutor,
                         conn = conn,
@@ -81,7 +88,11 @@ class DBMigrator(
                 // step 3 complete
                 if (startAtStep <= 4) {
                     logger.info { "starting foreign keys updates" }
-                    addIssueSeriesToCreditsNew(queryExecutor = queryExecutor, conn = conn)
+                    addIssueSeriesToCreditsNew(
+                        queryExecutor = queryExecutor,
+                        conn = conn,
+                        targetSchema = sourceSchema
+                    )
                     logger.info { "Done prepping $sourceSchema for migration" }
                 }
 
@@ -96,15 +107,20 @@ class DBMigrator(
     }
 
     companion object {
-        private const val MIGRATE_ADD_TABLES = "src/main/resources/sql/migrate_add_tables.sql"
+        /**
+         * Source Schema:
+         * - Adds the `issue_id` and `series_id` columns to the `gcd_story_credit`
+         *   table.
+         * - Creates tables: `m_*` tables like the `m_*` tables in the target
+         *   schema.
+         * - Drops & creates `good_*` and `migrate_*` views for publishers,
+         *   indicia_publishers, series, issues, stories
+         */
+        internal const val MIGRATE_ADD_TABLES = "src/main/resources/sql/migrate_add_tables.sql"
         private const val MIGRATE_FILL_ID_COLUMNS = "src/main/resources/sql/migrate_fill_id_columns.sql"
         private const val MIGRATE_RECORDS = "src/main/resources/sql/migrate.sql"
 
-        /**
-         * Adds issue/series columns to gcd_story_credit table. Creates
-         * m_character, m_character_appearance, and m_story_credit
-         * tables if they don't exist. Creates "good" views.
-         */
+        /** Executes [MIGRATE_ADD_TABLES] */
         internal fun addTablesNew(
             queryExecutor: QueryExecutor,
             conn: Connection,
@@ -114,8 +130,8 @@ class DBMigrator(
             queryExecutor.executeSqlScript(
                 File(MIGRATE_ADD_TABLES),
                 conn = conn,
-                sourceSchema = sourceSchema,
-                targetSchema = targetSchema
+                targetSchema = targetSchema,
+                sourceSchema = sourceSchema
             )
 
         /**
@@ -125,13 +141,11 @@ class DBMigrator(
         internal fun addIssueSeriesToCreditsNew(
             queryExecutor: QueryExecutor,
             conn: Connection,
-            sourceSchema: String? = null,
             targetSchema: String? = null
         ) =
             queryExecutor.executeSqlScript(
                 sqlScript = File(MIGRATE_FILL_ID_COLUMNS),
                 conn = conn,
-                sourceSchema = sourceSchema,
                 targetSchema = targetSchema
             )
 
@@ -144,8 +158,8 @@ class DBMigrator(
             queryExecutor.executeSqlScript(
                 sqlScript = File(MIGRATE_RECORDS),
                 conn = conn,
-                sourceSchema = sourceSchema,
-                targetSchema = targetSchema
+                targetSchema = targetSchema,
+                sourceSchema = sourceSchema
             )
     }
 }

@@ -88,8 +88,8 @@ class QueryExecutor() {
         sqlScript: File,
         runAsTransaction: Boolean = false,
         conn: Connection,
-        sourceSchema: String? = null,
-        targetSchema: String? = null
+        targetSchema: String?,
+        sourceSchema: String? = null
     ) {
         try {
             val statements: List<String> = sqlScript.parseSqlScript(

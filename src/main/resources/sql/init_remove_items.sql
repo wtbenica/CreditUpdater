@@ -42,7 +42,6 @@
  # It got messy because here were two issues whose ids were the last_issue_id to series whose ids
  # didn't match the issues' series_ids.
  # -----------------------------------------------------------------------------------------;
-
  UPDATE gcd_series
  SET first_issue_id = NULL,
      last_issue_id  = NULL

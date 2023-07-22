@@ -1,16 +1,16 @@
-ALTER TABLE `gcd_story_credit` ADD `issue_id` INT(11) DEFAULT NULL AFTER `story_id`;
-ALTER TABLE `gcd_story_credit` ADD `series_id` INT(11) DEFAULT NULL AFTER `issue_id`;
-ALTER TABLE `gcd_story_credit` ADD FOREIGN KEY (`issue_id`) REFERENCES `gcd_issue`(`id`);
-ALTER TABLE `gcd_story_credit` ADD FOREIGN KEY (`series_id`) REFERENCES `gcd_series`(`id`);
+ALTER TABLE `{{sourceSchema}}`.`gcd_story_credit` ADD `issue_id` INT(11) DEFAULT NULL AFTER `story_id`;
+ALTER TABLE `{{sourceSchema}}`.`gcd_story_credit` ADD `series_id` INT(11) DEFAULT NULL AFTER `issue_id`;
+ALTER TABLE `{{sourceSchema}}`.`gcd_story_credit` ADD FOREIGN KEY (`issue_id`) REFERENCES `{{sourceSchema}}`.`gcd_issue`(`id`);
+ALTER TABLE `{{sourceSchema}}`.`gcd_story_credit` ADD FOREIGN KEY (`series_id`) REFERENCES `{{sourceSchema}}`.`gcd_series`(`id`);
 
-CREATE TABLE IF NOT EXISTS m_character (
+CREATE TABLE IF NOT EXISTS `{{sourceSchema}}`.m_character (
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
     alter_ego VARCHAR(255),
-    publisher_id INTEGER NOT NULL REFERENCES gcd_publisher (id)
+    publisher_id INTEGER NOT NULL REFERENCES `{{sourceSchema}}`.gcd_publisher (id)
 );
 
-CREATE TABLE IF NOT EXISTS m_character_appearance (
+CREATE TABLE IF NOT EXISTS `{{sourceSchema}}`.m_character_appearance (
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
     details VARCHAR(255),
     character_id INTEGER NOT NULL,
@@ -19,25 +19,36 @@ CREATE TABLE IF NOT EXISTS m_character_appearance (
     membership LONGTEXT,
     issue_id INTEGER DEFAULT NULL,
     series_id INTEGER DEFAULT NULL,
-    FOREIGN KEY (character_id) REFERENCES m_character (id),
-    FOREIGN KEY (story_id) REFERENCES gcd_story (id),
-    FOREIGN KEY (issue_id) REFERENCES gcd_issue (id),
-    FOREIGN KEY (series_id) REFERENCES gcd_series (id)
+    FOREIGN KEY (character_id) REFERENCES `{{sourceSchema}}`.m_character (id),
+    FOREIGN KEY (story_id) REFERENCES `{{sourceSchema}}`.gcd_story (id),
+    FOREIGN KEY (issue_id) REFERENCES `{{sourceSchema}}`.gcd_issue (id),
+    FOREIGN KEY (series_id) REFERENCES `{{sourceSchema}}`.gcd_series (id)
 );
 
-CREATE TABLE IF NOT EXISTS `m_story_credit` (
-    `id` int (11) NOT NULL AUTO_INCREMENT,
-    `creator_id` int (11) NOT NULL,
-    `credit_type_id` int (11) NOT NULL,
-    `story_id` int (11) NOT NULL,
-    `issue_id` int (11) DEFAULT NULL,
-    `series_id` int (11) DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    FOREIGN KEY (`creator_id`) REFERENCES `gcd_creator_name_detail`(`id`),
-    FOREIGN KEY (`credit_type_id`) REFERENCES `gcd_credit_type`(`id`),
-    FOREIGN KEY (`story_id`) REFERENCES `gcd_story`(`id`),
-    FOREIGN KEY (`issue_id`) REFERENCES `gcd_issue`(`id`),
-    FOREIGN KEY (`series_id`) REFERENCES `gcd_series`(`id`)
+CREATE TABLE `{{sourceSchema}}`.`m_story_credit` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `created` datetime(6) NOT NULL,
+  `modified` datetime(6) NOT NULL,
+  `deleted` tinyint(1) NOT NULL,
+  `is_credited` tinyint(1) NOT NULL,
+  `is_signed` tinyint(1) NOT NULL,
+  `uncertain` tinyint(1) NOT NULL,
+  `signed_as` varchar(255) NOT NULL,
+  `credited_as` varchar(255) NOT NULL,
+  `credit_name` varchar(255) NOT NULL,
+  `creator_id` int(11) NOT NULL,
+  `credit_type_id` int(11) NOT NULL,
+  `story_id` int(11) NOT NULL,
+  `signature_id` int(11) DEFAULT NULL,
+  `issue_id` int(11) DEFAULT NULL,
+  `series_id` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`creator_id`) REFERENCES `{{sourceSchema}}`.`gcd_creator_name_detail` (`id`),
+  FOREIGN KEY (`credit_type_id`) REFERENCES `{{sourceSchema}}`.`gcd_credit_type` (`id`),
+  FOREIGN KEY (`issue_id`) REFERENCES `{{sourceSchema}}`.`gcd_issue` (`id`),
+  FOREIGN KEY (`series_id`) REFERENCES `{{sourceSchema}}`.`gcd_series` (`id`),
+  FOREIGN KEY (`signature_id`) REFERENCES `{{sourceSchema}}`.`gcd_creator_signature` (`id`),
+  FOREIGN KEY (`story_id`) REFERENCES `{{sourceSchema}}`.`gcd_story` (`id`)
 );
 
 DROP TABLE IF EXISTS {{sourceSchema}}.good_publishers;

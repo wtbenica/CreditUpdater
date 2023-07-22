@@ -28,13 +28,13 @@ class ExtractionProgressTrackerTest {
         parser = CLIParser()
 
         // reset db
-        conn.createStatement().use { stmt ->
-            stmt.execute("TRUNCATE TABLE gcd_story")
-
-            for (i in 1..10) {
-                stmt.execute("INSERT INTO gcd_story VALUES ($i)")
-            }
-        }
+        //conn.createStatement().use { stmt ->
+        //    stmt.execute("TRUNCATE TABLE gcd_story")
+        //
+        //    for (i in 1..10) {
+        //        stmt.execute("INSERT INTO gcd_story VALUES ($i)")
+        //    }
+        //}
 
         file = createTestProgressFile()
     }
@@ -450,7 +450,11 @@ class ExtractionProgressTrackerTest {
             conn = getTestDbConnection()
             // Create a database table 'gcd_story' with a single column 'id'
             conn.createStatement().use { stmt ->
+                TestDatabaseSetup.teardown(TEST_DATABASE, conn)
                 stmt.execute("CREATE TABLE IF NOT EXISTS gcd_story (id INT)")
+                for (i in 1..10) {
+                    stmt.execute("INSERT INTO gcd_story VALUES ($i)")
+                }
             }
 
             createTestProgressFile()
@@ -473,9 +477,9 @@ class ExtractionProgressTrackerTest {
         @JvmStatic
         fun teardownAll() {
             // Delete the database table 'gcd_story'
-            conn.createStatement().use { stmt ->
-                stmt.execute("DROP TABLE IF EXISTS gcd_story")
-            }
+            //conn.createStatement().use { stmt ->
+            //    stmt.execute("DROP TABLE IF EXISTS gcd_story")
+            //}
 
             conn.close()
         }
