@@ -78,14 +78,14 @@ CREATE TABLE IF NOT EXISTS {{targetSchema}}.gcd_creator_signature (
 );
 
 INSERT INTO {{targetSchema}}.stddata_country (id, code, name)
-VALUES (1, 'US', 'United States'),
-       (2, 'CA', 'Canada'),
-       (3, 'MX', 'Mexico');
+VALUES (225, 'US', 'United States'),
+       (36, 'CA', 'Canada'),
+       (150, 'MX', 'Mexico');
 
 INSERT INTO {{targetSchema}}.stddata_language (id, code, name, native_name)
-VALUES (1, 'en', 'English', 'English'),
-       (2, 'fr', 'French', 'Français'),
-       (3, 'es', 'Spanish', 'Español');
+VALUES (25, 'en', 'English', 'English'),
+       (34, 'fr', 'French', 'Français'),
+       (27, 'es', 'Spanish', 'Español');
 
 INSERT INTO {{targetSchema}}.stddata_date (id, year, month, day, year_uncertain, month_uncertain, day_uncertain)
 VALUES (1, 2019, 1, 1, 0, 0, 0),

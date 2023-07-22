@@ -208,11 +208,11 @@ class TestDatabaseSetup {
                 DBState.MIGRATED -> {
                     if (sourceSchema != null) {
                         addStaticTables(targetSchema = sourceSchema, conn = updateConn!!)
+                        addUnusedTables(targetSchema = sourceSchema, conn = updateConn)
                         dropSourcedColumns(targetSchema = sourceSchema, conn = updateConn)
                         populateTestDatabaseGood(targetSchema = sourceSchema, conn = updateConn)
                         populateTestDatabaseBad(targetSchema = sourceSchema, conn = updateConn)
                         populateTestDatabaseUpdated(targetSchema = sourceSchema, conn = updateConn)
-                        addUnusedTables(targetSchema = sourceSchema, conn = updateConn)
                         createMigrateExtractedTables(
                             targetSchema = schema,
                             sourceSchema = sourceSchema,
@@ -671,6 +671,7 @@ class TestDatabaseSetup {
             val statements = File(sqlScript).parseSqlScript(targetSchema = targetSchema, sourceSchema = sourceSchema)
             statements.filter { it.isNotBlank() }.forEach { statement ->
                 conn.createStatement().use { stmt ->
+                    println(statement)
                     stmt.execute(statement)
                 }
             }

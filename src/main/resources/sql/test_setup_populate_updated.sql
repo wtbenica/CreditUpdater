@@ -1,5 +1,33 @@
+INSERT IGNORE INTO {{targetSchema}}.stddata_country (id, code, name)
+VALUES (14, 'AU', 'Australia');
+
+INSERT IGNORE INTO {{targetSchema}}.stddata_language (id, code, name, native_name)
+VALUES (22, 'de', 'German', 'Deutsch');
+
+INSERT IGNORE INTO {{targetSchema}}.stddata_date (id, year, month, day, year_uncertain, month_uncertain, day_uncertain)
+VALUES (4, 2000, 1, 1, 0, 0, 0);
+
+INSERT IGNORE INTO {{targetSchema}}.gcd_series_publication_type (id, name, notes)
+VALUES (4, 'limited series', 'A limited series is a comic book series with a set number of issues.');
+
+INSERT IGNORE INTO {{targetSchema}}.gcd_brand (id, name, modified)
+VALUES (4, 'Vertigo', '2023-06-01 19:56:37');
+
+INSERT IGNORE INTO {{targetSchema}}.gcd_story_type (id, name, sort_code)
+VALUES (4, 'letters column', 4);
+
+INSERT IGNORE INTO {{targetSchema}}.gcd_name_type (id, description, type)
+VALUES (4, 'This is a pseudonym.', 'pseudonym');
+
+INSERT IGNORE INTO {{targetSchema}}.stddata_script (id, code, number, name)
+VALUES (7, 'Beng', 325, 'Bengali');
+
+INSERT IGNORE INTO {{targetSchema}}.gcd_creator_signature (id, name, modified)
+VALUES (4, 'Grant Morrison', '2023-06-01 19:56:37');
+
 INSERT IGNORE INTO `{{targetSchema}}`.`gcd_publisher` (`id`, `name`, `country_id`, `year_began`, `modified`)
-VALUES (6, 'GOOD New publisher', 225, 2000, '2023-06-01 19:56:37');
+VALUES (6, 'GOOD New publisher', 225, 2000, '2023-06-01 19:56:37'),
+(7, 'BAD country_id', 14, 2000, '2023-06-01 19:56:37');
 
 INSERT IGNORE INTO `{{targetSchema}}`.`gcd_series` (
         `id`,
@@ -15,7 +43,9 @@ INSERT IGNORE INTO `{{targetSchema}}`.`gcd_series` (
 VALUES
     (11, 'GOOD New series existing publisher',  2000, 1, 225, 25, 1, 2, '2023-06-01 19:56:37'),
     (12, 'GOOD New series new publisher',       2000, 6, 225, 25, 1, 2, '2023-06-01 19:56:37'),
-    (13, 'BAD publisher_id',                    2000, 3, 225, 25, 1, 2, '2023-06-01 19:56:37');
+    (13, 'BAD publisher_id',                    2000, 3, 225, 25, 1, 2, '2023-06-01 19:56:37'),
+    (14, 'BAD country_id',                      2000, 1, 14, 25, 1, 2, '2023-06-01 19:56:37'),
+    (15, 'BAD language_id',                     2000, 1, 225, 22, 1, 2, '2023-06-01 19:56:37');
 
 INSERT IGNORE INTO `{{targetSchema}}`.`gcd_indicia_publisher` (`id`, `name`, `parent_id`, `modified`)
 VALUES (3, 'BAD parent_id', 3, '2023-06-01 19:56:37'),
