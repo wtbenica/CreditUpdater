@@ -19,11 +19,19 @@ class DBInitializerTest {
     @Test
     @DisplayName("should drop unused tables")
     fun shouldDropUnusedTables() {
-        TestDatabaseSetup.setup(dbState = DBState.INITIAL)
+        TestDatabaseSetup.setup(
+            dbState = DBState.INITIAL,
+            schema = TEST_DATABASE,
+            sourceSchema = null
+        )
 
         verifyUnusedTables()
 
-        DBInitializer.dropUnusedTables(queryExecutor, conn)
+        DBInitializer.dropUnusedTables(
+            queryExecutor = queryExecutor,
+            targetSchema = TEST_DATABASE,
+            conn = conn
+        )
 
         verifyUnusedTables(exist = false)
     }
@@ -31,12 +39,20 @@ class DBInitializerTest {
     @Test
     @DisplayName("should drop is_sourced and sourced_by columns")
     fun shouldDropIsSourcedAndSourcedByColumns() {
-        TestDatabaseSetup.setup(dbState = DBState.INIT_STEP_1A)
+        TestDatabaseSetup.setup(
+            dbState = DBState.INIT_STEP_1A,
+            schema = TEST_DATABASE,
+            sourceSchema = null
+        )
 
         // verify columns exist in gcd_story_credit table
         verifySourcedColumns()
 
-        DBInitializer.dropIsSourcedAndSourcedByColumns(queryExecutor, conn)
+        DBInitializer.dropIsSourcedAndSourcedByColumns(
+            queryExecutor = queryExecutor,
+            targetSchema = TEST_DATABASE,
+            conn = conn
+        )
 
         verifySourcedColumns(false)
     }
@@ -44,9 +60,17 @@ class DBInitializerTest {
     @Test
     @DisplayName("should create the delete views correctly")
     fun shouldCreateDeleteViewsCorrectly() {
-        TestDatabaseSetup.setup(dbState = DBState.INIT_STEP_1C)
+        TestDatabaseSetup.setup(
+            dbState = DBState.INIT_STEP_1C,
+            schema = TEST_DATABASE,
+            sourceSchema = null
+        )
 
-        DBInitializer.createDeleteViews(queryExecutor, conn)
+        DBInitializer.createDeleteViews(
+            queryExecutor = queryExecutor,
+            targetSchema = TEST_DATABASE,
+            conn = conn
+        )
 
         verifyDeleteViewsExist()
         verifyDeleteViewsContain()
@@ -55,11 +79,19 @@ class DBInitializerTest {
     @Test
     @DisplayName("should remove unnecessary records correctly")
     fun shouldRemoveUnnecessaryRecordsCorrectly() {
-        TestDatabaseSetup.setup(DBState.INIT_STEP_1D)
+        TestDatabaseSetup.setup(
+            dbState = DBState.INIT_STEP_1D,
+            schema = TEST_DATABASE,
+            sourceSchema = null
+        )
 
         verifyRecordCounts()
 
-        DBInitializer.removeUnnecessaryRecords(queryExecutor, conn)
+        DBInitializer.removeUnnecessaryRecords(
+            queryExecutor = queryExecutor,
+            targetSchema = TEST_DATABASE,
+            conn = conn
+        )
 
         verifyRecordCounts(unculled = false)
     }
@@ -67,7 +99,11 @@ class DBInitializerTest {
     @Test
     @DisplayName("should add issue_id and series_id columns and constraints to gcd_story_credit, m_story_credit, m_character_appearance")
     fun shouldAddIssueAndSeriesIdColumns() {
-        TestDatabaseSetup.setup(DBState.INIT_STEP_3_COMPLETE)
+        TestDatabaseSetup.setup(
+            dbState = DBState.INIT_STEP_3_COMPLETE,
+            schema = TEST_DATABASE,
+            sourceSchema = null
+        )
 
         // verify that issue_id and series_id are all null for gcd_story_credit, m_story_credit, m_character_appearance
         fun verifyIssueAndSeriesIdsAreSetToNull() {
@@ -110,7 +146,11 @@ class DBInitializerTest {
 
         verifyIssueAndSeriesIdsAreSetToNull()
 
-        DBInitializer.addIssueSeriesColumnsAndConstraints(queryExecutor, conn)
+        DBInitializer.addIssueSeriesColumnsAndConstraints(
+            queryExecutor = queryExecutor,
+            targetSchema = TEST_DATABASE,
+            conn = conn
+        )
 
         verifyIssueAndSeriesIdsAreSet()
     }
@@ -118,7 +158,11 @@ class DBInitializerTest {
     @Test
     @DisplayName("should prepare database when startAtStep is 1")
     fun shouldPrepareDbFromStep1() {
-        TestDatabaseSetup.setup(dbState = DBState.INITIAL)
+        TestDatabaseSetup.setup(
+            dbState = DBState.INITIAL,
+            schema = TEST_DATABASE,
+            sourceSchema = null
+        )
 
         Thread.sleep(3000)
 
@@ -456,7 +500,7 @@ class DBInitializerTest {
         """.trimIndent()
 
             queryExecutor.executeQueryAndDo(query, conn) {
-                val expectedCount = if (unculled) 8 else 2
+                val expectedCount = if (unculled) 10 else 4
                 assertTrue(it.next())
                 assertEquals(expectedCount, it.getInt(1))
             }

@@ -1,4 +1,4 @@
-INSERT IGNORE INTO m_character (
+INSERT IGNORE INTO `{{targetSchema}}`.m_character (
         `id`,
         `name`,
         `alter_ego`,
@@ -10,7 +10,7 @@ VALUES (1, 'Doom Patrol', NULL, 2),
     (4, 'Willoughby Kipling', NULL, 2),
     (5, 'X-Men', NULL, 1);
 
-INSERT IGNORE INTO m_character_appearance (
+INSERT IGNORE INTO `{{targetSchema}}`.m_character_appearance (
         `id`,
         `details`,
         `character_id`,

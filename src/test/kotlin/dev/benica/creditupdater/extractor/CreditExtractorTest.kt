@@ -102,13 +102,17 @@ class CreditExtractorTest {
         @JvmStatic
         fun setUpAll() {
             conn = getTestDbConnection()
-            TestDatabaseSetup.setup(dbState = DBState.INIT_STEP_2_COMPLETE)
+            TestDatabaseSetup.setup(
+                dbState = DBState.INIT_STEP_2_COMPLETE,
+                schema = TEST_DATABASE,
+                sourceSchema = null
+            )
         }
 
         @AfterAll
         @JvmStatic
         fun tearDownAll() {
-            TestDatabaseSetup.teardown(conn = conn)
+            TestDatabaseSetup.teardown(schema = TEST_DATABASE, conn = conn)
             conn.close()
         }
     }

@@ -36,7 +36,7 @@ class DBTask(
      * Extract characters and appearances - extracts characters and appearances
      * from the database.
      *
-     * @param schema The schema with the stories_to_migrate table.
+     * @param schema The schema with the migrate_stories table.
      * @param initial Whether this is the initial run.
      * @throws SQLException if an error occurs
      */
@@ -54,7 +54,7 @@ class DBTask(
             ?: ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
             ?: Credentials.CHARACTER_STORY_START_ID
 
-        val table = if (initial) "gcd_story" else "stories_to_migrate"
+        val table = if (initial) "gcd_story" else "migrate_stories"
 
         logger.debug { "Schema: $schema | Table: $table" }
 
@@ -78,9 +78,9 @@ class DBTask(
 
     /**
      * Extract credits - extracts non-relational creator credits from stories
-     * in [schema].stories_to_migrate
+     * in [schema].migrate_stories
      *
-     * @param schema The schema with the stories_to_migrate table.
+     * @param schema The schema with the migrate_stories table.
      * @param initial Whether this is the initial run.
      * @throws SQLException if an error occurs
      */
@@ -98,7 +98,7 @@ class DBTask(
             ?: ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
             ?: Credentials.CREDITS_STORY_START_ID
 
-        val table = if (initial) "gcd_story" else "stories_to_migrate"
+        val table = if (initial) "gcd_story" else "migrate_stories"
 
         /**
          * Script sql - an sql snippet to get the writer, penciller, inker,

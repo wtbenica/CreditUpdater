@@ -382,7 +382,11 @@ class QueryExecutorTest {
             )
         }
 
-        queryExecutor.executeSqlScript(sqlScript, conn = mConn)
+        queryExecutor.executeSqlScript(
+            sqlScript = sqlScript,
+            targetSchema = TEST_DATABASE,
+            conn = mConn
+        )
 
         // Check if table exists
         val query =
@@ -436,7 +440,12 @@ class QueryExecutorTest {
             """.trimMargin()
             )
         }
-        queryExecutor.executeSqlScript(sqlScript, true, connectionMock)
+        queryExecutor.executeSqlScript(
+            sqlScript = sqlScript,
+            runAsTransaction = true,
+            conn = connectionMock,
+            targetSchema = TEST_DATABASE
+        )
 
         // Verify the expected interactions
         verify(connectionMock, times(3)).createStatement()
@@ -474,7 +483,14 @@ class QueryExecutorTest {
             """.trimMargin()
             )
         }
-        assertThrows<SQLException> { queryExecutor.executeSqlScript(sqlScript, true, connectionMock) }
+        assertThrows<SQLException> {
+            queryExecutor.executeSqlScript(
+                sqlScript = sqlScript,
+                runAsTransaction = true,
+                conn = connectionMock,
+                targetSchema = TEST_DATABASE
+            )
+        }
 
         // Verify the expected interactions
         verify(connectionMock).createStatement()
@@ -504,7 +520,11 @@ class QueryExecutorTest {
             )
         }
 
-        queryExecutor.executeSqlScript(sqlScript, conn = mConn)
+        queryExecutor.executeSqlScript(
+            sqlScript = sqlScript,
+            conn = mConn,
+            targetSchema = TEST_DATABASE
+        )
 
         val itemCount = queryExecutor.getItemCount(tableName, conn = mConn)
 
@@ -616,7 +636,8 @@ class QueryExecutorTest {
         whenever(preparedStatement.executeBatch()).thenReturn(intArrayOf(1, 1))
 
         // Call the method under test
-        val result = queryExecutor.executePreparedStatementBatch(sql, Statement.RETURN_GENERATED_KEYS, connection, batchAction)
+        val result =
+            queryExecutor.executePreparedStatementBatch(sql, Statement.RETURN_GENERATED_KEYS, connection, batchAction)
 
         // Verify the interactions and assertions
         assertEquals(2, result.size)

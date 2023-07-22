@@ -165,16 +165,18 @@ class CreditRepositoryTest {
         val extractedName = "Frank Quitely"
         val storyId = 1
         val roleId = 1
+        val modified = Timestamp.valueOf("2021-01-01 00:00:00")
 
         // insert a new story credit into m_story_credit
         conn.prepareStatement(
             """
-                INSERT INTO m_story_credit (id, creator_id, story_id, credit_type_id)
+                INSERT INTO m_story_credit (id, creator_id, story_id, credit_type_id, modified)
                 VALUES (
                     ?,
                     (SELECT gcnd.id
                     FROM gcd_creator_name_detail gcnd
                     WHERE gcnd.name = ?),
+                    ?,
                     ?,
                     ?
                 )
@@ -184,6 +186,7 @@ class CreditRepositoryTest {
             statement.setString(2, extractedName)
             statement.setInt(3, storyId)
             statement.setInt(4, roleId)
+            statement.setTimestamp(5, modified)
 
             statement.executeUpdate()
         }
@@ -376,6 +379,15 @@ class CreditRepositoryTest {
         assertThrows<SQLException> { creditRepository.lookupStoryCreditId(extractedName, storyId, roleId, conn) }
     }
 
+    @BeforeEach
+    fun setup() {
+        TestDatabaseSetup.setup(
+            dbState = DBState.INIT_STEP_2_COMPLETE,
+            schema = TEST_DATABASE,
+            sourceSchema = null
+        )
+    }
+
     companion object {
         private lateinit var conn: Connection
 
@@ -383,13 +395,12 @@ class CreditRepositoryTest {
         @JvmStatic
         internal fun setupAll() {
             conn = getTestDbConnection()
-            TestDatabaseSetup.setup(DBState.INIT_STEP_2_COMPLETE)
         }
 
         @AfterAll
         @JvmStatic
         internal fun teardownAll() {
-            TestDatabaseSetup.teardown(conn = conn)
+            //TestDatabaseSetup.teardown(schema = TEST_DATABASE, conn = conn)
             conn.close()
         }
     }
