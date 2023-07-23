@@ -9,6 +9,10 @@ import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import dev.benica.creditupdater.db_tasks.DBMigrator.Companion.addIssueSeriesToCreditsNew
 import dev.benica.creditupdater.db_tasks.DBMigrator.Companion.addTablesNew
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeAll
@@ -143,6 +147,124 @@ class DBMigratorTest {
         verifyTargetTablesAreUpdated()
     }
 
+    @Test
+    @DisplayName("should migrate from source to target schema")
+    fun shouldMigrate() {
+        TestDatabaseSetup.setup(dbState = DBState.INITIALIZED, schema = TEST_DATABASE, sourceSchema = null)
+
+        TestDatabaseSetup.setup(
+            dbState = DBState.MIGRATE_INITIAL,
+            schema = TEST_DATABASE,
+            sourceSchema = TEST_DATABASE_UPDATE
+        )
+
+        runBlocking {
+            val job = CoroutineScope(Dispatchers.IO).launch {
+                DBMigrator(
+                    sourceSchema = TEST_DATABASE_UPDATE,
+                    targetSchema = TEST_DATABASE
+                ).migrate()
+            }
+
+            job.join()
+
+            Thread.sleep(2000)
+
+            verifyGoodTables()
+            verifyMigrateTables()
+            verifyTargetTablesAreUpdated()
+            verifyCharactersHaveBeenMigrated()
+            verifyCreditsHaveBeenMigrated()
+        }
+    }
+
+    @Test
+    fun extractCharactersAndAppearances() {
+        TestDatabaseSetup.setup(dbState = DBState.INITIALIZED, schema = TEST_DATABASE, sourceSchema = null)
+
+        TestDatabaseSetup.setup(
+            dbState = DBState.MIGRATE_STEP_4_COMPLETE,
+            schema = TEST_DATABASE,
+            sourceSchema = TEST_DATABASE_UPDATE
+        )
+    }
+
+    private fun verifyCharactersHaveBeenMigrated() {
+        queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.m_character ORDER BY id", conn) { rs ->
+            assertTrue(rs.next())
+            assertEquals(1, rs.getInt("id"))
+            assertEquals("Doom Patrol", rs.getString("name"))
+            assertNull(rs.getString("alter_ego"))
+            assertTrue(rs.next())
+            assertEquals(2, rs.getInt("id"))
+            assertEquals("Danny the Street", rs.getString("name"))
+            assertNull(rs.getString("alter_ego"))
+            assertTrue(rs.next())
+            assertEquals(3, rs.getInt("id"))
+            assertEquals("Flex Mentallo", rs.getString("name"))
+            assertNull(rs.getString("alter_ego"))
+            assertTrue(rs.next())
+            assertEquals(4, rs.getInt("id"))
+            assertEquals("Willoughby Kipling", rs.getString("name"))
+            assertNull(rs.getString("alter_ego"))
+            assertTrue(rs.next())
+            assertEquals(5, rs.getInt("id"))
+            assertEquals("X-Men", rs.getString("name"))
+            assertNull(rs.getString("alter_ego"))
+            assertTrue(rs.next())
+            assertEquals(6, rs.getInt("id"))
+            assertEquals("Individual", rs.getString("name"))
+            assertEquals("Alter Ego", rs.getString("alter_ego"))
+            assertTrue(rs.next())
+            assertEquals(7, rs.getInt("id"))
+            assertEquals("Team", rs.getString("name"))
+            assertNull(rs.getString("alter_ego"))
+            assertFalse(rs.next())
+        }
+    }
+
+    private fun verifyCreditsHaveBeenMigrated() {
+        queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.m_character_appearance ORDER BY id", conn) {
+            assertTrue(it.next())
+            assertEquals(1, it.getInt("id"))
+            assertEquals(1, it.getInt("character_id"))
+            assertEquals(1, it.getInt("story_id"))
+            assertTrue(it.next())
+            assertEquals(2, it.getInt("id"))
+            assertEquals(2, it.getInt("character_id"))
+            assertEquals(1, it.getInt("story_id"))
+            assertTrue(it.next())
+            assertEquals(3, it.getInt("id"))
+            assertEquals(3, it.getInt("character_id"))
+            assertEquals(1, it.getInt("story_id"))
+            assertTrue(it.next())
+            assertEquals(4, it.getInt("id"))
+            assertEquals(4, it.getInt("character_id"))
+            assertEquals(1, it.getInt("story_id"))
+            assertTrue(it.next())
+            assertEquals(5, it.getInt("id"))
+            assertEquals(5, it.getInt("character_id"))
+            assertEquals(2, it.getInt("story_id"))
+            assertTrue(it.next())
+            assertEquals(6, it.getInt("id"))
+            assertEquals(6, it.getInt("character_id"))
+            assertEquals(8, it.getInt("story_id"))
+            assertTrue(it.next())
+            assertEquals(7, it.getInt("id"))
+            assertEquals(7, it.getInt("character_id"))
+            assertEquals(8, it.getInt("story_id"))
+            assertTrue(it.next())
+            assertEquals(8, it.getInt("id"))
+            assertEquals(6, it.getInt("character_id"))
+            assertEquals(9, it.getInt("story_id"))
+            assertTrue(it.next())
+            assertEquals(9, it.getInt("id"))
+            assertEquals(7, it.getInt("character_id"))
+            assertEquals(9, it.getInt("story_id"))
+            assertFalse(it.next())
+        }
+    }
+
     private fun verifyTargetTablesAreUpdated() {
         // static tables
         fun verifyStddataCountryHaveBeenMigrated() {
@@ -228,7 +350,10 @@ class DBMigratorTest {
         }
 
         fun verifySeriesPublicationTypeHaveBeenMigrated() {
-            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.gcd_series_publication_type ORDER BY id", conn) { rs ->
+            queryExecutor.executeQueryAndDo(
+                "SELECT * FROM $TEST_DATABASE.gcd_series_publication_type ORDER BY id",
+                conn
+            ) { rs ->
                 assertTrue(rs.next())
                 assertEquals(1, rs.getInt("id"))
                 assertEquals("book", rs.getString("name"))
@@ -342,7 +467,10 @@ class DBMigratorTest {
         }
 
         fun verifyCreatorSignatureHaveBeenMigrated() {
-            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.gcd_creator_signature ORDER BY id", conn) { rs ->
+            queryExecutor.executeQueryAndDo(
+                "SELECT * FROM $TEST_DATABASE.gcd_creator_signature ORDER BY id",
+                conn
+            ) { rs ->
                 assertTrue(rs.next())
                 assertEquals(1, rs.getInt("id"))
                 assertEquals("John Smith", rs.getString("name"))
@@ -648,7 +776,7 @@ class DBMigratorTest {
                 assertEquals("John Workman", rs.getString("letters"))
                 assertEquals("Tom Peyer", rs.getString("editing"))
                 assertEquals(
-                    "Doom Patrol [Crazy Jane [Kay Challis]; Robotman [Cliff Steele]; Dorothy Spinner; Rebis [Larry Trainor]]; Danny the Street; Flex Mentallo (cameo, unnamed); Willoughby Kipling;",
+                    "Doom Patrol [Crazy Jane [Kay Challis]; Robotman [Cliff Steele]; Dorothy Spinner; Rebis [Larry Trainor]; Joshua Clay]; Danny the Street; Flex Mentallo (cameo, unnamed); Willoughby Kipling;",
                     rs.getString("characters")
                 )
                 assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
@@ -697,7 +825,7 @@ class DBMigratorTest {
                 assertEquals("John Workman", rs.getString("letters"))
                 assertEquals("Tom Peyer", rs.getString("editing"))
                 assertEquals(
-                    "Doom Patrol [Crazy Jane [Kay Challis]; Robotman [Cliff Steele]; Dorothy Spinner; Rebis [Larry Trainor]]; Danny the Street; Flex Mentallo (cameo, unnamed); Willoughby Kipling;",
+                    "Doom Patrol [Crazy Jane [Kay Challis]; Robotman [Cliff Steele]; Dorothy Spinner; Rebis [Larry Trainor]; Joshua Clay]; Danny the Street; Flex Mentallo (cameo, unnamed); Willoughby Kipling;",
                     rs.getString("characters")
                 )
                 assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
@@ -798,22 +926,11 @@ class DBMigratorTest {
         }
 
         // gcd_creator_name_detail
-        //INSERT IGNORE INTO `{{targetSchema}}`.`gcd_creator_name_detail` (`id`, `name`, `creator_id`, `modified`)
-        //VALUES (1, 'Grant Morrison', 1, '2004-06-01 19:56:37'),
-        //(2, 'Frank Quitely', 2, '2004-06-01 19:56:37'),
-        //(3, 'Val Semeiks', 3, '2004-06-01 19:56:37'),
-        //(4, 'Dan Green', 4, '2004-06-01 19:56:37'),
-        //(5, 'Chris Sotomayor', 5, '2004-06-01 19:56:37'),
-        //(6, 'Richard Starkings', 6, '2004-06-01 19:56:37'),
-        //(7, 'Bob Schreck', 7, '2004-06-01 19:56:37'),
-        //(8, 'Michael Wright', 8, '2004-06-01 19:56:37');
-        //INSERT IGNORE INTO `{{targetSchema}}`.`gcd_creator_name_detail` (`id`, `name`, `creator_id`, `modified`)
-        //VALUES (9, 'Grant T. Morrison', 1, '2023-06-01 19:56:37'),
-        //(10, 'Neil Richard Gaiman', 9, '2023-06-01 19:56:37'),
-        //(11, 'Jonathan Hickman', 10, '2023-06-01 19:56:37');
-        //UPDATE `{{targetSchema}}`.`gcd_creator_name_detail` SET `modified` = '2023-06-01 19:56:37' WHERE `id` = 1;
         fun verifyCreatorNameDetailsHaveBeenMigrated() {
-            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.gcd_creator_name_detail ORDER BY id", conn) { rs ->
+            queryExecutor.executeQueryAndDo(
+                "SELECT * FROM $TEST_DATABASE.gcd_creator_name_detail ORDER BY id",
+                conn
+            ) { rs ->
                 assertTrue(rs.next())
                 assertEquals(1, rs.getInt("id"))
                 assertEquals("Grant Morrison", rs.getString("name"))
@@ -1097,7 +1214,15 @@ class DBMigratorTest {
             assertEquals(1, rs.getInt("issue_id"))
             assertEquals(1, rs.getInt("series_id"))
             assertTrue(rs.next())
+            assertEquals(6, rs.getInt("id"))
+            assertEquals(1, rs.getInt("issue_id"))
+            assertEquals(1, rs.getInt("series_id"))
+            assertTrue(rs.next())
             assertEquals(7, rs.getInt("id"))
+            assertEquals(9, rs.getInt("issue_id"))
+            assertEquals(1, rs.getInt("series_id"))
+            assertTrue(rs.next())
+            assertEquals(8, rs.getInt("id"))
             assertEquals(9, rs.getInt("issue_id"))
             assertEquals(1, rs.getInt("series_id"))
             assertFalse(rs.next())

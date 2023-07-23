@@ -49,7 +49,7 @@ class DBMigrator(
             withContext(ioDispatcher) {
                 logger.info { "Migrating to $targetSchema from $sourceSchema" }
 
-                if (startAtStep == 1) {
+                if (startAtStep <= 1) {
                     logger.info { "starting tables..." }
                     dropIsSourcedAndSourcedByColumns(
                         queryExecutor = queryExecutor,
@@ -99,7 +99,12 @@ class DBMigrator(
                 // step 4 complete
                 if (startAtStep <= 5) {
                     logger.info { "starting migration..." }
-                    migrateRecords(queryExecutor, conn)
+                    migrateRecords(
+                        queryExecutor = queryExecutor,
+                        conn = conn,
+                        sourceSchema = sourceSchema,
+                        targetSchema = targetSchema
+                    )
                     logger.info { "Done migrating records" }
                 }
             }

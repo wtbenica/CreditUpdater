@@ -18,7 +18,7 @@ class TestDatabaseSetup {
             sourceSchema = null
         )
         setup(
-            dbState = DBState.MIGRATED,
+            dbState = DBState.MIGRATE_STEP_3_COMPLETE,
             schema = TEST_DATABASE,
             sourceSchema = TEST_DATABASE_UPDATE
         )

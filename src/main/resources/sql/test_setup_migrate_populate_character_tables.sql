@@ -23,7 +23,7 @@ VALUES (1, NULL, 1, 1, NULL, 'Crazy Jane [Kay Challis]; Robotman [Cliff Steele];
     (2, NULL, 2, 1, NULL, NULL),
     (3, 'cameo, unnamed', 3, 1, NULL, NULL),
     (4, NULL, 4, 1, NULL, NULL),
-    (5, 'detail', 6, 8, NULL, NULL),
-    (6, NULL, 7, 8, NULL, 'Member 1 [AE 1] (detail 1); Member 2 [AE 2] (detail 2)'),
-    (7, 'detail', 6, 9, NULL, NULL),
-    (8, NULL, 7, 9, NULL, 'Member 1 [AE 1] (detail 1); Member 2 [AE 2] (detail 2)')
+    (5, 'detail', 5, 8, NULL, NULL),
+    (6, NULL, 6, 8, NULL, 'Member 1 [AE 1] (detail 1); Member 2 [AE 2] (detail 2)'),
+    (7, 'detail', 5, 9, NULL, NULL),
+    (8, NULL, 6, 9, NULL, 'Member 1 [AE 1] (detail 1); Member 2 [AE 2] (detail 2)')
