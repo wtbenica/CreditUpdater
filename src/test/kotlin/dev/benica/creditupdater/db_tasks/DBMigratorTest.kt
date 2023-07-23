@@ -144,6 +144,226 @@ class DBMigratorTest {
     }
 
     private fun verifyTargetTablesAreUpdated() {
+        // static tables
+        fun verifyStddataCountryHaveBeenMigrated() {
+            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.stddata_country ORDER BY id", conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(14, rs.getInt("id"))
+                assertEquals("AU", rs.getString("code"))
+                assertEquals("Australia", rs.getString("name"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(36, rs.getInt("id"))
+                assertEquals("CA", rs.getString("code"))
+                assertEquals("Canada", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(150, rs.getInt("id"))
+                assertEquals("MX", rs.getString("code"))
+                assertEquals("Mexico", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(225, rs.getInt("id"))
+                assertEquals("US", rs.getString("code"))
+                assertEquals("United States", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        fun verifyStddataLanguageHaveBeenMigrated() {
+            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.stddata_language ORDER BY id", conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(22, rs.getInt("id"))
+                assertEquals("German", rs.getString("name"))
+                assertEquals("de", rs.getString("code"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(25, rs.getInt("id"))
+                assertEquals("English", rs.getString("name"))
+                assertEquals("en", rs.getString("code"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(27, rs.getInt("id"))
+                assertEquals("Spanish", rs.getString("name"))
+                assertEquals("es", rs.getString("code"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(34, rs.getInt("id"))
+                assertEquals("French", rs.getString("name"))
+                assertEquals("fr", rs.getString("code"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        fun verifyStddataDateHaveBeenMigrated() {
+            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.stddata_date ORDER BY id", conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals(2019, rs.getInt("year"))
+                assertEquals(1, rs.getInt("month"))
+                assertEquals(1, rs.getInt("day"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(2, rs.getInt("id"))
+                assertEquals(2019, rs.getInt("year"))
+                assertEquals(1, rs.getInt("month"))
+                assertEquals(2, rs.getInt("day"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(3, rs.getInt("id"))
+                assertEquals(2019, rs.getInt("year"))
+                assertEquals(1, rs.getInt("month"))
+                assertEquals(3, rs.getInt("day"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(4, rs.getInt("id"))
+                assertEquals(2000, rs.getInt("year"))
+                assertEquals(1, rs.getInt("month"))
+                assertEquals(1, rs.getInt("day"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        fun verifySeriesPublicationTypeHaveBeenMigrated() {
+            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.gcd_series_publication_type ORDER BY id", conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals("book", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(2, rs.getInt("id"))
+                assertEquals("magazine", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(3, rs.getInt("id"))
+                assertEquals("album", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(4, rs.getInt("id"))
+                assertEquals("limited series", rs.getString("name"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        fun verifyBrandHaveBeenMigrated() {
+            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.gcd_brand ORDER BY id", conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals("DC", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(2, rs.getInt("id"))
+                assertEquals("Marvel", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(3, rs.getInt("id"))
+                assertEquals("Image", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(4, rs.getInt("id"))
+                assertEquals("Vertigo", rs.getString("name"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        fun verifyStoryTypeHaveBeenMigrated() {
+            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.gcd_story_type ORDER BY id", conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals("cover", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(2, rs.getInt("id"))
+                assertEquals("story", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(3, rs.getInt("id"))
+                assertEquals("promo", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(4, rs.getInt("id"))
+                assertEquals("letters column", rs.getString("name"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        fun verifyNameTypeHaveBeenMigrated() {
+            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.gcd_name_type ORDER BY id", conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals("Changed Name", rs.getString("type"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(2, rs.getInt("id"))
+                assertEquals("Native Language (type is deprecated)", rs.getString("type"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(3, rs.getInt("id"))
+                assertEquals("Name at Birth", rs.getString("type"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(4, rs.getInt("id"))
+                assertEquals("pseudonym", rs.getString("type"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        fun verifyScriptHaveBeenMigrated() {
+            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.stddata_script ORDER BY id", conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals("Latin", rs.getString("name"))
+                assertEquals("Latn", rs.getString("code"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(2, rs.getInt("id"))
+                assertEquals("Cyrillic", rs.getString("name"))
+                assertEquals("Cyrl", rs.getString("code"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(3, rs.getInt("id"))
+                assertEquals("Greek", rs.getString("name"))
+                assertEquals("Grek", rs.getString("code"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(7, rs.getInt("id"))
+                assertEquals("Bengali", rs.getString("name"))
+                assertEquals("Beng", rs.getString("code"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        fun verifyCreatorSignatureHaveBeenMigrated() {
+            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.gcd_creator_signature ORDER BY id", conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals("John Smith", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(2, rs.getInt("id"))
+                assertEquals("Jane Doe", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(3, rs.getInt("id"))
+                assertEquals("John Doe", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(4, rs.getInt("id"))
+                assertEquals("Grant Morrison", rs.getString("name"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        // Dynamic tables
         fun verifyPublishersHaveBeenMigrated() {
             // select all publishers from sourceSchema.migrate_publishers and verify that they are in targetSchema.publishers
             val query = """
@@ -530,12 +750,265 @@ class DBMigratorTest {
             }
         }
 
+        // gcd_creator
+        fun verifyCreatorsHaveBeenMigrated() {
+            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.gcd_creator ORDER BY id", conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals("Grant Morrison", rs.getString("name"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(2, rs.getInt("id"))
+                assertEquals("Frank Quitely", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(3, rs.getInt("id"))
+                assertEquals("Val Semeiks", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(4, rs.getInt("id"))
+                assertEquals("Dan Green", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(5, rs.getInt("id"))
+                assertEquals("Chris Sotomayor", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(6, rs.getInt("id"))
+                assertEquals("Richard Starkings", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(7, rs.getInt("id"))
+                assertEquals("Bob Schreck", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(8, rs.getInt("id"))
+                assertEquals("Michael Wright", rs.getString("name"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(9, rs.getInt("id"))
+                assertEquals("Neil Gaiman", rs.getString("name"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(10, rs.getInt("id"))
+                assertEquals("Jonathan Hickman", rs.getString("name"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        // gcd_creator_name_detail
+        //INSERT IGNORE INTO `{{targetSchema}}`.`gcd_creator_name_detail` (`id`, `name`, `creator_id`, `modified`)
+        //VALUES (1, 'Grant Morrison', 1, '2004-06-01 19:56:37'),
+        //(2, 'Frank Quitely', 2, '2004-06-01 19:56:37'),
+        //(3, 'Val Semeiks', 3, '2004-06-01 19:56:37'),
+        //(4, 'Dan Green', 4, '2004-06-01 19:56:37'),
+        //(5, 'Chris Sotomayor', 5, '2004-06-01 19:56:37'),
+        //(6, 'Richard Starkings', 6, '2004-06-01 19:56:37'),
+        //(7, 'Bob Schreck', 7, '2004-06-01 19:56:37'),
+        //(8, 'Michael Wright', 8, '2004-06-01 19:56:37');
+        //INSERT IGNORE INTO `{{targetSchema}}`.`gcd_creator_name_detail` (`id`, `name`, `creator_id`, `modified`)
+        //VALUES (9, 'Grant T. Morrison', 1, '2023-06-01 19:56:37'),
+        //(10, 'Neil Richard Gaiman', 9, '2023-06-01 19:56:37'),
+        //(11, 'Jonathan Hickman', 10, '2023-06-01 19:56:37');
+        //UPDATE `{{targetSchema}}`.`gcd_creator_name_detail` SET `modified` = '2023-06-01 19:56:37' WHERE `id` = 1;
+        fun verifyCreatorNameDetailsHaveBeenMigrated() {
+            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.gcd_creator_name_detail ORDER BY id", conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals("Grant Morrison", rs.getString("name"))
+                assertEquals(1, rs.getInt("creator_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(2, rs.getInt("id"))
+                assertEquals("Frank Quitely", rs.getString("name"))
+                assertEquals(2, rs.getInt("creator_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(3, rs.getInt("id"))
+                assertEquals("Val Semeiks", rs.getString("name"))
+                assertEquals(3, rs.getInt("creator_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(4, rs.getInt("id"))
+                assertEquals("Dan Green", rs.getString("name"))
+                assertEquals(4, rs.getInt("creator_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(5, rs.getInt("id"))
+                assertEquals("Chris Sotomayor", rs.getString("name"))
+                assertEquals(5, rs.getInt("creator_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(6, rs.getInt("id"))
+                assertEquals("Richard Starkings", rs.getString("name"))
+                assertEquals(6, rs.getInt("creator_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(7, rs.getInt("id"))
+                assertEquals("Bob Schreck", rs.getString("name"))
+                assertEquals(7, rs.getInt("creator_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(8, rs.getInt("id"))
+                assertEquals("Michael Wright", rs.getString("name"))
+                assertEquals(8, rs.getInt("creator_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(9, rs.getInt("id"))
+                assertEquals("Grant T. Morrison", rs.getString("name"))
+                assertEquals(1, rs.getInt("creator_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(10, rs.getInt("id"))
+                assertEquals("Neil Richard Gaiman", rs.getString("name"))
+                assertEquals(9, rs.getInt("creator_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(11, rs.getInt("id"))
+                assertEquals("Jonathan Hickman", rs.getString("name"))
+                assertEquals(10, rs.getInt("creator_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        // gcd_story_credit
+        fun verifyStoryCreditHaveBeenMigrated() {
+            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.gcd_story_credit ORDER BY id", conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals(2, rs.getInt("creator_id"))
+                assertEquals(2, rs.getInt("credit_type_id"))
+                assertEquals(1, rs.getInt("story_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(2, rs.getInt("id"))
+                assertEquals(3, rs.getInt("creator_id"))
+                assertEquals(2, rs.getInt("credit_type_id"))
+                assertEquals(2, rs.getInt("story_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(3, rs.getInt("id"))
+                assertEquals(4, rs.getInt("creator_id"))
+                assertEquals(3, rs.getInt("credit_type_id"))
+                assertEquals(2, rs.getInt("story_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(4, rs.getInt("id"))
+                assertEquals(5, rs.getInt("creator_id"))
+                assertEquals(4, rs.getInt("credit_type_id"))
+                assertEquals(2, rs.getInt("story_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(5, rs.getInt("id"))
+                assertEquals(6, rs.getInt("creator_id"))
+                assertEquals(5, rs.getInt("credit_type_id"))
+                assertEquals(2, rs.getInt("story_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(11, rs.getInt("id"))
+                assertEquals(4, rs.getInt("creator_id"))
+                assertEquals(1, rs.getInt("credit_type_id"))
+                assertEquals(8, rs.getInt("story_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(12, rs.getInt("id"))
+                assertEquals(3, rs.getInt("creator_id"))
+                assertEquals(5, rs.getInt("credit_type_id"))
+                assertEquals(9, rs.getInt("story_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        // gcd_reprint
+        fun verifyReprintsHaveBeenMigrated() {
+            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.gcd_reprint ORDER BY id", conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals(1, rs.getInt("origin_id"))
+                assertEquals(2, rs.getInt("target_id"))
+                assertEquals(1, rs.getInt("origin_issue_id"))
+                assertEquals(2, rs.getInt("target_issue_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(2, rs.getInt("id"))
+                assertEquals(2, rs.getInt("origin_id"))
+                assertEquals(1, rs.getInt("target_id"))
+                assertEquals(2, rs.getInt("origin_issue_id"))
+                assertEquals(1, rs.getInt("target_issue_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(8, rs.getInt("id"))
+                assertEquals(1, rs.getInt("origin_id"))
+                assertEquals(9, rs.getInt("target_id"))
+                assertEquals(1, rs.getInt("origin_issue_id"))
+                assertEquals(2, rs.getInt("target_issue_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(12, rs.getInt("id"))
+                assertEquals(1, rs.getInt("origin_id"))
+                assertEquals(2, rs.getInt("target_id"))
+                assertEquals(9, rs.getInt("origin_issue_id"))
+                assertEquals(10, rs.getInt("target_issue_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        // gcd_issue_credit
+        fun verifyIssueCreditsHaveBeenMigrated() {
+            queryExecutor.executeQueryAndDo("SELECT * FROM $TEST_DATABASE.gcd_issue_credit ORDER BY id", conn) { rs ->
+                assertTrue(rs.next())
+                assertEquals(1, rs.getInt("id"))
+                assertEquals(1, rs.getInt("creator_id"))
+                assertEquals(1, rs.getInt("credit_type_id"))
+                assertEquals(1, rs.getInt("issue_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(2, rs.getInt("id"))
+                assertEquals(2, rs.getInt("creator_id"))
+                assertEquals(2, rs.getInt("credit_type_id"))
+                assertEquals(1, rs.getInt("issue_id"))
+                assertEquals("2004-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(8, rs.getInt("id"))
+                assertEquals(8, rs.getInt("creator_id"))
+                assertEquals(2, rs.getInt("credit_type_id"))
+                assertEquals(9, rs.getInt("issue_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertTrue(rs.next())
+                assertEquals(9, rs.getInt("id"))
+                assertEquals(7, rs.getInt("creator_id"))
+                assertEquals(3, rs.getInt("credit_type_id"))
+                assertEquals(10, rs.getInt("issue_id"))
+                assertEquals("2023-06-01 19:56:37", rs.getString("modified"))
+                assertFalse(rs.next())
+            }
+        }
+
+        verifyStddataCountryHaveBeenMigrated()
+        verifyStddataLanguageHaveBeenMigrated()
+        verifyStddataDateHaveBeenMigrated()
+        verifySeriesPublicationTypeHaveBeenMigrated()
+        verifyBrandHaveBeenMigrated()
+        verifyStoryTypeHaveBeenMigrated()
+        verifyNameTypeHaveBeenMigrated()
+        verifyScriptHaveBeenMigrated()
+        verifyCreatorSignatureHaveBeenMigrated()
+
         verifyPublishersHaveBeenMigrated()
         verifySeriesHaveBeenMigrated()
         verifyIndiciaPublishersHaveBeenMigrated()
         verifyIssuesHaveBeenMigrated()
         verifySeriesBondsHaveBeenMigrated()
         verifyStoriesHaveBeenMigrated()
+        verifyStoryCreditHaveBeenMigrated()
+        verifyCreatorsHaveBeenMigrated()
+        verifyCreatorNameDetailsHaveBeenMigrated()
+        verifyReprintsHaveBeenMigrated()
+        verifyIssueCreditsHaveBeenMigrated()
     }
 
     /**
