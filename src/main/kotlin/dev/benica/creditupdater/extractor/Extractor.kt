@@ -1,5 +1,6 @@
 package dev.benica.creditupdater.extractor
 
+import java.sql.Connection
 import java.sql.ResultSet
 
 /**
@@ -8,10 +9,10 @@ import java.sql.ResultSet
  * Appearances.
  *
  * @constructor Create empty Extractor
- * @property database The database to use.
+ * @property schema The schema to use.
  */
 abstract class Extractor(
-    protected val database: String,
+    protected val schema: String,
 ) {
     // The table from which data will be extracted
     abstract val extractTable: String
@@ -31,6 +32,7 @@ abstract class Extractor(
      */
     abstract fun extractAndInsert(
         resultSet: ResultSet,
+        conn: Connection
     ): Int
 }
 

@@ -11,6 +11,7 @@ import dev.benica.creditupdater.models.Individual
 import dev.benica.creditupdater.models.Team
 import mu.KLogger
 import mu.KotlinLogging
+import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
 import javax.inject.Inject
@@ -21,13 +22,14 @@ import javax.inject.Inject
  * and creates linked entries for them in the 'm_character' and
  * 'm_character_appearance' tables.
  *
- * @param database the database to which to write the extracted character
- *     and appearance data.
+ * @param schema the database to which to write the extracted character and
+ *     appearance data.
+ * @note The caller is responsible for closing the extractor.
  */
 class CharacterExtractor(
-    database: String,
-    repositoryComponent: CharacterRepositoryComponent = DaggerCharacterRepositoryComponent.create()
-) : Extractor(database) {
+    schema: String,
+    repositoryComponent: CharacterRepositoryComponent = DaggerCharacterRepositoryComponent.create(),
+) : Extractor(schema) {
     override val extractTable: String = "gcd_story"
     override val extractedItem: String = "Character"
     override val fromValue: String = "StoryId"
@@ -39,7 +41,7 @@ class CharacterExtractor(
 
     init {
         repositoryComponent.inject(this)
-        repository = repoSource.getRepo(database)
+        repository = repoSource.getRepo(schema)
     }
 
     private val logger: KLogger
@@ -55,9 +57,7 @@ class CharacterExtractor(
      * @throws SQLException
      */
     @Throws(SQLException::class)
-    override fun extractAndInsert(
-        resultSet: ResultSet,
-    ): Int {
+    override fun extractAndInsert(resultSet: ResultSet, conn: Connection): Int {
         try {
             val storyId = resultSet.getInt("id")
             val characters = resultSet.getString("characters")
@@ -77,7 +77,7 @@ class CharacterExtractor(
                         is Individual -> Appearance(
                             storyId = storyId,
                             characterId = it,
-                            appearanceInfo = character.appearanceInfo,
+                            details = character.details,
                             notes = null,
                             membership = null
                         )
@@ -85,7 +85,7 @@ class CharacterExtractor(
                         is Team -> Appearance(
                             storyId = storyId,
                             characterId = it,
-                            appearanceInfo = character.appearanceInfo,
+                            details = character.details,
                             notes = null,
                             membership = character.members
                         )
@@ -95,7 +95,7 @@ class CharacterExtractor(
                 appearance?.let { appearanceSet.add(it) }
             }
 
-            repository.insertCharacterAppearances(appearanceSet)
+            repository.insertCharacterAppearances(appearanceSet, conn)
 
             return storyId
         } catch (sqlEx: SQLException) {

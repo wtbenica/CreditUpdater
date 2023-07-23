@@ -101,9 +101,9 @@ class CLIParserTest {
     -h, --help
       print this message
       Default: false
-    -i, --init
+    -n, --init
       Starting story id
-    -w, --interactive
+    -i, --interactive
       Start in interactive mode
       Default: false
     -m, --migrate
@@ -330,11 +330,11 @@ class CLIParserTest {
         assertNull(parser.prepare)
     }
 
-    // -i, --init
+    // -n, --init
     @Test
     @DisplayName("should set init option when init argument is provided")
     fun shouldSetInitOptionWhenInitArgumentIsProvided() {
-        val args = arrayOf("-i", "123")
+        val args = arrayOf("-n", "123")
         parser.parse(args)
         assertNotNull(parser.startingId)
         assertEquals(123, parser.startingId)
@@ -343,24 +343,63 @@ class CLIParserTest {
     @Test
     @DisplayName("should fail when init argument is provided with no arguments")
     fun shouldFailWhenInitArgumentIsProvidedWithNoArguments() {
-        val args = arrayOf("-i")
+        val args = arrayOf("-n")
         val exception = assertThrows(ParameterException::class.java) {
             parser.parse(args)
         }
         assertNull(parser.startingId)
-        val expectedOutput = "Expected a value after parameter -i"
+        val expectedOutput = "Expected a value after parameter -n"
         assertEquals(expectedOutput, exception.message)
     }
 
     @Test
     @DisplayName("should fail when init argument is provided with non-numeric argument")
     fun shouldFailWhenInitArgumentIsProvidedWithNonNumericArgument() {
-        val args = arrayOf("-i", "a")
+        val args = arrayOf("-n", "a")
         val exception = assertThrows(ParameterException::class.java) {
             parser.parse(args)
         }
         assertNull(parser.startingId)
-        val expectedOutput = "Parameter -i should be a non-negative integer"
+        val expectedOutput = "Parameter -n should be a non-negative integer"
+        assertEquals(expectedOutput, exception.message)
+    }
+
+    // -i, --interactive
+    @Test
+    @DisplayName("should set interactive option when interactive argument is provided")
+    fun shouldSetInteractiveOptionWhenInteractiveArgumentIsProvided() {
+        val args = arrayOf("-i")
+        parser.parse(args)
+        assertTrue(parser.interactive)
+    }
+
+    @Test
+    @DisplayName("should set interactive option when interactive argument is provided long")
+    fun shouldSetInteractiveOptionWhenInteractiveArgumentIsProvidedLong() {
+        val args = arrayOf("--interactive")
+        parser.parse(args)
+        assertTrue(parser.interactive)
+    }
+
+    @Test
+    @DisplayName("should throw ParameterException if interactive argument is provided with arguments")
+    fun shouldThrowParameterExceptionIfInteractiveArgumentIsProvidedWithArguments() {
+        val args = arrayOf("-i", "arg1")
+        val exception = assertThrows(ParameterException::class.java) {
+            parser.parse(args)
+        }
+        val expectedOutput = "Was passed main parameter 'arg1' but no main parameter was defined in your arg class"
+        assertEquals(expectedOutput, exception.message)
+    }
+
+    @Test
+    @DisplayName("should throw ParameterException if interactive flag is used with any other flags")
+    fun shouldThrowParameterExceptionIfInteractiveFlagIsUsedWithAnyOtherFlags() {
+        val args = arrayOf("-i", "-p", "inf_lb_test")
+        val exception = assertThrows(ParameterException::class.java) {
+            parser.parse(args)
+        }
+        val expectedOutput = "Parameter 'interactive' cannot be used with other parameters"
         assertEquals(expectedOutput, exception.message)
     }
 }
