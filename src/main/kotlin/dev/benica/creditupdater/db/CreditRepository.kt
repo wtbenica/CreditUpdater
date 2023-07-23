@@ -3,7 +3,6 @@ package dev.benica.creditupdater.db
 import dev.benica.creditupdater.di.*
 import java.sql.Connection
 import java.sql.SQLException
-import javax.inject.Inject
 
 /**
  * Credit Repository - handles all database interactions for the 'm_credit'
@@ -11,27 +10,12 @@ import javax.inject.Inject
  *
  * @param targetSchema the database to which to write the extracted credit
  *     data.
- * @param databaseComponent the database component to use
  * @note The caller is responsible for closing the repository.
  */
 class CreditRepository(
     private val targetSchema: String,
-    databaseComponent: DatabaseComponent? = DaggerDatabaseComponent.create(),
-    private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
-) : Repository, AutoCloseable {
-    // Dependencies
-    @Inject
-    internal lateinit var connectionSource: ConnectionSource
-
-    internal lateinit var conn: Connection
-
-    init {
-        if (databaseComponent != null) {
-            databaseComponent.inject(this)
-            conn = connectionSource.getConnection(targetSchema).connection
-        }
-    }
-
+    private val queryExecutor: QueryExecutor = QueryExecutor()
+) : Repository {
     // Public Methods
     /**
      * Create or Update Story Credit - checks for an existing story credit for
@@ -42,12 +26,13 @@ class CreditRepository(
      * @param storyId the story id
      * @param roleId the credit_type id
      */
-    internal fun createOrUpdateStoryCredit(extractedName: String, storyId: Int, roleId: Int) {
-        lookupGcndId(extractedName)?.let { gcndId ->
-            lookupStoryCreditId(gcndId, storyId, roleId) ?: insertStoryCredit(
+    internal fun insertStoryCreditIfNotExists(extractedName: String, storyId: Int, roleId: Int, conn: Connection) {
+        lookupGcndId(extractedName, conn)?.let { gcndId ->
+            lookupStoryCreditId(gcndId, storyId, roleId, conn) ?: insertStoryCredit(
                 gcndId,
                 roleId,
-                storyId
+                storyId,
+                conn
             )
         }
     }
@@ -62,28 +47,23 @@ class CreditRepository(
      * @throws SQLException if an error occurs
      */
     @Throws(SQLException::class)
-    internal fun lookupGcndId(extractedName: String): Int? {
+    internal fun lookupGcndId(extractedName: String, conn: Connection): Int? {
         var gcndId: Int? = null
 
-        try {
-            val getGcndSql = """
+        val getGcndSql = """
                SELECT * 
                FROM gcd_creator_name_detail gcnd
                WHERE gcnd.name = ?                
             """
 
-            queryExecutor.executePreparedStatement(getGcndSql, conn = conn) { statement ->
-                statement.setString(1, extractedName)
+        queryExecutor.executePreparedStatement(getGcndSql, conn = conn) { statement ->
+            statement.setString(1, extractedName)
 
-                statement.executeQuery().use { resultSet ->
-                    if (resultSet?.next() == true) {
-                        gcndId = resultSet.getInt("id")
-                    }
+            statement.executeQuery().use { resultSet ->
+                if (resultSet?.next() == true) {
+                    gcndId = resultSet.getInt("id")
                 }
             }
-        } catch (sqlEx: SQLException) {
-            sqlEx.printStackTrace()
-            throw sqlEx
         }
 
         return gcndId
@@ -101,12 +81,11 @@ class CreditRepository(
      * @throws SQLException if an error occurs
      */
     @Throws(SQLException::class)
-    internal fun lookupStoryCreditId(gcndId: Int, storyId: Int, roleId: Int): Int? {
+    internal fun lookupStoryCreditId(gcndId: Int, storyId: Int, roleId: Int, conn: Connection): Int? {
         var storyCreditId: Int? = null
 
-        try {
-            /** Get story credit id sql */
-            val getStoryCreditIdSql = """
+        /** Get story credit id sql */
+        val getStoryCreditIdSql = """
                     SELECT gsc.id
                     FROM ${targetSchema}.gcd_story_credit gsc
                     WHERE gsc.creator_id = ?
@@ -114,7 +93,28 @@ class CreditRepository(
                     AND gsc.credit_type_id = ?
             """
 
-            queryExecutor.executePreparedStatement(getStoryCreditIdSql, conn = conn) { statement ->
+        queryExecutor.executePreparedStatement(getStoryCreditIdSql, conn = conn) { statement ->
+            statement.setInt(1, gcndId)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
+
+            statement.executeQuery().use { resultSet ->
+                if (resultSet?.next() == true) {
+                    storyCreditId = resultSet.getInt("id")
+                }
+            }
+        }
+
+        if (storyCreditId == null) {
+            val getMStoryCreditIdSql = """
+                    SELECT gsc.id
+                    FROM ${targetSchema}.m_story_credit gsc
+                    WHERE gsc.creator_id = ?
+                    AND gsc.story_id = ?
+                    AND gsc.credit_type_id = ?
+            """
+
+            queryExecutor.executePreparedStatement(getMStoryCreditIdSql, conn = conn) { statement ->
                 statement.setInt(1, gcndId)
                 statement.setInt(2, storyId)
                 statement.setInt(3, roleId)
@@ -124,36 +124,6 @@ class CreditRepository(
                         storyCreditId = resultSet.getInt("id")
                     }
                 }
-            }
-        } catch (sqlEx: SQLException) {
-            sqlEx.printStackTrace()
-            throw sqlEx
-        }
-
-        if (storyCreditId == null) {
-            try {
-                val getMStoryCreditIdSql = """
-                    SELECT gsc.id
-                    FROM ${targetSchema}.m_story_credit gsc
-                    WHERE gsc.creator_id = ?
-                    AND gsc.story_id = ?
-                    AND gsc.credit_type_id = ?
-            """
-
-                queryExecutor.executePreparedStatement(getMStoryCreditIdSql, conn = conn) { statement ->
-                    statement.setInt(1, gcndId)
-                    statement.setInt(2, storyId)
-                    statement.setInt(3, roleId)
-
-                    statement.executeQuery().use { resultSet ->
-                        if (resultSet?.next() == true) {
-                            storyCreditId = resultSet.getInt("id")
-                        }
-                    }
-                }
-            } catch (sqlEx: SQLException) {
-                sqlEx.printStackTrace()
-                throw sqlEx
             }
         }
 
@@ -169,7 +139,7 @@ class CreditRepository(
      * @param roleId credit_type.id
      * @param storyId gcd_story.id
      */
-    private fun insertStoryCredit(gcndId: Int, roleId: Int, storyId: Int) {
+    private fun insertStoryCredit(gcndId: Int, roleId: Int, storyId: Int, conn: Connection) {
         val insertStoryCreditSql =
             """INSERT IGNORE INTO $targetSchema.m_story_credit(creator_id, credit_type_id, story_id)
                 VALUE (?, ?, ?)"""
@@ -184,9 +154,5 @@ class CreditRepository(
 
             statement.executeUpdate()
         }
-    }
-
-    override fun close() {
-        conn.close()
     }
 }

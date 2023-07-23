@@ -1,6 +1,7 @@
 package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.Credentials
+import dev.benica.creditupdater.db.ConnectionProvider
 import dev.benica.creditupdater.db.ExtractionProgressTracker
 import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.di.*
@@ -9,10 +10,7 @@ import dev.benica.creditupdater.extractor.CreditExtractor
 import dev.benica.creditupdater.extractor.Extractor
 import mu.KLogger
 import mu.KotlinLogging
-import java.io.File
-import java.sql.Connection
 import java.sql.SQLException
-import javax.inject.Inject
 import kotlin.system.measureTimeMillis
 
 /**
@@ -21,24 +19,13 @@ import kotlin.system.measureTimeMillis
  */
 class DBTask(
     private val targetSchema: String,
-    databaseComponent: DatabaseComponent = DaggerDatabaseComponent.create()
 ) {
     // Constants
     companion object {
         private const val DEFAULT_BATCH_SIZE = 75000
     }
 
-    // Dependencies
-    @Inject
-    internal lateinit var connecitonSource: ConnectionSource
-
-    private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
-    protected val conn: Connection
-
-    init {
-        databaseComponent.inject(this)
-        conn = connecitonSource.getConnection(targetSchema).connection
-    }
+    internal val queryExecutor: QueryExecutor = QueryExecutor()
 
     // Private Properties
     private val logger: KLogger
@@ -46,10 +33,54 @@ class DBTask(
 
     // Public Methods
     /**
-     * Extract credits - extracts non-relational creator credits from stories
-     * in [schema].stories_to_migrate
+     * Extract characters and appearances - extracts characters and appearances
+     * from the database.
      *
-     * @param schema The schema with the stories_to_migrate table.
+     * @param schema The schema with the migrate_stories table.
+     * @param initial Whether this is the initial run.
+     * @throws SQLException if an error occurs
+     */
+    @Throws(SQLException::class)
+    fun extractCharactersAndAppearances(
+        schema: String,
+        initial: Boolean,
+        startingId: Int? = null,
+        batchSize: Int = DEFAULT_BATCH_SIZE,
+    ) {
+        logger.debug { "Starting Characters..." }
+
+        val extractor = CharacterExtractor(schema)
+        val lastIdCompleted = startingId
+            ?: ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
+            ?: Credentials.CHARACTER_STORY_START_ID
+
+        val table = if (initial) "gcd_story" else "migrate_stories"
+
+        logger.debug { "Schema: $schema | Table: $table" }
+
+        val selectStoriesQuery =
+            """SELECT g.id, g.characters, gs.publisher_id
+                FROM $schema.$table g
+                JOIN $schema.gcd_issue gi on gi.id = g.issue_id
+                JOIN $schema.gcd_series gs on gs.id = gi.series_id
+                WHERE g.id > $lastIdCompleted
+                ORDER BY g.id """.trimIndent()
+
+        logger.debug { "SelectStoriesQuery: $selectStoriesQuery" }
+
+        @Suppress("kotlin:S6307")
+        extractAndInsertItems(
+            selectItemsQuery = selectStoriesQuery,
+            extractor = extractor,
+            batchSize = batchSize
+        )
+    }
+
+    /**
+     * Extract credits - extracts non-relational creator credits from stories
+     * in [schema].migrate_stories
+     *
+     * @param schema The schema with the migrate_stories table.
      * @param initial Whether this is the initial run.
      * @throws SQLException if an error occurs
      */
@@ -67,7 +98,7 @@ class DBTask(
             ?: ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
             ?: Credentials.CREDITS_STORY_START_ID
 
-        val table = if (initial) "gcd_story" else "stories_to_migrate"
+        val table = if (initial) "gcd_story" else "migrate_stories"
 
         /**
          * Script sql - an sql snippet to get the writer, penciller, inker,
@@ -88,50 +119,6 @@ class DBTask(
     }
 
     /**
-     * Extract characters and appearances - extracts characters and appearances
-     * from the database.
-     *
-     * @param schema The schema with the stories_to_migrate table.
-     * @param initial Whether this is the initial run.
-     * @throws SQLException if an error occurs
-     */
-    @Throws(SQLException::class)
-    fun extractCharactersAndAppearances(
-        schema: String,
-        initial: Boolean,
-        startingId: Int? = null,
-        batchSize: Int = DEFAULT_BATCH_SIZE,
-    ) {
-        logger.debug { "Starting Characters..." }
-
-        val extractor = CharacterExtractor(schema)
-        val lastIdCompleted = startingId
-            ?: ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
-            ?: Credentials.CHARACTER_STORY_START_ID
-
-        val table = if (initial) "gcd_story" else "stories_to_migrate"
-
-        logger.debug { "Schema: $schema | Table: $table" }
-
-        val selectStoriesQuery =
-            """SELECT g.id, g.characters, gs.publisher_id
-                FROM $schema.$table g
-                JOIN $schema.gcd_issue gi on gi.id = g.issue_id
-                JOIN $schema.gcd_series gs on gs.id = gi.series_id
-                where g.id > $lastIdCompleted
-                ORDER BY g.id """.trimIndent()
-
-        logger.debug { "SelectStoriesQuery: $selectStoriesQuery" }
-
-        @Suppress("kotlin:S6307")
-        extractAndInsertItems(
-            selectItemsQuery = selectStoriesQuery,
-            extractor = extractor,
-            batchSize = batchSize
-        )
-    }
-
-    /**
      * Updates items in the database using the given SQL query to retrieve the
      * items.
      *
@@ -142,29 +129,29 @@ class DBTask(
      * @throws SQLException if an error occurs
      */
     @Throws(SQLException::class)
-    private fun extractAndInsertItems(
+    internal fun extractAndInsertItems(
         selectItemsQuery: String,
         extractor: Extractor,
         batchSize: Int = DEFAULT_BATCH_SIZE
     ) {
-        logger.debug { "Extracting and inserting items..." }
-        val progressTracker = ExtractionProgressTracker(
-            extractedType = extractor.extractedItem,
-            targetSchema = targetSchema,
-            totalItems = queryExecutor.getItemCount(
-                tableName = extractor.extractTable,
-                conn = conn
-            ),
-        )
-        logger.debug { "Progress tracker: $progressTracker" }
+        ConnectionProvider.getConnection(targetSchema).connection.use { conn ->
+            logger.debug { "Extracting and inserting items..." }
+            val progressTracker = ExtractionProgressTracker(
+                extractedType = extractor.extractedItem,
+                targetSchema = targetSchema,
+                totalItems = queryExecutor.getItemCount(
+                    tableName = extractor.extractTable,
+                    conn = conn
+                ),
+            )
+            logger.debug { "Progress tracker: $progressTracker" }
 
-        val initialProgress = progressTracker.progressInfo
-        var totalTimeMillis: Long = initialProgress.totalTimeMillis
+            val initialProgress = progressTracker.progressInfo
+            var totalTimeMillis: Long = initialProgress.totalTimeMillis
 
-        var offset = 0
-        var done = false
+            var offset = 0
+            var done = false
 
-        try {
             while (!done) {
                 val queryWithLimitAndOffset =
                     "$selectItemsQuery LIMIT $batchSize OFFSET ${offset * batchSize}"
@@ -181,7 +168,7 @@ class DBTask(
                     } else {
                         do {
                             totalTimeMillis += measureTimeMillis {
-                                val processedItemId = extractor.extractAndInsert(resultSet)
+                                val processedItemId = extractor.extractAndInsert(resultSet, conn)
                                 progressTracker.updateProgressInfo(processedItemId, totalTimeMillis)
                             }
                         } while (resultSet.next())
@@ -190,29 +177,9 @@ class DBTask(
 
                 offset++
             }
-        } catch (ex: SQLException) {
-            logger.error("Error updating items", ex)
-            throw ex
+
+            logger.info { "END\n\n\n" }
+            progressTracker.resetProgressInfo()
         }
-
-        logger.info { "END\n\n\n" }
-        progressTracker.resetProgressInfo()
     }
-
-    @Throws(SQLException::class)
-    fun runSqlScript(
-        sqlScriptPath: String,
-        runAsTransaction: Boolean = false
-    ) = queryExecutor.executeSqlScript(
-        sqlScript = File(sqlScriptPath), runAsTransaction = runAsTransaction,
-        conn = conn
-    )
-
-    @Throws(SQLException::class)
-    fun executeSqlStatement(
-        sqlStmt: String
-    ) = queryExecutor.executeSqlStatement(
-        sqlStmt = sqlStmt,
-        connection = conn
-    )
 }

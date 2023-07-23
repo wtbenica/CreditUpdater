@@ -1,9 +1,8 @@
 package dev.benica.creditupdater.db
 
-import com.zaxxer.hikari.HikariDataSource
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
+import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTablesAndViews
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
-import dev.benica.creditupdater.di.ConnectionSource
 import dev.benica.creditupdater.models.Appearance
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
@@ -24,7 +23,7 @@ class CharacterRepositoryTest {
             stmt.execute("DELETE FROM $tableName")
         }
 
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
         val id = repo.upsertCharacter("Test Character", null, 1)
         assertNotNull(id)
         assertEquals(1, id)
@@ -51,7 +50,7 @@ class CharacterRepositoryTest {
             stmt.execute("INSERT INTO $tableName (name, alter_ego, publisher_id) VALUES ('Test Character', NULL, 1)")
         }
 
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
         val id = repo.upsertCharacter("Test Character", null, 1, false)
         assertNotNull(id)
         assertEquals(1, id)
@@ -66,7 +65,7 @@ class CharacterRepositoryTest {
             stmt.execute("DELETE FROM $tableName")
         }
 
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
         val id = repo.upsertCharacter("Test Character", "a".repeat(300), 1)
         assertNotNull(id)
         assertEquals(1, id)
@@ -93,7 +92,7 @@ class CharacterRepositoryTest {
             stmt.execute("DELETE FROM $tableName")
         }
 
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
         val id = repo.upsertCharacter("a".repeat(300), null, 1)
         assertNotNull(id)
         assertEquals(1, id)
@@ -121,7 +120,7 @@ class CharacterRepositoryTest {
             stmt.execute("DELETE FROM $tableName")
         }
 
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
         val characterId = repo.lookupCharacter("Test Character", null, 1)
         assertNull(characterId)
     }
@@ -135,7 +134,7 @@ class CharacterRepositoryTest {
             stmt.execute("INSERT INTO $tableName (name, alter_ego, publisher_id) VALUES ('Test Character', NULL, 1)")
         }
 
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
         val characterId = repo.lookupCharacter("Test Character", null, 1)
         assertNotNull(characterId)
         assertEquals(1, characterId)
@@ -149,7 +148,7 @@ class CharacterRepositoryTest {
 
         // Create the repository
         val repo = CharacterRepository(
-            targetSchema = TEST_DATABASE_CHAR_REPO,
+            targetSchema = TEST_DATABASE,
             queryExecutor = queryExecutorMock
         )
 
@@ -172,7 +171,7 @@ class CharacterRepositoryTest {
             stmt.execute("DELETE FROM $tableName")
         }
 
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
         val appearances = setOf(
             Appearance(1, 1, "appearanceInfo1", "notes1", "members1"),
             Appearance(1, 2, "appearanceInfo2", "notes2", "members2"),
@@ -182,7 +181,7 @@ class CharacterRepositoryTest {
             Appearance(2, 3, "appearanceInfo6", "notes6", "members6")
         )
 
-        repo.insertCharacterAppearances(appearances)
+        repo.insertCharacterAppearances(appearances, conn)
 
         // Check that the appearances were inserted
         conn.createStatement().use { stmt ->
@@ -254,7 +253,7 @@ class CharacterRepositoryTest {
 
         // Create the repository
         val repo = CharacterRepository(
-            targetSchema = TEST_DATABASE_CHAR_REPO,
+            targetSchema = TEST_DATABASE,
             queryExecutor = queryExecutorMock
         )
 
@@ -266,7 +265,7 @@ class CharacterRepositoryTest {
             Appearance(1, 1, null, null, null),
         )
 
-        assertThrows<SQLException> { repo.insertCharacterAppearances(appearances) }
+        assertThrows<SQLException> { repo.insertCharacterAppearances(appearances, conn) }
     }
 
     // insertCharacter
@@ -278,7 +277,7 @@ class CharacterRepositoryTest {
 
         // Create the repository
         val repo = CharacterRepository(
-            targetSchema = TEST_DATABASE_CHAR_REPO,
+            targetSchema = TEST_DATABASE,
             queryExecutor = queryExecutorMock
         )
 
@@ -313,7 +312,7 @@ class CharacterRepositoryTest {
     @DisplayName("insert character with nonexistent publisher id should throw SQLException")
     fun insertCharacterWithNonexistentPublisherIdShouldThrowSQLException() {
         // Create the repository
-        val repo = CharacterRepository(TEST_DATABASE_CHAR_REPO)
+        val repo = CharacterRepository(TEST_DATABASE)
 
         assertThrows<SQLException> {
             repo.insertCharacter(
@@ -322,32 +321,6 @@ class CharacterRepositoryTest {
                 publisherId = 3
             )
         }
-    }
-
-    @Test
-    @DisplayName("should call close() and conn.close() when used in try-with-resources")
-    fun shouldCallCloseAndConnCloseWhenUsedInTryWithResources() {
-        // Create the repository
-        val repoMock = spy(CharacterRepository("mock", null))
-        val connectionSourceMock = mock<ConnectionSource>()
-        val hikariDataSourceMock = mock<HikariDataSource>()
-        val connectionMock = mock<Connection>()
-
-        repoMock.connectionSource = connectionSourceMock
-        repoMock.conn = connectionMock
-
-        whenever(repoMock.connectionSource).thenReturn(connectionSourceMock)
-        whenever(connectionSourceMock.getConnection(any())).thenReturn(hikariDataSourceMock)
-        whenever(hikariDataSourceMock.connection).thenReturn(connectionMock)
-        doCallRealMethod().whenever(repoMock).close()
-        doNothing().whenever(connectionMock).close()
-
-        // Use in try-with-resources
-        repoMock.use { }
-
-        // Verify that close() and conn.close() were called
-        verify(repoMock, times(1)).close()
-        verify(connectionMock, times(1)).close()
     }
 
     // Setup and teardown
@@ -366,18 +339,18 @@ class CharacterRepositoryTest {
     }
 
     companion object {
-        private const val TEST_DATABASE_CHAR_REPO = "credit_updater_test_char_repo"
         internal lateinit var conn: Connection
 
         @BeforeAll
         @JvmStatic
         fun setUp() {
-            conn = getDbConnection(TEST_DATABASE_CHAR_REPO)
+            conn = getDbConnection(TEST_DATABASE)
             setUpDatabase(conn)
         }
 
         fun setUpDatabase(conn: Connection) {
             conn.createStatement().use { stmt ->
+                TestDatabaseSetup.teardown(schema = TEST_DATABASE, conn = conn)
                 // create publishers table
                 stmt.execute(
                     """CREATE TABLE IF NOT EXISTS gcd_publisher
@@ -425,7 +398,7 @@ class CharacterRepositoryTest {
         @AfterAll
         @JvmStatic
         fun breakDown() {
-            dropAllTables(conn, TEST_DATABASE_CHAR_REPO)
+            dropAllTablesAndViews(TEST_DATABASE, conn)
             conn.close()
         }
     }

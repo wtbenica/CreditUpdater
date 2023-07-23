@@ -1,9 +1,8 @@
 package dev.benica.creditupdater.db
 
-import com.zaxxer.hikari.HikariDataSource
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
-import dev.benica.creditupdater.di.ConnectionSource
+import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTablesAndViews
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.mockito.kotlin.*
@@ -27,6 +26,7 @@ class QueryExecutorTest {
                 |WHERE id = 5;;;
                 |# This is a comment with no semicolon
                 |SELECT * FROM table WHERE id = 6;""".trimMargin()
+
         val expected = listOf(
             "SELECT * FROM table WHERE id = 3",
             "SELECT * FROM table WHERE id = 4",
@@ -38,7 +38,7 @@ class QueryExecutorTest {
         val file = File("temp.sql")
         file.writeText(fileContents)
 
-        val actual = queryExecutor.parseSqlScript(file)
+        val actual = file.parseSqlScript(TEST_DATABASE)
 
         assertEquals(expected, actual)
     }
@@ -382,11 +382,15 @@ class QueryExecutorTest {
             )
         }
 
-        queryExecutor.executeSqlScript(sqlScript, conn = mConn)
+        queryExecutor.executeSqlScript(
+            sqlScript = sqlScript,
+            targetSchema = TEST_DATABASE,
+            conn = mConn
+        )
 
         // Check if table exists
         val query =
-            "SELECT table_name FROM information_schema.tables WHERE table_schema = '$TEST_DATABASE_QUERY_EXECUTOR' AND table_name = '$tableName'"
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = '$TEST_DATABASE' AND table_name = '$tableName'"
         mConn.createStatement().use { stmt ->
             stmt.executeQuery(query).use { resultSet ->
                 assertTrue(resultSet.next(), "Table $tableName should exist")
@@ -416,17 +420,13 @@ class QueryExecutorTest {
     @DisplayName("Should execute SQL script as transaction when runAsTransaction is true")
     fun shouldExecuteSqlScriptAsTransactionWhenRunAsTransactionIsTrue() {
         // Create mock objects
-        val connectionSourceMock: ConnectionSource = mock()
-        val hikariDataSourceMock: HikariDataSource = mock()
         val connectionMock: Connection = mock()
         val statementMock: Statement = mock()
         val resultSetMock = mock<ResultSet>()
 
-        val queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
+        val queryExecutor = QueryExecutor()
 
         // Mock the behavior of the mocked objects
-        whenever(connectionSourceMock.getConnection(TEST_DATABASE_QUERY_EXECUTOR)).thenReturn(hikariDataSourceMock)
-        whenever(hikariDataSourceMock.connection).thenReturn(connectionMock)
         whenever(connectionMock.createStatement()).thenReturn(statementMock)
         whenever(statementMock.executeQuery(any())).thenReturn(resultSetMock)
 
@@ -440,7 +440,12 @@ class QueryExecutorTest {
             """.trimMargin()
             )
         }
-        queryExecutor.executeSqlScript(sqlScript, true, connectionMock)
+        queryExecutor.executeSqlScript(
+            sqlScript = sqlScript,
+            runAsTransaction = true,
+            conn = connectionMock,
+            targetSchema = TEST_DATABASE
+        )
 
         // Verify the expected interactions
         verify(connectionMock, times(3)).createStatement()
@@ -456,18 +461,14 @@ class QueryExecutorTest {
     @DisplayName("Should execute SQL script as transaction when runAsTransaction is true and rollback on error and throw exception")
     fun shouldExecuteSqlScriptAsTransactionWhenRunAsTransactionIsTrueAndRollbackOnErrorAndThrowException() {
         // Create mock objects
-        val connectionSourceMock = mock<ConnectionSource>()
-        val hikariDataSourceMock = mock<HikariDataSource>()
         val connectionMock = mock<Connection>()
         val statementMock = mock<Statement>()
         val resultSetMock = mock<ResultSet>()
 
         // Create a QueryExecutor instance with the mocked objects
-        val queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
+        val queryExecutor = QueryExecutor()
 
         // Mock the behavior of the mocked objects
-        whenever(connectionSourceMock.getConnection(TEST_DATABASE_QUERY_EXECUTOR)).thenReturn(hikariDataSourceMock)
-        whenever(hikariDataSourceMock.connection).thenReturn(connectionMock)
         whenever(connectionMock.createStatement()).thenReturn(statementMock)
         whenever(statementMock.executeQuery(any())).thenReturn(resultSetMock)
         val table = "test_table6"
@@ -482,7 +483,14 @@ class QueryExecutorTest {
             """.trimMargin()
             )
         }
-        assertThrows<SQLException> { queryExecutor.executeSqlScript(sqlScript, true, connectionMock) }
+        assertThrows<SQLException> {
+            queryExecutor.executeSqlScript(
+                sqlScript = sqlScript,
+                runAsTransaction = true,
+                conn = connectionMock,
+                targetSchema = TEST_DATABASE
+            )
+        }
 
         // Verify the expected interactions
         verify(connectionMock).createStatement()
@@ -512,7 +520,11 @@ class QueryExecutorTest {
             )
         }
 
-        queryExecutor.executeSqlScript(sqlScript, conn = mConn)
+        queryExecutor.executeSqlScript(
+            sqlScript = sqlScript,
+            conn = mConn,
+            targetSchema = TEST_DATABASE
+        )
 
         val itemCount = queryExecutor.getItemCount(tableName, conn = mConn)
 
@@ -550,13 +562,9 @@ class QueryExecutorTest {
     @DisplayName("Should execute the batch action on the prepared statement")
     fun shouldExecuteAPreparedStatementBatchInsertOrModification() {
         // Mock the necessary dependencies
-        val connectionSource = mock<ConnectionSource>()
-        val dataSource = mock<HikariDataSource>()
         val connection = mock<Connection>()
         val preparedStatement = mock<PreparedStatement>()
 
-        whenever(connectionSource.getConnection(any())).thenReturn(dataSource)
-        whenever(dataSource.connection).thenReturn(connection)
         whenever(connection.prepareStatement(any(), any<Int>())).thenReturn(preparedStatement)
 
         // Define the SQL statement and the batch action
@@ -575,7 +583,7 @@ class QueryExecutorTest {
         whenever(preparedStatement.executeBatch()).thenReturn(intArrayOf(1, 1))
 
         // Call the method under test
-        val result = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR).executePreparedStatementBatch(
+        val result = QueryExecutor().executePreparedStatementBatch(
             sql,
             Statement.RETURN_GENERATED_KEYS,
             connection,
@@ -604,17 +612,13 @@ class QueryExecutorTest {
     @DisplayName("Should execute the batch action on the prepared statement")
     fun shouldExecuteAPreparedStatementBatchWithAutoGenKeys() {
         // Mock the necessary dependencies
-        val connectionSource = mock<ConnectionSource>()
-        val dataSource = mock<HikariDataSource>()
         val connection = mock<Connection>()
         val preparedStatement = mock<PreparedStatement>()
 
-        whenever(connectionSource.getConnection(any())).thenReturn(dataSource)
-        whenever(dataSource.connection).thenReturn(connection)
         whenever(connection.prepareStatement(any(), any<Int>())).thenReturn(preparedStatement)
 
         // Create an instance of QueryExecutor
-        val queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
+        val queryExecutor = QueryExecutor()
 
         // Define the SQL statement and the batch action
         val sql = "INSERT INTO users (name, age) VALUES (?, ?)"
@@ -632,7 +636,8 @@ class QueryExecutorTest {
         whenever(preparedStatement.executeBatch()).thenReturn(intArrayOf(1, 1))
 
         // Call the method under test
-        val result = queryExecutor.executePreparedStatementBatch(sql, Statement.RETURN_GENERATED_KEYS, connection, batchAction)
+        val result =
+            queryExecutor.executePreparedStatementBatch(sql, Statement.RETURN_GENERATED_KEYS, connection, batchAction)
 
         // Verify the interactions and assertions
         assertEquals(2, result.size)
@@ -648,17 +653,13 @@ class QueryExecutorTest {
     @DisplayName("Should throw exception when the batch action throws exception")
     fun shouldExecutePreparedStatement() {
         // Mock the necessary dependencies
-        val connectionSource = mock<ConnectionSource>()
-        val hikariDataSource = mock<HikariDataSource>()
         val connection = mock<Connection>()
         val preparedStatement = mock<PreparedStatement>()
 
-        whenever(connectionSource.getConnection(any())).thenReturn(hikariDataSource)
-        whenever(hikariDataSource.connection).thenReturn(connection)
         whenever(connection.prepareStatement(any())).thenReturn(preparedStatement)
 
         // Create an instance of QueryExecutor
-        val queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
+        val queryExecutor = QueryExecutor()
 
         // Define the SQL statement and the action
         val sql = "INSERT INTO users (name, age) VALUES (?, ?)"
@@ -687,27 +688,26 @@ class QueryExecutorTest {
 
     @AfterEach
     fun tearDown() {
-        dropAllTables(mConn, TEST_DATABASE_QUERY_EXECUTOR)
+        dropAllTablesAndViews(schema = TEST_DATABASE, conn = mConn)
     }
 
     companion object {
         private lateinit var queryExecutor: QueryExecutor
-        internal const val TEST_DATABASE_QUERY_EXECUTOR = "credit_updater_test_qe"
         private lateinit var mConn: Connection
 
         @BeforeAll
         @JvmStatic
         fun setUp() {
-            mConn = getDbConnection(TEST_DATABASE_QUERY_EXECUTOR)
-            queryExecutor = QueryExecutor(TEST_DATABASE_QUERY_EXECUTOR)
+            mConn = getTestDbConnection()
+            queryExecutor = QueryExecutor()
 
-            dropAllTables(mConn, TEST_DATABASE_QUERY_EXECUTOR)
+            dropAllTablesAndViews(schema = TEST_DATABASE, conn = mConn)
         }
 
         @AfterAll
         @JvmStatic
         fun breakDown() {
-            dropAllTables(mConn, TEST_DATABASE_QUERY_EXECUTOR)
+            dropAllTablesAndViews(schema = TEST_DATABASE, conn = mConn)
             mConn.close()
             removeSqlScriptFiles()
         }

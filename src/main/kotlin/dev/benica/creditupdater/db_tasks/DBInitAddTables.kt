@@ -80,7 +80,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $targetSchema.gcd_story_credit ADD FOREIGN KEY (issue_id) REFERENCES gcd_issue (id)""",
+            """ALTER TABLE $targetSchema.gcd_story_credit ADD FOREIGN KEY (issue_id) REFERENCES $targetSchema.gcd_issue (id)""",
             """select 'Column Exists' status"""
         )
 
@@ -127,7 +127,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $targetSchema.gcd_story_credit ADD FOREIGN KEY (series_id) REFERENCES gcd_series (id)""",
+            """ALTER TABLE $targetSchema.gcd_story_credit ADD FOREIGN KEY (series_id) REFERENCES $targetSchema.gcd_series (id)""",
             """select 'Column Exists' status"""
         )
 
@@ -140,7 +140,7 @@ class DBInitAddTables(
             id           INTEGER PRIMARY KEY AUTO_INCREMENT,
             name         VARCHAR(255) NOT NULL,
             alter_ego    VARCHAR(255),
-            publisher_id INTEGER REFERENCES gcd_publisher (id),
+            publisher_id INTEGER REFERENCES $targetSchema.gcd_publisher (id),
             INDEX (name),
             INDEX (alter_ego),
             UNIQUE INDEX (name, alter_ego, publisher_id)
@@ -159,11 +159,11 @@ class DBInitAddTables(
             notes        VARCHAR(255),
             membership   LONGTEXT,
             issue_id     INTEGER DEFAULT NULL,
-            series_id    INTEGER REFERENCES gcd_series (id),
-            FOREIGN KEY (character_id) REFERENCES m_character (id),
-            FOREIGN KEY (story_id) REFERENCES gcd_story (id),
-            FOREIGN KEY (issue_id) REFERENCES gcd_issue (id),
-            FOREIGN KEY (series_id) REFERENCES gcd_series (id),
+            series_id    INTEGER REFERENCES $targetSchema.gcd_series (id),
+            FOREIGN KEY (character_id) REFERENCES $targetSchema.m_character (id),
+            FOREIGN KEY (story_id) REFERENCES $targetSchema.gcd_story (id),
+            FOREIGN KEY (issue_id) REFERENCES $targetSchema.gcd_issue (id),
+            FOREIGN KEY (series_id) REFERENCES $targetSchema.gcd_series (id),
             INDEX (notes),
             INDEX (details),
             UNIQUE INDEX (details, character_id, story_id, notes)
@@ -218,7 +218,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $targetSchema.m_story_credit ADD FOREIGN KEY (creator_id) REFERENCES gcd_creator_name_detail (id)""",
+            """ALTER TABLE $targetSchema.m_story_credit ADD FOREIGN KEY (creator_id) REFERENCES $targetSchema.gcd_creator_name_detail (id)""",
             """select 'Constraint Exists' status"""
         )
 
@@ -242,7 +242,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $targetSchema.m_story_credit ADD FOREIGN KEY (credit_type_id) REFERENCES gcd_credit_type (id)""",
+            """ALTER TABLE $targetSchema.m_story_credit ADD FOREIGN KEY (credit_type_id) REFERENCES $targetSchema.gcd_credit_type (id)""",
             """select 'Constraint Exists' status"""
         )
 
@@ -266,7 +266,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $targetSchema.m_story_credit ADD FOREIGN KEY (story_id) REFERENCES gcd_story (id)""",
+            """ALTER TABLE $targetSchema.m_story_credit ADD FOREIGN KEY (story_id) REFERENCES $targetSchema.gcd_story (id)""",
             """select 'Constraint Exists' status"""
         )
 
@@ -290,7 +290,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $targetSchema.m_story_credit ADD FOREIGN KEY (issue_id) REFERENCES gcd_issue (id)""",
+            """ALTER TABLE $targetSchema.m_story_credit ADD FOREIGN KEY (issue_id) REFERENCES $targetSchema.gcd_issue (id)""",
             """select 'Constraint Exists' status"""
         )
 
@@ -314,7 +314,7 @@ class DBInitAddTables(
 
         val statement = ifNotExistStatement(
             query,
-            """ALTER TABLE $targetSchema.m_story_credit ADD FOREIGN KEY (series_id) REFERENCES gcd_series (id)""",
+            """ALTER TABLE $targetSchema.m_story_credit ADD FOREIGN KEY (series_id) REFERENCES $targetSchema.gcd_series (id)""",
             """select 'Constraint Exists' status"""
         )
 
