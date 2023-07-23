@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_credit_type` (
     `id` INT NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(50) NOT NULL,
     `sort_code` INT(11) NOT NULL,
+    `modified` DATETIME NOT NULL,
     PRIMARY KEY (id)
 );
 

@@ -78,21 +78,21 @@ VALUES (
         '2004-06-01 19:56:37'
     );
 
-INSERT INTO gcd_credit_type (id, name, sort_code)
-VALUES (1, 'script', 1),
-    (2, 'pencils', 10),
-    (3, 'inks', 20),
-    (4, 'colors', 30),
-    (5, 'letters', 40),
-    (6, 'editing', 50),
-    (7, 'pencils and inks', 11),
-    (8, 'pencils, inks and colors', 13),
-    (9, 'painting', 15),
-    (10, 'script, pencils, and inks', 2),
-    (11, 'script, pencils, inks, and colors', 3),
-    (12, 'script, pencils, inks, and letters', 4),
-    (13, 'script, pencils, inks, colors, and letters', 5),
-    (14, 'pencils, inks, and letters', 14);
+INSERT INTO gcd_credit_type (id, name, sort_code, modified)
+VALUES (1, 'script', 1, '2004-06-01 19:56:37'),
+    (2, 'pencils', 10, '2004-06-01 19:56:37'),
+    (3, 'inks', 20, '2004-06-01 19:56:37'),
+    (4, 'colors', 30, '2004-06-01 19:56:37'),
+    (5, 'letters', 40, '2004-06-01 19:56:37'),
+    (6, 'editing', 50, '2004-06-01 19:56:37'),
+    (7, 'pencils and inks', 11, '2004-06-01 19:56:37'),
+    (8, 'pencils, inks and colors', 13, '2004-06-01 19:56:37'),
+    (9, 'painting', 15, '2004-06-01 19:56:37'),
+    (10, 'script, pencils, and inks', 2, '2004-06-01 19:56:37'),
+    (11, 'script, pencils, inks, and colors', 3, '2004-06-01 19:56:37'),
+    (12, 'script, pencils, inks, and letters', 4, '2004-06-01 19:56:37'),
+    (13, 'script, pencils, inks, colors, and letters', 5, '2004-06-01 19:56:37'),
+    (14, 'pencils, inks, and letters', 14, '2004-06-01 19:56:37');
 
 INSERT IGNORE INTO `{{targetSchema}}`.`gcd_creator` (`id`, `name`, `modified`)
 VALUES (1, 'Grant Morrison', '2004-06-01 19:56:37'),

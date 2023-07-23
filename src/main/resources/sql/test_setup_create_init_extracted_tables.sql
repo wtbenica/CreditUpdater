@@ -1,4 +1,4 @@
-ALTER TABLE `{{targetSchema}}`.`gcd_story_credit` ADD `issue_id` INT(11) DEFAULT NULL AFTER `story_id`;
+ALTER TABLE `{{targetSchema}}`.`gcd_story_credit` ADD `issue_id` INT(11) DEFAULT NULL;
 ALTER TABLE `{{targetSchema}}`.`gcd_story_credit` ADD `series_id` INT(11) DEFAULT NULL AFTER `issue_id`;
 ALTER TABLE `{{targetSchema}}`.`gcd_story_credit` ADD FOREIGN KEY (`issue_id`) REFERENCES `{{targetSchema}}`.`gcd_issue`(`id`);
 ALTER TABLE `{{targetSchema}}`.`gcd_story_credit` ADD FOREIGN KEY (`series_id`) REFERENCES `{{targetSchema}}`.`gcd_series`(`id`);

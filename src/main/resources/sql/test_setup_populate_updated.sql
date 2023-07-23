@@ -177,6 +177,7 @@ UPDATE `{{targetSchema}}`.`gcd_indicia_publisher` SET `modified` = '2023-06-01 1
 UPDATE `{{targetSchema}}`.`gcd_issue` SET `modified` = '2023-06-01 19:56:37' WHERE `id` = 1;
 UPDATE `{{targetSchema}}`.`gcd_series_bond` SET `modified` = '2023-06-01 19:56:37' WHERE `id` = 1;
 UPDATE `{{targetSchema}}`.`gcd_story` SET `modified` = '2023-06-01 19:56:37' WHERE `id` = 1;
+UPDATE `{{targetSchema}}`.`gcd_story` SET `characters` = 'Doom Patrol [Crazy Jane [Kay Challis]; Robotman [Cliff Steele]; Dorothy Spinner; Rebis [Larry Trainor]; Joshua Clay]; Danny the Street; Flex Mentallo (cameo, unnamed); Willoughby Kipling;' WHERE `id` = 1;
 UPDATE `{{targetSchema}}`.`gcd_story_credit` SET `modified` = '2023-06-01 19:56:37' WHERE `id` = 1;
 UPDATE `{{targetSchema}}`.`gcd_reprint` SET `modified` = '2023-06-01 19:56:37' WHERE `id` = 1;
 UPDATE `{{targetSchema}}`.`gcd_issue_credit` SET `modified` = '2023-06-01 19:56:37' WHERE `id` = 1;

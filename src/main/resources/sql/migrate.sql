@@ -8,8 +8,7 @@ WHERE new.id NOT IN (
         SELECT id
         FROM {{targetSchema}}.stddata_country
     )
-    OR new.code != old.code
-    OR new.name != old.name;
+    OR new.modified != old.modified;
 COMMIT;
 
 BEGIN;
@@ -309,6 +308,7 @@ COMMIT;
 
 BEGIN;
 SET FOREIGN_KEY_CHECKS = 0;
+
 REPLACE {{targetSchema}}.gcd_issue_credit
 SELECT new.*
 FROM {{sourceSchema}}.gcd_issue_credit new
@@ -366,127 +366,71 @@ WHERE (
             AND mc1.credit_type_id = mc2.credit_type_id
     ) = 0;
 
+# Copy m_character that are in sourceSchema but not in targetSchema;
 INSERT INTO {{targetSchema}}.m_character(name, alter_ego, publisher_id)
 SELECT mc1.name,
     mc1.alter_ego,
     mc1.publisher_id
 FROM {{sourceSchema}}.m_character mc1
 WHERE (
-        SELECT COUNT(*)
-        FROM {{targetSchema}}.m_character mc2
-        WHERE mc1.name = mc2.name
-            AND mc1.alter_ego = mc2.alter_ego
-            AND mc1.publisher_id = mc2.publisher_id
-    ) = 0;
+    SELECT COUNT(*)
+    FROM {{targetSchema}}.m_character mc2
+    WHERE mc1.name = mc2.name
+    AND (mc1.alter_ego = mc2.alter_ego OR (mc1.alter_ego IS NULL AND mc2.alter_ego IS NULL))
+    AND mc1.publisher_id = mc2.publisher_id) = 0;
+COMMIT;
 
+# add and set new_id column to m_character to the actual id in the targetSchema;
 BEGIN;
 SET FOREIGN_KEY_CHECKS = 0;
 ALTER TABLE {{sourceSchema}}.m_character
 ADD COLUMN new_id INTEGER;
-UPDATE {{sourceSchema}}.m_character new,
-    {{targetSchema}}.m_character old
+UPDATE {{sourceSchema}}.m_character new, {{targetSchema}}.m_character old
 SET new.new_id = old.id
 WHERE new.name = old.name
-    AND (
-        new.alter_ego = old.alter_ego
-        OR (
-            new.alter_ego IS NULL
-            AND old.alter_ego IS NULL
-        )
-    )
-    AND new.publisher_id = old.publisher_id;
-
-UPDATE {{sourceSchema}}.m_character_appearance,
-    {{sourceSchema}}.m_character
-SET character_id = m_character.new_id
-WHERE character_id = m_character.id;
-
-UPDATE {{sourceSchema}}.m_character
-SET id = new_id
-WHERE id != m_character.new_id;
-
+AND (new.alter_ego = old.alter_ego OR (new.alter_ego IS NULL AND old.alter_ego IS NULL))
+AND new.publisher_id = old.publisher_id;
 SET FOREIGN_KEY_CHECKS = 1;
-
 COMMIT;
 
-# Remove Duplicates
+BEGIN;
+SET FOREIGN_KEY_CHECKS = 0;
+# Remove Duplicates;
 DELETE nca
 FROM {{sourceSchema}}.m_character_appearance nca
-    INNER JOIN {{targetSchema}}.m_character_appearance oca ON oca.character_id = nca.character_id
-    AND oca.story_id = nca.story_id
-    AND (
-        (
-            oca.notes IS NULL
-            AND nca.notes IS NULL
-        )
-        OR (
-            oca.notes = nca.notes
-        )
-    )
-    AND (
-        (
-            oca.details IS NULL
-            AND nca.details IS NULL
-        )
-        OR (
-            oca.details = nca.details
-        )
-    )
-    AND (
-        (
-            oca.membership IS NULL
-            AND nca.membership IS NULL
-        )
-        OR (
-            oca.membership = nca.membership
-        )
-    );
+JOIN {{sourceSchema}}.m_character mc ON nca.character_id = mc.id
+INNER JOIN {{targetSchema}}.m_character_appearance oca ON oca.character_id = mc.new_id
+AND oca.story_id = nca.story_id
+AND ((oca.notes IS NULL AND nca.notes IS NULL) OR (oca.notes = nca.notes))
+AND ((oca.details IS NULL AND nca.details IS NULL) OR (oca.details = nca.details))
+AND ((oca.membership IS NULL AND nca.membership IS NULL) OR (oca.membership = nca.membership));
 
-DROP TEMPORARY TABLE IF EXISTS {{sourceSchema}}.mca_updates_only;
+DROP TABLE IF EXISTS {{sourceSchema}}.mca_updates_only;
 
-CREATE TEMPORARY TABLE {{sourceSchema}}.mca_updates_only AS
-SELECT *
+# Creates a table of existing m_character_appearance that have updates;
+CREATE TABLE {{sourceSchema}}.mca_updates_only AS
+SELECT new.*, mc.new_id as new_character_id
 FROM {{sourceSchema}}.m_character_appearance new
+JOIN {{sourceSchema}}.m_character mc ON new.character_id = mc.id
 WHERE (
-        SELECT COUNT(*)
-        FROM {{targetSchema}}.m_character_appearance old
-        WHERE new.character_id = old.character_id
-            AND new.story_id = old.story_id
-            AND (
-                (
-                    new.details IS NOT NULL
-                    AND old.details IS NULL
-                )
-                OR (
-                    new.details IS NOT NULL
-                    AND old.details IS NOT NULL
-                    AND new.details != old.details
-                )
-                OR (
-                    new.notes IS NOT NULL
-                    AND old.notes IS NULL
-                )
-                OR (
-                    new.notes IS NOT NULL
-                    AND old.notes IS NOT NULL
-                    AND new.notes != old.notes
-                )
-                OR (
-                    new.membership IS NOT NULL
-                    AND old.membership IS NULL
-                )
-                OR (
-                    new.membership IS NOT NULL
-                    AND old.membership IS NOT NULL
-                    AND new.membership != old.membership
-                )
-            )
-    ) > 0
-ORDER BY story_id,
-    character_id,
-    details,
-    notes,
-    membership;
+    SELECT COUNT(*)
+    FROM {{targetSchema}}.m_character_appearance old
+    WHERE mc.new_id = old.character_id
+    AND new.story_id = old.story_id
+    AND ((
+        (old.details IS NOT NULL AND old.details != '')
+        AND (new.details IS NOT NULL AND new.details != '')
+        AND (old.details != new.details)
+    ) OR (
+        (old.notes IS NOT NULL AND old.notes != '')
+        AND (new.notes IS NOT NULL AND new.notes != '')
+        AND (old.notes != new.notes)
+    ) OR (
+        (old.membership IS NOT NULL AND old.membership != '')
+        AND (new.membership IS NOT NULL AND new.membership != '')
+        AND (old.membership != new.membership)
+    ))
+) > 0;
 
 UPDATE {{sourceSchema}}.mca_updates_only upd
 SET id = (
@@ -494,16 +438,11 @@ SET id = (
         FROM {{targetSchema}}.m_character_appearance mca
         WHERE mca.story_id = upd.story_id
             AND mca.character_id = upd.character_id
-        ORDER BY story_id,
-            character_id,
-            details,
-            notes,
-            membership
         LIMIT 1
     );
 
 REPLACE INTO {{targetSchema}}.m_character_appearance
-SELECT *
+SELECT id, details, new_character_id, story_id, notes, membership, issue_id, series_id
 FROM {{sourceSchema}}.mca_updates_only;
 
 INSERT INTO {{targetSchema}}.m_character_appearance(
@@ -516,13 +455,14 @@ INSERT INTO {{targetSchema}}.m_character_appearance(
         series_id
     )
 SELECT mc1.details,
-    mc1.character_id,
+    mc.new_id,
     mc1.story_id,
     mc1.notes,
     mc1.membership,
     mc1.issue_id,
     mc1.series_id
 FROM {{sourceSchema}}.m_character_appearance mc1
+JOIN {{sourceSchema}}.m_character mc ON mc1.character_id = mc.id
 WHERE mc1.story_id IN (
         SELECT id
         FROM {{sourceSchema}}.good_story
