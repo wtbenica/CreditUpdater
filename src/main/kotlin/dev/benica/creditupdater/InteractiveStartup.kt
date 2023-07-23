@@ -30,9 +30,9 @@ class InteractiveStartup {
             println("Starting in interactive mode")
 
             // Prompt the user for the required information.
-            val databaseTask = prompt("(I)nitialize database or (M)igrate database?", "I").uppercase()
+            val databaseTask = prompt("Initialize database or Migrate database? (I/M)", "I").uppercase()
             if (databaseTask == "I") {
-                extractedType = when (prompt("(N)ew, C(h)aracters or C(r)edits", "n").uppercase()) {
+                extractedType = when (prompt("New, Characters or Credits? (N/H/R)", "N").uppercase()) {
                     "H" -> ExtractedType.CHARACTERS
                     "R" -> ExtractedType.CREDIT
                     else -> ExtractedType.NEW
@@ -69,9 +69,8 @@ class InteractiveStartup {
         }
 
         private fun prompt(message: String, default: String = ""): String {
-            println("$message${if (default.isNotBlank()) " [$default]" else ""}:")
+            println("$message${if (default.isNotBlank()) " [$default]" else ""}: ")
             val input = readlnOrNull()?.trim()
-            println("Got input: $input")
             return input.takeIf { it?.isNotBlank() == true } ?: default
         }
     }
