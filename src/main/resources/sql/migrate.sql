@@ -1,6 +1,5 @@
 # Migrate static table data;
 BEGIN;
-
 REPLACE {{targetSchema}}.stddata_country
 SELECT new.*
 FROM {{sourceSchema}}.stddata_country new
@@ -11,11 +10,9 @@ WHERE new.id NOT IN (
     )
     OR new.code != old.code
     OR new.name != old.name;
-
 COMMIT;
 
 BEGIN;
-
 REPLACE {{targetSchema}}.stddata_language
 SELECT new.*
 FROM {{sourceSchema}}.stddata_language new
@@ -24,10 +21,7 @@ WHERE new.id NOT IN (
         SELECT id
         FROM {{targetSchema}}.stddata_language
     )
-    OR new.code != old.code
-    OR new.name != old.name
-    OR new.native_name != old.native_name;
-
+    OR new.modified != old.modified;
 COMMIT;
 
 BEGIN;
@@ -40,17 +34,10 @@ WHERE new.id NOT IN (
         SELECT id
         FROM {{targetSchema}}.stddata_date
     )
-    OR new.day != old.day
-    OR new.day_uncertain != old.day_uncertain
-    OR new.month != old.month
-    OR new.month_uncertain != old.month_uncertain
-    OR new.year != old.year
-    OR new.year_uncertain != old.year_uncertain;
-
+    OR new.modified != old.modified;
 COMMIT;
 
 BEGIN;
-
 REPLACE {{targetSchema}}.gcd_series_publication_type
 SELECT new.*
 FROM {{sourceSchema}}.gcd_series_publication_type new
@@ -59,15 +46,11 @@ WHERE new.id NOT IN (
         SELECT id
         FROM {{targetSchema}}.gcd_series_publication_type
     )
-    OR new.name != old.name
-    OR new.notes != old.notes;
-
+    OR new.modified != old.modified;
 COMMIT;
 
 BEGIN;
-
 SET FOREIGN_KEY_CHECKS = 0;
-
 REPLACE {{targetSchema}}.gcd_brand
 SELECT new.*
 FROM {{sourceSchema}}.gcd_brand new
@@ -77,13 +60,10 @@ WHERE new.id NOT IN (
         FROM {{targetSchema}}.gcd_brand
     )
     OR new.modified != old.modified;
-
 SET FOREIGN_KEY_CHECKS = 1;
-
 COMMIT;
 
 BEGIN;
-
 REPLACE {{targetSchema}}.gcd_story_type
 SELECT new.*
 FROM {{sourceSchema}}.gcd_story_type new
@@ -92,13 +72,10 @@ WHERE new.id NOT IN (
         SELECT id
         FROM {{targetSchema}}.gcd_story_type
     )
-    OR new.name != old.name
-    OR new.sort_code != old.sort_code;
-
+    OR new.modified != old.modified;
 COMMIT;
 
 BEGIN;
-
 REPLACE {{targetSchema}}.gcd_name_type
 SELECT new.*
 FROM {{sourceSchema}}.gcd_name_type new
@@ -107,13 +84,10 @@ WHERE new.id NOT IN (
         SELECT id
         FROM {{targetSchema}}.gcd_name_type
     )
-    OR new.description != old.description
-    OR new.type != old.type;
-
+    OR new.modified != old.modified;
 COMMIT;
 
 BEGIN;
-
 REPLACE {{targetSchema}}.stddata_script
 SELECT new.*
 FROM {{sourceSchema}}.stddata_script new
@@ -122,14 +96,10 @@ WHERE new.id NOT IN (
         SELECT id
         FROM {{targetSchema}}.stddata_script
     )
-    OR new.name != old.name
-    OR new.code != old.code
-    OR new.number != old.number;
-
+    OR new.modified != old.modified;
 COMMIT;
 
 BEGIN;
-
 REPLACE {{targetSchema}}.gcd_credit_type
 SELECT new.*
 FROM {{sourceSchema}}.gcd_credit_type new
@@ -138,21 +108,15 @@ WHERE new.id NOT IN (
         SELECT id
         FROM {{targetSchema}}.gcd_credit_type
     )
-    OR new.name != old.name
-    OR new.sort_code != old.sort_code;
-
+    OR new.modified != old.modified;
 COMMIT;
 
 BEGIN;
-
 SET FOREIGN_KEY_CHECKS = 0;
-
 REPLACE {{targetSchema}}.gcd_publisher
 SELECT *
 FROM {{sourceSchema}}.migrate_publishers;
-
 SET FOREIGN_KEY_CHECKS = 1;
-
 COMMIT;
 
 # This transaction migrates data from the source schema gcd_series table to the target schema gcd_series tables.
@@ -192,25 +156,18 @@ SELECT *
 FROM {{sourceSchema}}.migrate_series;
 
 SET FOREIGN_KEY_CHECKS = 1;
-
 COMMIT;
 
 BEGIN;
-
 SET FOREIGN_KEY_CHECKS = 0;
-
 REPLACE {{targetSchema}}.gcd_indicia_publisher
 SELECT *
 FROM {{sourceSchema}}.migrate_indicia_publishers;
-
 SET FOREIGN_KEY_CHECKS = 1;
-
 COMMIT;
 
 BEGIN;
-
 SET FOREIGN_KEY_CHECKS = 0;
-
 CREATE TEMPORARY TABLE issues_fk_variant_ofs
 SELECT *
 FROM {{sourceSchema}}.migrate_issues
@@ -218,17 +175,13 @@ WHERE variant_of_id NOT IN (
         SELECT id
         FROM {{targetSchema}}.gcd_issue
     );
-
 REPLACE {{targetSchema}}.gcd_issue
 SELECT *
 FROM issues_fk_variant_ofs;
-
 REPLACE {{targetSchema}}.gcd_issue
 SELECT *
 FROM {{sourceSchema}}.migrate_issues;
-
 SET foreign_key_checks = 1;
-
 COMMIT;
 
 BEGIN;
@@ -275,9 +228,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;
 
 BEGIN;
-
 SET FOREIGN_KEY_CHECKS = 0;
-
 REPLACE {{targetSchema}}.gcd_creator
 SELECT new.*
 FROM {{sourceSchema}}.gcd_creator new
@@ -287,15 +238,11 @@ WHERE new.id NOT IN (
         FROM {{targetSchema}}.gcd_creator
     )
     OR new.modified != old.modified;
-
 SET FOREIGN_KEY_CHECKS = 1;
-
 COMMIT;
 
 BEGIN;
-
 SET FOREIGN_KEY_CHECKS = 0;
-
 REPLACE {{targetSchema}}.gcd_creator_name_detail
 SELECT new.*
 FROM {{sourceSchema}}.gcd_creator_name_detail new
@@ -305,15 +252,11 @@ WHERE new.id NOT IN (
         FROM {{targetSchema}}.gcd_creator_name_detail
     )
     OR new.modified != old.modified;
-
 SET FOREIGN_KEY_CHECKS = 1;
-
 COMMIT;
 
 BEGIN;
-
 SET FOREIGN_KEY_CHECKS = 0;
-
 REPLACE {{targetSchema}}.gcd_creator_signature
 SELECT new.*
 FROM {{sourceSchema}}.gcd_creator_signature new
@@ -323,22 +266,64 @@ WHERE new.id NOT IN (
         FROM {{targetSchema}}.gcd_creator_signature
     )
     OR new.modified != old.modified;
-
 SET FOREIGN_KEY_CHECKS = 1;
-
 COMMIT;
 
 BEGIN;
-
 SET FOREIGN_KEY_CHECKS = 0;
-
 REPLACE {{targetSchema}}.gcd_story_credit
 SELECT *
 FROM {{sourceSchema}}.migrate_story_credits;
-
 SET FOREIGN_KEY_CHECKS = 1;
-
 COMMIT;
+
+BEGIN;
+SET FOREIGN_KEY_CHECKS = 0;
+REPLACE {{targetSchema}}.gcd_reprint
+SELECT new.*
+FROM {{sourceSchema}}.gcd_reprint new
+    LEFT JOIN {{targetSchema}}.gcd_reprint old ON new.id = old.id
+WHERE new.origin_id in (
+    SELECT id
+    FROM {{sourceSchema}}.good_story
+)
+AND new.target_id in (
+    SELECT id
+    FROM {{sourceSchema}}.good_story
+)
+AND new.origin_issue_id in (
+    SELECT id
+    FROM {{sourceSchema}}.good_issue
+)
+AND new.target_issue_id in (
+    SELECT id
+    FROM {{sourceSchema}}.good_issue
+)
+AND (new.id NOT IN (
+        SELECT id
+        FROM {{targetSchema}}.gcd_reprint
+    )
+    OR new.modified != old.modified);
+SET FOREIGN_KEY_CHECKS = 1;
+COMMIT;
+
+BEGIN;
+SET FOREIGN_KEY_CHECKS = 0;
+REPLACE {{targetSchema}}.gcd_issue_credit
+SELECT new.*
+FROM {{sourceSchema}}.gcd_issue_credit new
+    LEFT JOIN {{targetSchema}}.gcd_issue_credit old ON new.id = old.id
+WHERE new.issue_id IN (
+    SELECT id
+    FROM {{sourceSchema}}.good_issue
+)
+AND (
+    new.id NOT IN (
+        SELECT id
+        FROM {{targetSchema}}.gcd_issue_credit
+    )
+    OR new.modified != old.modified
+);
 
 INSERT INTO {{targetSchema}}.m_story_credit(
         created,
@@ -395,12 +380,9 @@ WHERE (
     ) = 0;
 
 BEGIN;
-
 SET FOREIGN_KEY_CHECKS = 0;
-
 ALTER TABLE {{sourceSchema}}.m_character
 ADD COLUMN new_id INTEGER;
-
 UPDATE {{sourceSchema}}.m_character new,
     {{targetSchema}}.m_character old
 SET new.new_id = old.id

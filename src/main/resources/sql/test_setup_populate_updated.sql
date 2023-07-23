@@ -1,26 +1,26 @@
-INSERT IGNORE INTO {{targetSchema}}.stddata_country (id, code, name)
-VALUES (14, 'AU', 'Australia');
+INSERT IGNORE INTO {{targetSchema}}.stddata_country (id, code, name, modified)
+VALUES (14, 'AU', 'Australia', '2023-06-01 19:56:37');
 
-INSERT IGNORE INTO {{targetSchema}}.stddata_language (id, code, name, native_name)
-VALUES (22, 'de', 'German', 'Deutsch');
+INSERT IGNORE INTO {{targetSchema}}.stddata_language (id, code, name, native_name, modified)
+VALUES (22, 'de', 'German', 'Deutsch', '2023-06-01 19:56:37');
 
-INSERT IGNORE INTO {{targetSchema}}.stddata_date (id, year, month, day, year_uncertain, month_uncertain, day_uncertain)
-VALUES (4, 2000, 1, 1, 0, 0, 0);
+INSERT IGNORE INTO {{targetSchema}}.stddata_date (id, year, month, day, year_uncertain, month_uncertain, day_uncertain, modified)
+VALUES (4, 2000, 1, 1, 0, 0, 0, '2023-06-01 19:56:37');
 
-INSERT IGNORE INTO {{targetSchema}}.gcd_series_publication_type (id, name, notes)
-VALUES (4, 'limited series', 'A limited series is a comic book series with a set number of issues.');
+INSERT IGNORE INTO {{targetSchema}}.gcd_series_publication_type (id, name, notes, modified)
+VALUES (4, 'limited series', 'A limited series is a comic book series with a set number of issues.', '2023-06-01 19:56:37');
 
 INSERT IGNORE INTO {{targetSchema}}.gcd_brand (id, name, modified)
 VALUES (4, 'Vertigo', '2023-06-01 19:56:37');
 
-INSERT IGNORE INTO {{targetSchema}}.gcd_story_type (id, name, sort_code)
-VALUES (4, 'letters column', 4);
+INSERT IGNORE INTO {{targetSchema}}.gcd_story_type (id, name, sort_code, modified)
+VALUES (4, 'letters column', 4, '2023-06-01 19:56:37');
 
-INSERT IGNORE INTO {{targetSchema}}.gcd_name_type (id, description, type)
-VALUES (4, 'This is a pseudonym.', 'pseudonym');
+INSERT IGNORE INTO {{targetSchema}}.gcd_name_type (id, description, type, modified)
+VALUES (4, 'This is a pseudonym.', 'pseudonym', '2023-06-01 19:56:37');
 
-INSERT IGNORE INTO {{targetSchema}}.stddata_script (id, code, number, name)
-VALUES (7, 'Beng', 325, 'Bengali');
+INSERT IGNORE INTO {{targetSchema}}.stddata_script (id, code, number, name, modified)
+VALUES (7, 'Beng', 325, 'Bengali', '2023-06-01 19:56:37');
 
 INSERT IGNORE INTO {{targetSchema}}.gcd_creator_signature (id, name, modified)
 VALUES (4, 'Grant Morrison', '2023-06-01 19:56:37');
@@ -67,6 +67,15 @@ VALUES (9, 11, 1, 1, '2023-06-01 19:56:37'),
 # 8 - good old series origin, good new series target;
 INSERT IGNORE INTO `{{targetSchema}}`.`gcd_series_bond` (`id`, `origin_id`, `target_id`, `origin_issue_id`, `target_issue_id`, `modified`)
 VALUES (8, 1, 9, 1, 2, '2023-06-01 19:56:37');
+
+INSERT IGNORE INTO `{{targetSchema}}`.`gcd_creator` (`id`, `name`, `modified`)
+VALUES (9, 'Neil Gaiman', '2023-06-01 19:56:37'),
+(10, 'Jonathan Hickman', '2023-06-01 19:56:37');
+
+INSERT IGNORE INTO `{{targetSchema}}`.`gcd_creator_name_detail` (`id`, `name`, `creator_id`, `modified`)
+VALUES (9, 'Grant T. Morrison', 1, '2023-06-01 19:56:37'),
+    (10, 'Neil Richard Gaiman', 9, '2023-06-01 19:56:37'),
+    (11, 'Jonathan Hickman', 10, '2023-06-01 19:56:37');
 
 INSERT IGNORE INTO `{{targetSchema}}`.`gcd_story` (
         `id`,
@@ -140,10 +149,12 @@ VALUES (11, 4, 1, 8, '2023-06-01 19:56:37'),
     (13, 3, 4, 10, '2023-06-01 19:56:37'),
     (14, 3, 6, 11, '2023-06-01 19:56:37');
 
-# 3 - good - old series origin, new series target;
-# 4 - bad origin_id;
-# 5 - bad target_id and origin_id;
-# 6, 7 - bad origin_issue_id and target_issue_id;
+# 8 - GOOD new target id;
+# 9 - BAD bad origin id;
+# 10 - BAD bad new target id;
+# 11 - BAD good new origin and target ids and bad issue ids;
+# 12 - GOOD new issue ids;
+# 13 - BAD bad new issue ids;
 INSERT IGNORE INTO `{{targetSchema}}`.`gcd_reprint` (`id`, `origin_id`, `target_id`, `origin_issue_id`, `target_issue_id`, `modified`)
 VALUES (8, 1, 9, 1, 2, '2023-06-01 19:56:37'),
     (9, 3, 9, 3, 4, '2023-06-01 19:56:37'),
@@ -152,6 +163,8 @@ VALUES (8, 1, 9, 1, 2, '2023-06-01 19:56:37'),
     (12, 1, 2, 9, 10, '2023-06-01 19:56:37'),
     (13, 1, 2, 11, 12, '2023-06-01 19:56:37');
 
+# 8, 9 - GOOD;
+# 10, 11 - BAD;
 INSERT IGNORE INTO `{{targetSchema}}`.`gcd_issue_credit` (`id`, `creator_id`, `credit_type_id`, `issue_id`, `modified`)
 VALUES (8, 8, 2, 9, '2023-06-01 19:56:37'),
     (9, 7, 3, 10, '2023-06-01 19:56:37'),
@@ -167,7 +180,7 @@ UPDATE `{{targetSchema}}`.`gcd_story` SET `modified` = '2023-06-01 19:56:37' WHE
 UPDATE `{{targetSchema}}`.`gcd_story_credit` SET `modified` = '2023-06-01 19:56:37' WHERE `id` = 1;
 UPDATE `{{targetSchema}}`.`gcd_reprint` SET `modified` = '2023-06-01 19:56:37' WHERE `id` = 1;
 UPDATE `{{targetSchema}}`.`gcd_issue_credit` SET `modified` = '2023-06-01 19:56:37' WHERE `id` = 1;
-
-
+UPDATE `{{targetSchema}}`.`gcd_creator` SET `modified` = '2023-06-01 19:56:37' WHERE `id` = 1;
+UPDATE `{{targetSchema}}`.`gcd_creator_name_detail` SET `modified` = '2023-06-01 19:56:37' WHERE `id` = 1;
 
 
