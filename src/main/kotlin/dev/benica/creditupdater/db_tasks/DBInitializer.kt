@@ -1,12 +1,13 @@
 package dev.benica.creditupdater.db_tasks
 
-import dev.benica.creditupdater.Credentials.Companion.ISSUE_SERIES_PATH
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
+import dev.benica.creditupdater.db.ConnectionProvider
 import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.di.*
 import kotlinx.coroutines.*
 import mu.KLogger
 import mu.KotlinLogging
+import java.io.File
 import java.sql.Connection
 import java.sql.SQLException
 import javax.inject.Inject
@@ -38,20 +39,14 @@ class DBInitializer(
     @Named("IO")
     internal lateinit var ioDispatcher: CoroutineDispatcher
 
-    @Inject
-    internal lateinit var connectionSource: ConnectionSource
-
     // Private properties
     private val logger: KLogger
         get() = KotlinLogging.logger(this::class.java.simpleName)
 
     private val dbTask: DBTask = DBTask(targetSchema)
 
-    private val conn: Connection
-
     init {
         dispatcherComponent.inject(this)
-        conn = connectionSource.getConnection(targetSchema).connection
     }
 
 
@@ -65,118 +60,172 @@ class DBInitializer(
      */
     @Throws(SQLException::class)
     suspend fun prepareDb() {
+        val queryExecutor = QueryExecutor()
+
         withContext(ioDispatcher) {
-            try {
-                logger.info { "Updating $targetSchema" }
+            ConnectionProvider.getConnection(targetSchema).connection.use { conn ->
+                try {
+                    logger.info { "Updating $targetSchema" }
 
-                if (startAtStep == 1) {
-                    logger.info { "Starting Table Updates..." }
-                    dropIsSourcedAndSourcedByColumns()
-                    DBInitAddTables(
-                        queryExecutor = QueryExecutor(targetSchema),
-                        targetSchema = targetSchema,
-                        conn = conn
-                    ).addTablesAndConstraints()
+                    if (startAtStep <= 1) {
+                        logger.info { "Starting Table Updates..." }
+                        dropUnusedTables(
+                            queryExecutor = queryExecutor,
+                            targetSchema = targetSchema,
+                            conn = conn
+                        )
+                        // step 1A
+                        dropIsSourcedAndSourcedByColumns(queryExecutor, targetSchema, conn)
 
-                    DBInitCreateDeleteViews(
-                        queryExecutor = QueryExecutor(targetSchema),
-                        targetSchema = targetSchema,
-                        conn = conn
-                    ).createDeleteViews()
+                        // step 1B
+                        DBInitAddTables(
+                            queryExecutor = QueryExecutor(),
+                            targetSchema = targetSchema,
+                            conn = conn
+                        ).addTablesAndConstraints()
 
-                    removeUnnecessaryRecords()
+                        // step 1C
+                        createDeleteViews(
+                            queryExecutor = queryExecutor,
+                            targetSchema = targetSchema,
+                            conn = conn
+                        )
+
+                        // step 1D
+                        removeUnnecessaryRecords(
+                            queryExecutor = queryExecutor,
+                            targetSchema = targetSchema,
+                            conn = conn
+                        )
+                    }
+
+                    if (startAtStep <= 2) {
+                        logger.info { "Starting Character Updates..." }
+                        dbTask.extractCharactersAndAppearances(
+                            schema = targetSchema,
+                            initial = true,
+                            startingId = startingId,
+                        )
+                    }
+
+                    if (startAtStep <= 3) {
+                        logger.info { "Starting Credit Updates..." }
+                        dbTask.extractCredits(
+                            schema = targetSchema,
+                            initial = true,
+                            startingId = startingId.takeIf { startAtStep == 3 },
+                        )
+                    }
+
+                    if (startAtStep <= 4) {
+                        logger.info { "Starting foreign key updates" }
+                        addIssueSeriesColumnsAndConstraints(
+                            queryExecutor = queryExecutor,
+                            targetSchema = targetSchema,
+                            conn = conn
+                        )
+                    }
+
+                    logger.info { "Successfully updated $targetSchema" }
+                } catch (sqlEx: SQLException) {
+                    logger.error { "Failed to update $targetSchema" }
+                    logger.error { sqlEx.message }
+                    logger.error { sqlEx.stackTrace }
+                    throw sqlEx
                 }
-
-                if (startAtStep <= 2) {
-                    logger.info { "Starting Character Updates..." }
-                    dbTask.extractCharactersAndAppearances(
-                        schema = targetSchema,
-                        initial = true,
-                        startingId = startingId,
-                    )
-                }
-
-                if (startAtStep <= 3) {
-                    logger.info { "Starting Credit Updates..." }
-                    dbTask.extractCredits(
-                        schema = targetSchema,
-                        initial = true,
-                        startingId = startingId.takeIf { startAtStep == 3 },
-                    )
-                }
-
-                if (startAtStep <= 4) {
-                    logger.info { "Starting foreign key updates" }
-                    addIssueSeriesColumnsAndConstraints()
-                }
-
-                logger.info { "Successfully updated $targetSchema" }
-            } catch (sqlEx: SQLException) {
-                logger.error { "Failed to update $targetSchema" }
-                logger.error { sqlEx.message }
-                logger.error { sqlEx.stackTrace }
-                throw sqlEx
             }
         }
     }
 
-    /**
-     * Drop is sourced and sourced by columns - this function drops the
-     * 'is_sourced' and 'sourced_by' columns from the 'gcd_story_credit' table.
-     * These columns have been added to the GCD, but are not needed by Infinite
-     * Longbox.
-     *
-     * @throws SQLException
-     */
-    @Throws(SQLException::class)
-    private fun dropIsSourcedAndSourcedByColumns() {
-        dbTask.executeSqlStatement(
-            """ALTER TABLE $targetSchema.gcd_story_credit
-                DROP COLUMN IF EXISTS is_sourced,
-                DROP COLUMN IF EXISTS sourced_by;
-            """.trimIndent()
-        )
-    }
-
-    /**
-     * Shrink database - this function shrinks the database by removing a bunch
-     * of records: Non-US/Canadian publishers, non-English languages, and
-     * pre-1900 stories.
-     *
-     * @throws SQLException
-     */
-    @Throws(SQLException::class)
-    private fun removeUnnecessaryRecords() {
-        dbTask.runSqlScript(sqlScriptPath = INIT_REMOVE_ITEMS)
-    }
-
-    /**
-     * Add issue series to credits - this function adds the 'issue' and
-     * 'series' columns to the 'gcd_story_credit', 'm_story_credit', and
-     * 'm_character_appearance' tables. It also adds the appropriate foreign
-     * key constraints to the 'gcd_story_credit', 'm_character_appearance', and
-     * 'm_story_credit' tables.
-     *
-     * @throws SQLException
-     */
-    @Throws(SQLException::class)
-    private fun addIssueSeriesColumnsAndConstraints() =
-        dbTask.runSqlScript(sqlScriptPath = ISSUE_SERIES_PATH, runAsTransaction = true)
-
     companion object {
         /**
-         * This script creates several views that filter out records from the
-         * database based on certain criteria. These views are then used to delete
-         * records from various tables in the database. The script also updates
-         * some records in the gcd_issue and gcd_series tables by setting their
-         * variant_of_id, first_issue_id, and last_issue_id fields to NULL.
-         * Finally, the script deletes records from the gcd_indicia_publisher,
-         * gcd_brand_group, gcd_brand_emblem_group, gcd_brand_use, and
-         * gcd_publisher tables based on certain criteria. Overall, this script is
-         * used to limit the records in the database based on certain criteria.
+         * Target Schema:
+         * - Adds the 'issue' and 'series' columns to the 'gcd_story_credit',
+         *   'm_story_credit', and 'm_character_appearance' tables.
+         * - Removes any m_character_appearances whose story is missing an issue_id
+         * - Adds NOT NULL constraints to the 'issue' and 'series' columns in the
+         *   'gcd_story_credit', 'm_story_credit', and 'm_character_appearance'
+         *   tables.
          */
+        const val ISSUE_SERIES_PATH = "src/main/resources/sql/init_add_issue_series_to_credits.sql"
         const val INIT_REMOVE_ITEMS = "src/main/resources/sql/init_remove_items.sql"
+        const val INIT_DROP_UNUSED_TABLES = "src/main/resources/sql/init_drop_unused_tables.sql"
 
+        /**
+         * Target Schema:
+         * - Creates views `bad_publishers`, `bad_indicia_publishers`,
+         *   `bad_series`, `bad_issues`, and `bad_stories`.
+         */
+        const val INIT_CREATE_BAD_VIEWS = "src/main/resources/sql/init_create_bad_views.sql"
+
+        /**
+         * Drop is sourced and sourced by columns - this function drops the
+         * 'is_sourced' and 'sourced_by' columns from the 'gcd_story_credit' table.
+         * These columns have been added to the GCD, but are not needed by Infinite
+         * Longbox.
+         *
+         * @throws SQLException
+         */
+        @Throws(SQLException::class)
+        internal fun dropIsSourcedAndSourcedByColumns(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
+            queryExecutor.executeSqlStatement(
+                sqlStmt = """ALTER TABLE $targetSchema.gcd_story_credit
+                                DROP COLUMN IF EXISTS is_sourced,
+                                DROP COLUMN IF EXISTS sourced_by;
+                            """.trimIndent(),
+                connection = conn
+            )
+
+        internal fun createDeleteViews(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
+            queryExecutor.executeSqlScript(
+                sqlScript = File(INIT_CREATE_BAD_VIEWS),
+                conn = conn,
+                targetSchema = targetSchema
+            )
+
+        internal fun dropUnusedTables(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
+            queryExecutor.executeSqlScript(
+                sqlScript = File(INIT_DROP_UNUSED_TABLES),
+                conn = conn,
+                targetSchema = targetSchema
+            )
+
+        /**
+         * Shrink database - this function shrinks the database by removing a bunch
+         * of records: Non-US/Canadian publishers, non-English languages, and
+         * pre-1900 stories.
+         *
+         * @throws SQLException
+         */
+        @Throws(SQLException::class)
+        internal fun removeUnnecessaryRecords(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
+            queryExecutor.executeSqlScript(
+                sqlScript = File(INIT_REMOVE_ITEMS),
+                conn = conn,
+                targetSchema = targetSchema
+            )
+
+
+        /**
+         * Adds the 'issue' and 'series' columns to the 'gcd_story_credit',
+         * 'm_story_credit', and 'm_character_appearance' tables. It also adds
+         * the appropriate foreign key constraints to the 'gcd_story_credit',
+         * 'm_character_appearance', and 'm_story_credit' tables.
+         *
+         * @throws SQLException
+         */
+        @Throws(SQLException::class)
+        internal fun addIssueSeriesColumnsAndConstraints(
+            queryExecutor: QueryExecutor,
+            targetSchema: String,
+            conn: Connection
+        ) =
+            queryExecutor.executeSqlScript(
+                sqlScript = File(ISSUE_SERIES_PATH),
+                runAsTransaction = true,
+                conn = conn,
+                targetSchema = targetSchema
+            )
     }
 }
 

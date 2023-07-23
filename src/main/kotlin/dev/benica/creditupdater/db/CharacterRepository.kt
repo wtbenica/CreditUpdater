@@ -3,46 +3,24 @@ package dev.benica.creditupdater.db
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
 import dev.benica.creditupdater.di.*
 import dev.benica.creditupdater.models.Appearance
-import mu.KLogger
-import mu.KotlinLogging
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.SQLException
 import java.sql.Statement.RETURN_GENERATED_KEYS
-import javax.inject.Inject
 
 /**
- * Character repository - provides methods for inserting and looking up
- * characters and character appearances in the 'm_character' and
+ * Character repository - provides methods for inserting and looking
+ * up characters and character appearances in the 'm_character' and
  * 'm_character_appearance' tables.
  *
- * @param targetSchema the database to which to write the extracted character
- *     and appearance data.
+ * @param targetSchema the database to which to write the extracted
+ *     character and appearance data.
  * @note The caller is responsible for closing the repository.
  */
 class CharacterRepository(
     private val targetSchema: String,
-    databaseComponent: DatabaseComponent? = DaggerDatabaseComponent.create(),
-    private val queryExecutor: QueryExecutor = QueryExecutor(targetSchema)
-) : Repository, AutoCloseable {
-    // Dependencies
-    @Inject
-    internal lateinit var connectionSource: ConnectionSource
-
-    // Private Properties
-    internal lateinit var conn: Connection
-
-    init {
-        if (databaseComponent != null) {
-            databaseComponent.inject(this)
-            conn = connectionSource.getConnection(targetSchema).connection
-        }
-    }
-
-    // Private Properties
-    private val logger: KLogger
-        get() = KotlinLogging.logger(this::class.java.simpleName)
-
+    private val queryExecutor: QueryExecutor = QueryExecutor()
+) : Repository {
     // Public Methods
     /**
      * Gets the ID of a character with the given name, alter ego, and publisher
@@ -93,27 +71,22 @@ class CharacterRepository(
     }
 
     /** Insert character appearances - inserts [appearances] into [targetSchema] */
-    fun insertCharacterAppearances(appearances: Set<Appearance>) {
-        try {
-            val sql = """
+    fun insertCharacterAppearances(appearances: Set<Appearance>, conn: Connection) {
+        val sql = """
                INSERT IGNORE INTO $targetSchema.m_character_appearance(id, details, character_id, story_id, notes, membership)
                VALUES (?, ?, ?, ?, ?, ?)
             """.trimIndent()
 
-            queryExecutor.executePreparedStatementBatch(sql, conn = conn) { statement: PreparedStatement ->
-                appearances.forEach { appearance ->
-                    statement.setInt(1, appearance.id)
-                    statement.setString(2, appearance.details)
-                    statement.setInt(3, appearance.characterId)
-                    statement.setInt(4, appearance.storyId)
-                    statement.setString(5, appearance.notes)
-                    statement.setString(6, appearance.membership)
-                    statement.addBatch()
-                }
+        queryExecutor.executePreparedStatementBatch(sql, conn = conn) { statement: PreparedStatement ->
+            appearances.forEach { appearance ->
+                statement.setInt(1, appearance.id)
+                statement.setString(2, appearance.details)
+                statement.setInt(3, appearance.characterId)
+                statement.setInt(4, appearance.storyId)
+                statement.setString(5, appearance.notes)
+                statement.setString(6, appearance.membership)
+                statement.addBatch()
             }
-        } catch (e: SQLException) {
-            logger.error("Error inserting character appearances", e)
-            throw e
         }
     }
 
@@ -139,9 +112,12 @@ class CharacterRepository(
            INSERT INTO ${targetSchema}.m_character(name, alter_ego, publisher_id)
            VALUE (?, ?, ?)
         """
-
-        queryExecutor.executePreparedStatementBatch(sql, RETURN_GENERATED_KEYS, conn = conn) { s: PreparedStatement ->
-            try {
+        ConnectionProvider.getConnection(targetSchema).connection.use { conn ->
+            queryExecutor.executePreparedStatementBatch(
+                sql,
+                RETURN_GENERATED_KEYS,
+                conn = conn
+            ) { s: PreparedStatement ->
                 s.setString(1, truncatedName)
                 s.setString(2, alterEgo)
                 s.setInt(3, publisherId)
@@ -152,9 +128,6 @@ class CharacterRepository(
                 if (genKeys?.next() == true) {
                     characterId = genKeys.getInt("GENERATED_KEY")
                 }
-            } catch (e: SQLException) {
-                logger.error("Error inserting character $name", e)
-                throw e
             }
         }
 
@@ -189,8 +162,7 @@ class CharacterRepository(
             targetSchema
         }
 
-        try {
-            val getCharacterSql = """
+        val getCharacterSql = """
             SELECT *
             FROM $db.m_character mc
             WHERE mc.name = ?
@@ -198,6 +170,7 @@ class CharacterRepository(
             AND mc.alter_ego ${if (alterEgo == null) "IS NULL" else "= ?"}
         """
 
+        ConnectionProvider.getConnection(targetSchema).connection.use { conn ->
             queryExecutor.executePreparedStatementBatch(getCharacterSql, conn = conn) { statement ->
                 statement.setString(1, name)
                 statement.setInt(2, publisherId)
@@ -222,14 +195,8 @@ class CharacterRepository(
                         checkPrimary = false
                     )
             }
-        } catch (sqlEx: SQLException) {
-            logger.error("Error looking up character", sqlEx)
-            throw sqlEx
         }
-        return characterId
-    }
 
-    override fun close() {
-        conn.close()
+        return characterId
     }
 }

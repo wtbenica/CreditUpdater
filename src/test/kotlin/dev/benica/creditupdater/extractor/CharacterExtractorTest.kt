@@ -1,10 +1,8 @@
 package dev.benica.creditupdater.extractor
 
-import com.zaxxer.hikari.HikariDataSource
+import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
 import dev.benica.creditupdater.db.CharacterRepositoryTest
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
-import dev.benica.creditupdater.di.ConnectionSource
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import dev.benica.creditupdater.extractor.CharacterExtractor.*
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
@@ -15,22 +13,14 @@ import java.sql.ResultSet
 import java.sql.SQLException
 
 class CharacterExtractorTest {
-    private lateinit var connectionSource: ConnectionSource
-    private lateinit var dataSource: HikariDataSource
     private lateinit var connection: Connection
     private lateinit var characterExtractor: CharacterExtractor
 
     @BeforeEach
     fun setUp() {
-        connectionSource = mock<ConnectionSource>()
-        dataSource = mock<HikariDataSource>()
         connection = mock<Connection>()
 
-        whenever(connectionSource.getConnection(TEST_DATABASE_CHAR_EXTRACTOR)).thenReturn(dataSource)
-        whenever(dataSource.connection).thenReturn(connection)
-
-
-        characterExtractor = CharacterExtractor(TEST_DATABASE_CHAR_EXTRACTOR)
+        characterExtractor = CharacterExtractor(TEST_DATABASE)
 
         conn.createStatement().use {
             it.execute("TRUNCATE TABLE m_character_appearance")
@@ -46,7 +36,7 @@ class CharacterExtractorTest {
         whenever(resultSet.getString("characters")).thenReturn("Batman [Bruce Wayne] (cameo); Robin; Joker")
         whenever(resultSet.getInt("publisher_id")).thenReturn(2)
 
-        val result = characterExtractor.extractAndInsert(resultSet)
+        val result = characterExtractor.extractAndInsert(resultSet, conn)
 
         assertEquals(1, result)
 
@@ -99,7 +89,7 @@ class CharacterExtractorTest {
         whenever(resultSet.getString("characters")).thenReturn("Batman [Bruce Wayne]; Justice League of America [Superman [Clark Kent]; Green Lantern [Hal Jordan]; The Flash [Barry Allen]; Aquaman [Arthur Curry]; Martian Manhunter [J'onn J'onzz]];")
         whenever(resultSet.getInt("publisher_id")).thenReturn(2)
 
-        val result = characterExtractor.extractAndInsert(resultSet)
+        val result = characterExtractor.extractAndInsert(resultSet, conn)
 
         assertEquals(1, result)
 
@@ -145,24 +135,22 @@ class CharacterExtractorTest {
 
         whenever(resultSet.getInt("id")).thenThrow(SQLException("test exception"))
 
-        assertThrows<SQLException> { characterExtractor.extractAndInsert(resultSet) }
+        assertThrows<SQLException> { characterExtractor.extractAndInsert(resultSet, conn) }
     }
 
     companion object {
-        internal const val TEST_DATABASE_CHAR_EXTRACTOR = "credit_updater_test_char_extractor"
-        internal lateinit var conn: Connection
+        private lateinit var conn: Connection
 
         @BeforeAll
         @JvmStatic
         fun setUpDb() {
-            conn = getDbConnection(TEST_DATABASE_CHAR_EXTRACTOR)
+            conn = getTestDbConnection()
             CharacterRepositoryTest.setUpDatabase(conn)
         }
 
         @AfterAll
         @JvmStatic
-        fun breakDown() {
-            dropAllTables(conn, TEST_DATABASE_CHAR_EXTRACTOR)
+        fun tearDownDb() {
             conn.close()
         }
     }

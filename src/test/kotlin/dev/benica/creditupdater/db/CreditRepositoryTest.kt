@@ -1,23 +1,20 @@
 package dev.benica.creditupdater.db
 
-import com.zaxxer.hikari.HikariDataSource
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTables
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
-import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.setup
-import dev.benica.creditupdater.di.ConnectionSource
+import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.*
 import org.mockito.kotlin.*
 import java.sql.*
 
 /** Credit Repository Test - tests the CreditRepository class */
 class CreditRepositoryTest {
-
     /** Function to test: createOrUpdateStoryCredit */
     @Test
     @DisplayName("should insert new story credit if one does not exist")
     fun shouldInsertNewStoryCreditIfOneDoesNotExist() {
         // Arrange
-        val creditRepository = CreditRepository(TEST_DATABASE_CREDIT_REPO)
+        val creditRepository = CreditRepository(TEST_DATABASE)
         val extractedName = "Grant Morrison"
         val storyId = 1
         val roleId = 1
@@ -41,12 +38,12 @@ class CreditRepositoryTest {
             statement.setInt(3, roleId)
 
             statement.executeQuery().use { resultSet ->
-                assert(!resultSet.next())
+                assertFalse(resultSet.next())
             }
         }
 
         // Act
-        creditRepository.createOrUpdateStoryCredit(extractedName, storyId, roleId)
+        creditRepository.insertStoryCreditIfNotExists(extractedName, storyId, roleId, conn)
 
         // Assert that the story credit was inserted
         conn.prepareStatement(
@@ -67,16 +64,20 @@ class CreditRepositoryTest {
             statement.setInt(3, roleId)
 
             statement.executeQuery().use { resultSet ->
-                assert(resultSet.next())
+                assertTrue(resultSet.next())
+                assertEquals(1, resultSet.getInt("creator_id"))
+                assertEquals(storyId, resultSet.getInt("story_id"))
+                assertEquals(roleId, resultSet.getInt("credit_type_id"))
+                assertFalse(resultSet.next())
             }
         }
     }
 
     @Test
-    @DisplayName("createOrUpdateStoryCredit() should update existing story credit if one exists in gcd_story_credit")
-    fun shouldUpdateExistingStoryCreditInGcdStoryCredit() {
+    @DisplayName("should not insert new story credit if one exists in gcd_story_credit")
+    fun shouldNotChangeIfStoryCreditExistsInGcdStoryCredit() {
         // Arrange
-        val creditRepository = CreditRepository(TEST_DATABASE_CREDIT_REPO)
+        val creditRepository = CreditRepository(TEST_DATABASE)
         val extractedName = "Frank Quitely"
         val roleId = 2
         val storyId = 1
@@ -100,14 +101,15 @@ class CreditRepositoryTest {
             statement.setInt(3, roleId)
 
             statement.executeQuery().use { resultSet ->
-                assert(resultSet.next())
+                assertTrue(resultSet.next())
             }
         }
 
-        // Act
-        creditRepository.createOrUpdateStoryCredit(extractedName, storyId, roleId)
 
-        // Assert that the story credit was updated
+        // Act
+        creditRepository.insertStoryCreditIfNotExists(extractedName, storyId, roleId, conn)
+
+        // Assert that the story credit still exists in gcd_story_credit unchanged
         conn.prepareStatement(
             """
                 SELECT * 
@@ -126,21 +128,70 @@ class CreditRepositoryTest {
             statement.setInt(3, roleId)
 
             statement.executeQuery().use { resultSet ->
-                assert(resultSet.next())
+                assertTrue(resultSet.next())
+            }
+        }
+
+        // Assert that the story credit was not inserted into m_story_credit
+        conn.prepareStatement(
+            """
+                SELECT * 
+                FROM m_story_credit sc
+                WHERE sc.creator_id = (
+                    SELECT gcnd.id
+                    FROM gcd_creator_name_detail gcnd
+                    WHERE gcnd.name = ?
+                )
+                AND sc.story_id = ?
+                AND sc.credit_type_id = ?
+                """.trimIndent()
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
+
+            statement.executeQuery().use { resultSet ->
+                assertFalse(resultSet.next())
             }
         }
     }
 
     @Test
-    @DisplayName("createOrUpdateStoryCredit() should update existing story credit if one exists in m_story_credit")
-    fun shouldUpdateExistingStoryCreditInMStoryCredit() {
+    @DisplayName("should not insert new story credit if one exists in m_story_credit")
+    fun shouldReturnExistingStoryCreditInMStoryCredit() {
         // Arrange
-        val creditRepository = CreditRepository(TEST_DATABASE_CREDIT_REPO)
+        val creditRepository = CreditRepository(TEST_DATABASE)
+        val id = 2
         val extractedName = "Frank Quitely"
-        val roleId = 2
-        val storyId = 2
+        val storyId = 1
+        val roleId = 1
+        val modified = Timestamp.valueOf("2021-01-01 00:00:00")
 
-        // verify that the story credit exists in gcd_story_credit
+        // insert a new story credit into m_story_credit
+        conn.prepareStatement(
+            """
+                INSERT INTO m_story_credit (id, creator_id, story_id, credit_type_id, modified)
+                VALUES (
+                    ?,
+                    (SELECT gcnd.id
+                    FROM gcd_creator_name_detail gcnd
+                    WHERE gcnd.name = ?),
+                    ?,
+                    ?,
+                    ?
+                )
+                """.trimIndent()
+        ).use { statement ->
+            statement.setInt(1, id)
+            statement.setString(2, extractedName)
+            statement.setInt(3, storyId)
+            statement.setInt(4, roleId)
+            statement.setTimestamp(5, modified)
+
+            statement.executeUpdate()
+        }
+
+        // verify that the story credit exists in m_story_credit
         conn.prepareStatement(
             """
                 SELECT * 
@@ -159,14 +210,37 @@ class CreditRepositoryTest {
             statement.setInt(3, roleId)
 
             statement.executeQuery().use { resultSet ->
-                assert(resultSet.next())
+                assertTrue(resultSet.next())
+            }
+        }
+
+        // verify that the story credit dne in gcd_story_credit
+        conn.prepareStatement(
+            """
+                SELECT * 
+                FROM gcd_story_credit sc
+                WHERE sc.creator_id = (
+                    SELECT gcnd.id
+                    FROM gcd_creator_name_detail gcnd
+                    WHERE gcnd.name = ?
+                )
+                AND sc.story_id = ?
+                AND sc.credit_type_id = ?
+                """.trimIndent()
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
+
+            statement.executeQuery().use { resultSet ->
+                assertFalse(resultSet.next())
             }
         }
 
         // Act
-        creditRepository.createOrUpdateStoryCredit(extractedName, storyId, roleId)
+        creditRepository.insertStoryCreditIfNotExists(extractedName, storyId, roleId, conn)
 
-        // Assert that the story credit was updated
+        // Assert that the story credit in m_story_credit is unchanged
         conn.prepareStatement(
             """
                 SELECT * 
@@ -185,7 +259,30 @@ class CreditRepositoryTest {
             statement.setInt(3, roleId)
 
             statement.executeQuery().use { resultSet ->
-                assert(resultSet.next())
+                assertTrue(resultSet.next())
+            }
+        }
+
+        // Assert that the story credit was not inserted into gcd_story_credit
+        conn.prepareStatement(
+            """
+                SELECT * 
+                FROM gcd_story_credit sc
+                WHERE sc.creator_id = (
+                    SELECT gcnd.id
+                    FROM gcd_creator_name_detail gcnd
+                    WHERE gcnd.name = ?
+                )
+                AND sc.story_id = ?
+                AND sc.credit_type_id = ?
+                """.trimIndent()
+        ).use { statement ->
+            statement.setString(1, extractedName)
+            statement.setInt(2, storyId)
+            statement.setInt(3, roleId)
+
+            statement.executeQuery().use { resultSet ->
+                assertFalse(resultSet.next())
             }
         }
     }
@@ -195,28 +292,28 @@ class CreditRepositoryTest {
     @DisplayName("should return the gcd_creator_name_detail id if found, null otherwise")
     fun shouldReturnTheGcdCreatorNameDetailIdIfFoundNullOtherwise() {
         // Arrange
-        val creditRepository = CreditRepository(TEST_DATABASE_CREDIT_REPO)
+        val creditRepository = CreditRepository(TEST_DATABASE)
         val extractedName = "Grant Morrison"
 
         // Act
-        val gcndId = creditRepository.lookupGcndId(extractedName)
+        val gcndId = creditRepository.lookupGcndId(extractedName, conn)
 
         // Assert
-        assert(gcndId == 1)
+        assertTrue(gcndId == 1)
     }
 
     @Test
     @DisplayName("should return null if the gcd_creator_name_detail id is not found")
     fun shouldReturnNullIfTheGcdCreatorNameDetailIdIsNotFound() {
         // Arrange
-        val creditRepository = CreditRepository(TEST_DATABASE_CREDIT_REPO)
+        val creditRepository = CreditRepository(TEST_DATABASE)
         val extractedName = "Bob"
 
         // Act
-        val gcndId = creditRepository.lookupGcndId(extractedName)
+        val gcndId = creditRepository.lookupGcndId(extractedName, conn)
 
         // Assert
-        assert(gcndId == null)
+        assertTrue(gcndId == null)
     }
 
     @Test
@@ -230,13 +327,13 @@ class CreditRepositoryTest {
 
         // Arrange
         val creditRepository = CreditRepository(
-            targetSchema = TEST_DATABASE_CREDIT_REPO,
+            targetSchema = TEST_DATABASE,
             queryExecutor = queryExecutorMock
         )
         val extractedName = "Grant Morrison"
 
         // Assert
-        assertThrows<SQLException> { creditRepository.lookupGcndId(extractedName) }
+        assertThrows<SQLException> { creditRepository.lookupGcndId(extractedName, conn) }
     }
 
     // lookupStoryCreditId
@@ -251,7 +348,7 @@ class CreditRepositoryTest {
 
         // Arrange
         val creditRepository = CreditRepository(
-            targetSchema = TEST_DATABASE_CREDIT_REPO,
+            targetSchema = TEST_DATABASE,
             queryExecutor = queryExecutorMock
         )
 
@@ -260,7 +357,7 @@ class CreditRepositoryTest {
         val roleId = 1
 
         // Assert
-        assertThrows<SQLException> { creditRepository.lookupStoryCreditId(extractedName, storyId, roleId) }
+        assertThrows<SQLException> { creditRepository.lookupStoryCreditId(extractedName, storyId, roleId, conn) }
     }
 
     @Test
@@ -273,56 +370,37 @@ class CreditRepositoryTest {
         ).thenAnswer { }.thenAnswer { throw SQLException("Test Exception") }
 
         // Arrange
-        val creditRepository = CreditRepository(TEST_DATABASE_CREDIT_REPO, queryExecutor = queryExecutorMock)
+        val creditRepository = CreditRepository(TEST_DATABASE, queryExecutor = queryExecutorMock)
         val extractedName = 1
         val storyId = 1
         val roleId = 1
 
         // Assert
-        assertThrows<SQLException> { creditRepository.lookupStoryCreditId(extractedName, storyId, roleId) }
+        assertThrows<SQLException> { creditRepository.lookupStoryCreditId(extractedName, storyId, roleId, conn) }
     }
 
-    @Test
-    @DisplayName("should call close() and conn.close() when used in try-with-resources")
-    fun shouldCallCloseAndConnCloseWhenUsedInTryWithResources() {
-        // Create the repository
-        val repoMock = spy(CreditRepository("mock", null))
-        val connectionSourceMock = mock<ConnectionSource>()
-        val hikariDataSourceMock = mock<HikariDataSource>()
-        val connectionMock = mock<Connection>()
-
-        repoMock.connectionSource = connectionSourceMock
-        repoMock.conn = connectionMock
-
-        whenever(repoMock.connectionSource).thenReturn(connectionSourceMock)
-        whenever(connectionSourceMock.getConnection(any())).thenReturn(hikariDataSourceMock)
-        whenever(hikariDataSourceMock.connection).thenReturn(connectionMock)
-        doCallRealMethod().whenever(repoMock).close()
-        doNothing().whenever(connectionMock).close()
-
-        // Use in try-with-resources
-        repoMock.use { }
-
-        // Verify that close() and conn.close() were called
-        verify(repoMock, times(1)).close()
-        verify(connectionMock, times(1)).close()
+    @BeforeEach
+    fun setup() {
+        TestDatabaseSetup.setup(
+            dbState = DBState.INIT_STEP_2_COMPLETE,
+            schema = TEST_DATABASE,
+            sourceSchema = null
+        )
     }
 
     companion object {
-        private const val TEST_DATABASE_CREDIT_REPO = "credit_updater_test_credit_repo"
         private lateinit var conn: Connection
 
         @BeforeAll
         @JvmStatic
         internal fun setupAll() {
-            setup(schema = TEST_DATABASE_CREDIT_REPO)
-            conn = getDbConnection(TEST_DATABASE_CREDIT_REPO)
+            conn = getTestDbConnection()
         }
 
         @AfterAll
         @JvmStatic
         internal fun teardownAll() {
-            dropAllTables(conn, TEST_DATABASE_CREDIT_REPO)
+            //TestDatabaseSetup.teardown(schema = TEST_DATABASE, conn = conn)
             conn.close()
         }
     }
