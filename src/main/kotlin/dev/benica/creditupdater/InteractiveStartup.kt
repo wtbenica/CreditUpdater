@@ -4,7 +4,6 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dev.benica.creditupdater.db.ExtractionProgressTracker
 import java.io.File
-import java.io.FileReader
 
 /**
  * This class is used to start the application in interactive mode.
@@ -33,10 +32,10 @@ class InteractiveStartup {
             // Prompt the user for the required information.
             val databaseTask = prompt("(I)nitialize database or (M)igrate database?", "I").uppercase()
             if (databaseTask == "I") {
-                extractedType = if (prompt("C(h)aracters or C(r)edits", "h").uppercase() == "H") {
-                    ExtractedType.CHARACTERS
-                } else {
-                    ExtractedType.CREDIT
+                extractedType = when (prompt("(N)ew, C(h)aracters or C(r)edits", "n").uppercase()) {
+                    "H" -> ExtractedType.CHARACTERS
+                    "R" -> ExtractedType.CREDIT
+                    else -> ExtractedType.NEW
                 }
                 databaseName = prompt("Database name", Credentials.PRIMARY_DATABASE)
                 targetDatabaseName = null
@@ -94,15 +93,22 @@ enum class DatabaseTask {
 }
 
 enum class ExtractedType(val text: String, val stepNumber: Int) {
+    NEW("New", 1),
     CHARACTERS("Character", 2),
     CREDIT("Credit", 3)
 }
 
+/**
+ * Reads a json file and returns a progress map.
+ */
 fun File.loadProgressInfo(): MutableMap<String, ExtractionProgressTracker.Companion.ProgressInfo> =
     if (exists()) {
         val gson = Gson()
-        FileReader(this).use { reader ->
-            gson.fromJson(reader, object : TypeToken<MutableMap<String, ExtractionProgressTracker.Companion.ProgressInfo>>() {}.type)
+        reader().use { reader ->
+            gson.fromJson(
+                reader,
+                object : TypeToken<MutableMap<String, ExtractionProgressTracker.Companion.ProgressInfo>>() {}.type
+            )
         }
     } else {
         mutableMapOf()
