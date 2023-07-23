@@ -4,12 +4,12 @@ import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import dev.benica.creditupdater.TerminalUtil
+import dev.benica.creditupdater.db.ExtractionProgressTracker.Companion.ProgressInfo
 import dev.benica.creditupdater.di.*
 import kotlinx.coroutines.*
 import mu.KLogger
 import mu.KotlinLogging
 import java.io.File
-import java.io.FileReader
 import java.io.FileWriter
 import javax.inject.Inject
 import javax.inject.Named
@@ -23,64 +23,46 @@ import javax.inject.Named
  * @param dispatchAndExecuteComponent the [DispatchAndExecuteComponent] to
  *     use, defaults to a new [DaggerDispatchAndExecuteComponent]
  *       - Note: This is only used for testing
- *
+ * @param progressInfoMap the [ProgressInfoMap] to use, defaults to a new
+ *    [ProgressInfoMap]
  * @param logger the [KLogger] to use, defaults to a new [KotlinLogging]
  *     logger
  *    - Note: This is only used for testing
+ *
+ * @note The caller is responsible for closing the tracker.
  */
 class ExtractionProgressTracker(
     internal val extractedType: String,
-    targetSchema: String,
+    val targetSchema: String,
     private val totalItems: Int = 0,
-    fileName: String = "progress.json",
-    dispatchAndExecuteComponent: DispatchAndExecuteComponent = DaggerDispatchAndExecuteComponent.create(),
+    internal val progressInfoMap: ProgressInfoMap = ProgressInfoMap(),
+    dispatchAndExecuteComponent: DispatchAndExecuteComponent? = DaggerDispatchAndExecuteComponent.create(),
     private val logger: KLogger = KotlinLogging.logger(this::class.java.simpleName)
 ) {
     @Volatile
     var progressInfo: ProgressInfo
         private set
 
-    @Inject
-    internal lateinit var queryExecutorSource: QueryExecutorSource
-
-    private val queryExecutor: QueryExecutor
+    private val queryExecutor: QueryExecutor = QueryExecutor()
 
     @Inject
     @Named("IO")
     internal lateinit var ioDispatcher: CoroutineDispatcher
 
-    internal var progressInfoMap: MutableMap<String, ProgressInfo>
-
-    internal val progressFile = File(fileName)
-
     init {
-        dispatchAndExecuteComponent.inject(this)
-        queryExecutor = queryExecutorSource.getQueryExecutor(targetSchema)
-
-        logger.debug { "Initializing progress tracker for $extractedType" }
-        progressInfoMap = loadProgressInfo()
+        dispatchAndExecuteComponent?.inject(this)
 
         logger.debug { "Progress tracker initialized for $extractedType" }
-        progressInfo = progressInfoMap.getOrDefault(
-            key = extractedType,
-            defaultValue = ProgressInfo()
-        )
+        progressInfo = progressInfoMap.get(extractedType)
         logger.debug { "Progress info initialized for $extractedType" }
-        CoroutineScope(ioDispatcher).launch {
-            progressInfo.numCompleted = getItemsCompleted()
-            logger.debug { "Progress info updated for $extractedType: $progressInfo" }
+
+        if (dispatchAndExecuteComponent != null) {
+            CoroutineScope(ioDispatcher).launch {
+                progressInfo.numCompleted = getItemsCompleted()
+                logger.debug { "Progress info updated for $extractedType: $progressInfo" }
+            }
         }
     }
-
-    internal fun loadProgressInfo(): MutableMap<String, ProgressInfo> =
-        if (progressFile.exists()) {
-            val gson = Gson()
-            FileReader(progressFile).use { reader ->
-                gson.fromJson(reader, object : TypeToken<MutableMap<String, ProgressInfo>>() {}.type)
-            }
-        } else {
-            mutableMapOf()
-        }
 
     /**
      * Updates the current progress and saves it to the progress file.
@@ -97,30 +79,14 @@ class ExtractionProgressTracker(
             progressInfo.totalTimeMillis = totalTimeMillis
             progressInfo.numCompleted += 1
             printProgressInfo()
-            saveProgressInfo()
+            progressInfoMap.saveProgressInfo(progressInfo, extractedType)
         }
     }
 
     /** Resets the progress information for the current item being updated. */
     fun resetProgressInfo() {
-        saveProgressInfo(ProgressInfo())
-    }
-
-    /**
-     * Saves [progress] to the progress file. If [progress] is null, saves the
-     * current progress information.
-     */
-    internal fun saveProgressInfo(progress: ProgressInfo? = null) {
-        if (progress != null) {
-            progressInfo.lastProcessedItemId = progress.lastProcessedItemId
-            progressInfo.totalTimeMillis = progress.totalTimeMillis
-            progressInfo.numCompleted = progress.numCompleted
-        }
-        progressInfoMap[extractedType] = progressInfo
-        val gson = Gson()
-        FileWriter(progressFile).use { writer ->
-            gson.toJson(progressInfoMap, writer)
-        }
+        progressInfo = ProgressInfo()
+        progressInfoMap.saveProgressInfo(progressInfo, extractedType)
     }
 
     /** Prints progress information for the current item being updated. */
@@ -158,12 +124,23 @@ class ExtractionProgressTracker(
         return progressBar.toString()
     }
 
-    internal fun getItemsCompleted(): Int =
-        queryExecutor.getItemCount("gcd_story", "id <= ${progressInfo.lastProcessedItemId}")
+    /**
+     * Returns the number of items that have been completed.
+     */
+    internal fun getItemsCompleted(): Int {
+        ConnectionProvider.getConnection(targetSchema).connection.use { conn ->
+            return queryExecutor.getItemCount(
+                tableName = "gcd_story",
+                condition = "id <= ${progressInfo.lastProcessedItemId}",
+                conn = conn
+            )
+        }
+    }
 
     companion object {
         /**
-         * Returns the ID of the last item that was processed for [itemType].
+         * Returns the ID of the last item that was processed for [itemType] as
+         * stored in [fileName].
          *
          * @param itemType the type of item to get the last processed ID for
          */
@@ -173,7 +150,7 @@ class ExtractionProgressTracker(
             return if (progressFile.exists()) {
                 val gson = Gson()
                 val progressInfo: MutableMap<String, ProgressInfo>
-                FileReader(progressFile).use { reader ->
+                progressFile.reader().use { reader ->
                     progressInfo =
                         gson.fromJson(reader, object : TypeToken<MutableMap<String, ProgressInfo>>() {}.type)
                 }
@@ -204,5 +181,46 @@ class ExtractionProgressTracker(
 internal fun Float.toPercent(): String {
     val decimal = String.format("%.2f", this * 100)
     return "$decimal%"
+}
+
+
+/**
+ * A map of [ProgressInfo] objects for each item type, Credits or
+ * Characters.
+ */
+class ProgressInfoMap(private val fileName: String = "progress.json") {
+    internal val mProgressInfoMap: MutableMap<String, ProgressInfo>
+
+    init {
+        val file = File(fileName)
+        if (file.exists()) {
+            file.reader().use { reader ->
+                mProgressInfoMap =
+                    Gson().fromJson(
+                        reader,
+                        object :
+                            TypeToken<MutableMap<String, ProgressInfo>>() {}.type
+                    )
+            }
+        } else {
+            mProgressInfoMap = mutableMapOf()
+        }
+    }
+
+    fun get(key: String) = mProgressInfoMap.getOrDefault(key, ProgressInfo())
+
+    /**
+     * Saves [progress] to the progress file. If [progress] is null, saves the
+     * current progress information.
+     */
+    internal fun saveProgressInfo(
+        progress: ProgressInfo,
+        extractedType: String
+    ) {
+        mProgressInfoMap[extractedType] = progress
+        FileWriter(fileName).use { writer ->
+            Gson().toJson(mProgressInfoMap, writer)
+        }
+    }
 }
 

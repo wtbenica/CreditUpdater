@@ -4,7 +4,7 @@ package dev.benica.creditupdater.models
 data class Appearance(
     val storyId: Int,
     val characterId: Int,
-    val appearanceInfo: String?,
+    val details: String?,
     val notes: String?,
     val membership: String?,
     val id: Int = 0

@@ -1,122 +1,157 @@
 package dev.benica.creditupdater.extractor
-//
-//import dev.benica.creditupdater.di.ConnectionSource
-//import dev.benica.creditupdater.extractor.CharacterExtractor.*
-//import kotlinx.coroutines.runBlocking
-//import org.junit.jupiter.api.Assertions.assertEquals
-//import org.junit.jupiter.api.BeforeEach
-//import org.junit.jupiter.api.DisplayName
-//import org.junit.jupiter.api.Test
-//import org.mockito.Mockito.*
-//import java.sql.Connection
-//import java.sql.ResultSet
-//
-//class CharacterExtractorTest {
-//    private val database: String = "gcdb"
-//    private lateinit var connectionSource: ConnectionSource
-//    private lateinit var connection: Connection
-//    private lateinit var characterExtractor: CharacterExtractor
-//
-//    @BeforeEach
-//    fun setUp() {
-//        connectionSource = mock(ConnectionSource::class.java)
-//        connection = mock(Connection::class.java)
-//
-//        `when`(connectionSource.getConnection(database)).thenReturn(connection)
-//
-//        characterExtractor = CharacterExtractor(database)
-//    }
-//    //
-//    //@Test
-//    //@DisplayName("Should handle empty character list in the ResultSet")
-//    //fun handleEmptyCharacterListInResultSet() {
-//    //    val resultSet: ResultSet = mock(ResultSet::class.java)
-//    //    val expectedStoryId = 1234
-//    //
-//    //    `when`(resultSet.next()).thenReturn(false)
-//    //    `when`(resultSet.getInt("id")).thenReturn(expectedStoryId)
-//    //    `when`(resultSet.getString("characters")).thenReturn("Aquaman [Arthur Curry]; Batman [Bruce Wayne] (cameo); Lois Lane")
-//    //    `when`(resultSet.getInt("publisherId")).thenReturn(5)
-//    //
-//    //    runBlocking {
-//    //        val result = characterExtractor.extractAndInsert(resultSet)
-//    //
-//    //        assertEquals(expectedStoryId, result)
-//    //    }
-//    //}
-//    //
-//    //@Test
-//    //@DisplayName("Should return the storyId after extracting characters from the ResultSet")
-//    //fun shouldReturnStoryIdAfterExtractingCharacters() {
-//    //    val resultSet: ResultSet = mock(ResultSet::class.java)
-//    //    val expectedStoryId = 1234
-//    //
-//    //    `when`(resultSet.next()).thenReturn(true, false)
-//    //    `when`(resultSet.getInt("id")).thenReturn(expectedStoryId)
-//    //    `when`(resultSet.getString("characters")).thenReturn("Aquaman [Arthur Curry]; Batman [Bruce Wayne] (cameo); Lois Lane")
-//    //    `when`(resultSet.getInt("publisherId")).thenReturn(5)
-//    //
-//    //    runBlocking {
-//    //        val actualStoryId: Int = characterExtractor.extractAndInsert(resultSet)
-//    //
-//    //        assertEquals(expectedStoryId, actualStoryId)
-//    //    }
-//    //}
-//
-////    @Test
-////    @DisplayName("Should save the buffer when the buffer limit is reached")
-////    fun saveBufferWhenBufferLimitIsReached() {
-////        val resultSet: ResultSet = mock(ResultSet::class.java)
-////        val destDatabase: String? = null
-////        val bufferLimit = 10
-////        val appearances = mutableSetOf<CharacterExtractor.Appearance>()
-////        val characterExtractor = spy(CharacterExtractor(database, conn))
-////        characterExtractor.bufferLimit = bufferLimit
-////
-////        // Mocking the extractAppearanceInfo method
-////        doAnswer { invocation ->
-////            val openParen = invocation.getArgument<Int?>(0)
-////            val closeParen = invocation.getArgument<Int?>(1)
-////            val character = invocation.getArgument<String>(2)
-////            val appearance = CharacterExtractor.Appearance(
-////                character.substring(0, openParen!!),
-////                character.substring(openParen + 1, closeParen!!),
-////                character.substring(closeParen + 1)
-////            )
-////            appearances.add(appearance)
-////            Triple(appearance.name, appearance.alterEgo, appearance.appearanceInfo)
-////        }.`when`(characterExtractor).extractAppearanceInfo(anyInt(), anyInt(), anyString())
-////
-////        // Mocking the insertCharacterAppearances method
-////        doNothing().`when`(characterExtractor).insertCharacterAppearances(
-////            anySet(), anyString(), any(Connection::class.java)
-////        )
-////
-////        // Mocking the upsertCharacter method
-////        doReturn(1).`when`(characterExtractor).upsertCharacter(
-////            anyString(), anyString(), anyInt()
-////        )
-////
-////        // Mocking the lookupCharacter method
-////        doReturn(null).`when`(characterExtractor).lookupCharacter(
-////            anyString(), anyString(), anyInt(), anyString(), any(Connection::class.java), anyBoolean()
-////        )
-////
-////        // Mocking the getPublisherId method
-////        doReturn(1).`when`(characterExtractor).getPublisherId(anyInt(), any(Connection::class.java))
-////
-////        // Extracting the resultSet
-////        val extractedCount = characterExtractor.extract(resultSet, destDatabase)
-////
-////        // Verifying the extracted count
-////        assertEquals(appearances.size, extractedCount)
-////
-////        // Verifying the buffer is empty
-////        assertEquals(0, characterExtractor.newAppearanceInsertionBuffer.appearances.size)
-////
-////        // Verifying the insertCharacterAppearances method is called
-////        verify(characterExtractor, times(1)).insertCharacterAppearances(
-////            eq(appearances), eq(database), eq(conn)
-////        )
-////    }
-//}
+
+import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import dev.benica.creditupdater.db.CharacterRepositoryTest
+import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
+import dev.benica.creditupdater.extractor.CharacterExtractor.*
+import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.*
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
+import java.sql.Connection
+import java.sql.ResultSet
+import java.sql.SQLException
+
+class CharacterExtractorTest {
+    private lateinit var connection: Connection
+    private lateinit var characterExtractor: CharacterExtractor
+
+    @BeforeEach
+    fun setUp() {
+        connection = mock<Connection>()
+
+        characterExtractor = CharacterExtractor(TEST_DATABASE)
+
+        conn.createStatement().use {
+            it.execute("TRUNCATE TABLE m_character_appearance")
+            it.execute("TRUNCATE TABLE m_character")
+        }
+    }
+
+    @Test
+    @DisplayName("should extract characters and insert them into the database")
+    fun shouldExtractCharactersAndInsertThemIntoTheDatabase() {
+        val resultSet = mock<ResultSet>()
+        whenever(resultSet.getInt("id")).thenReturn(1)
+        whenever(resultSet.getString("characters")).thenReturn("Batman [Bruce Wayne] (cameo); Robin; Joker")
+        whenever(resultSet.getInt("publisher_id")).thenReturn(2)
+
+        val result = characterExtractor.extractAndInsert(resultSet, conn)
+
+        assertEquals(1, result)
+
+        // verify against database
+        conn.createStatement().use {
+            val rs = it.executeQuery("SELECT * FROM m_character_appearance WHERE story_id = 1")
+            rs.next()
+            assertEquals(1, rs.getInt("story_id"))
+            assertEquals(1, rs.getInt("character_id"))
+            assertEquals("cameo", rs.getString("details"))
+            assertNull(rs.getString("notes"))
+            assertNull(rs.getString("membership"))
+            rs.next()
+            assertEquals(1, rs.getInt("story_id"))
+            assertEquals(2, rs.getInt("character_id"))
+            assertEquals("", rs.getString("details"))
+            assertNull(rs.getString("notes"))
+            assertNull(rs.getString("membership"))
+            rs.next()
+            assertEquals(1, rs.getInt("story_id"))
+            assertEquals(3, rs.getInt("character_id"))
+            assertEquals("", rs.getString("details"))
+            assertNull(rs.getString("notes"))
+            assertNull(rs.getString("membership"))
+
+            val rs2 = it.executeQuery("SELECT * FROM m_character")
+            rs2.next()
+            assertEquals(1, rs2.getInt("id"))
+            assertEquals("Batman", rs2.getString("name"))
+            assertEquals("Bruce Wayne", rs2.getString("alter_ego"))
+            assertEquals(2, rs2.getInt("publisher_id"))
+            rs2.next()
+            assertEquals(2, rs2.getInt("id"))
+            assertEquals("Robin", rs2.getString("name"))
+            assertNull(rs2.getString("alter_ego"))
+            assertEquals(2, rs2.getInt("publisher_id"))
+            rs2.next()
+            assertEquals(3, rs2.getInt("id"))
+            assertEquals("Joker", rs2.getString("name"))
+            assertNull(rs2.getString("alter_ego"))
+            assertEquals(2, rs2.getInt("publisher_id"))
+        }
+    }
+
+    @Test
+    @DisplayName("should extract characters and team and insert them and their appearances into the database")
+    fun shouldExtractCharactersAndTeamAndInsertThemAndTheirAppearancesIntoTheDatabase() {
+        val resultSet = mock<ResultSet>()
+        whenever(resultSet.getInt("id")).thenReturn(1)
+        whenever(resultSet.getString("characters")).thenReturn("Batman [Bruce Wayne]; Justice League of America [Superman [Clark Kent]; Green Lantern [Hal Jordan]; The Flash [Barry Allen]; Aquaman [Arthur Curry]; Martian Manhunter [J'onn J'onzz]];")
+        whenever(resultSet.getInt("publisher_id")).thenReturn(2)
+
+        val result = characterExtractor.extractAndInsert(resultSet, conn)
+
+        assertEquals(1, result)
+
+        // verify against database
+        conn.createStatement().use {
+            val rs = it.executeQuery("SELECT * FROM m_character_appearance WHERE story_id = 1")
+            rs.next()
+            assertEquals(1, rs.getInt("story_id"))
+            assertEquals(1, rs.getInt("character_id"))
+            assertEquals("", rs.getString("details"))
+            assertNull(rs.getString("notes"))
+            assertNull(rs.getString("membership"))
+            rs.next()
+            assertEquals(1, rs.getInt("story_id"))
+            assertEquals(2, rs.getInt("character_id"))
+            assertEquals("", rs.getString("details"))
+            assertNull(rs.getString("notes"))
+            assertEquals(
+                "Superman [Clark Kent]; Green Lantern [Hal Jordan]; The Flash [Barry Allen]; Aquaman [Arthur Curry]; Martian Manhunter [J'onn J'onzz]",
+                rs.getString("membership")
+            )
+            assertFalse(rs.next())
+
+            val rs2 = it.executeQuery("SELECT * FROM m_character")
+            rs2.next()
+            assertEquals(1, rs2.getInt("id"))
+            assertEquals("Batman", rs2.getString("name"))
+            assertEquals("Bruce Wayne", rs2.getString("alter_ego"))
+            assertEquals(2, rs2.getInt("publisher_id"))
+            rs2.next()
+            assertEquals(2, rs2.getInt("id"))
+            assertEquals("Justice League of America", rs2.getString("name"))
+            assertNull(rs2.getString("alter_ego"))
+            assertEquals(2, rs2.getInt("publisher_id"))
+            assertFalse(rs2.next())
+        }
+    }
+
+    @Test
+    @DisplayName("should throw and SQLExceptions and log error")
+    fun shouldThrowAndSQLExceptionsAndLogError() {
+        val resultSet = mock<ResultSet>()
+
+        whenever(resultSet.getInt("id")).thenThrow(SQLException("test exception"))
+
+        assertThrows<SQLException> { characterExtractor.extractAndInsert(resultSet, conn) }
+    }
+
+    companion object {
+        private lateinit var conn: Connection
+
+        @BeforeAll
+        @JvmStatic
+        fun setUpDb() {
+            conn = getTestDbConnection()
+            CharacterRepositoryTest.setUpDatabase(conn)
+        }
+
+        @AfterAll
+        @JvmStatic
+        fun tearDownDb() {
+            conn.close()
+        }
+    }
+}
