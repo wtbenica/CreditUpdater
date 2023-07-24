@@ -44,7 +44,6 @@ internal suspend fun useArgsStartup(parsedArgs: CLIParser) {
         parsedArgs.usage
     } else {
         if (parsedArgs.prepare != null) {
-            @Suppress("kotlin:S6307")
             DBInitializer(
                 targetSchema = parsedArgs.prepare!!,
                 startAtStep = parsedArgs.step,
@@ -60,7 +59,6 @@ internal suspend fun useArgsStartup(parsedArgs: CLIParser) {
                 startingId = parsedArgs.startingId
             ).migrate()
         } else if (parsedArgs.prepare == null) {
-            @Suppress("kotlin:S6307")
             DBInitializer(
                 startAtStep = parsedArgs.step,
                 startingId = parsedArgs.startingId
