@@ -1,6 +1,6 @@
 package dev.benica.creditupdater.db
 
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import dev.benica.creditupdater.Credentials.TEST_DATABASE
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTablesAndViews
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import dev.benica.creditupdater.models.Appearance

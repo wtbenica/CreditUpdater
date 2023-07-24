@@ -1,7 +1,7 @@
 package dev.benica.creditupdater.db
 
 import com.google.gson.Gson
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import dev.benica.creditupdater.Credentials.TEST_DATABASE
 import dev.benica.creditupdater.cli_parser.CLIParser
 import dev.benica.creditupdater.db.ExtractionProgressTracker.Companion.ProgressInfo
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection

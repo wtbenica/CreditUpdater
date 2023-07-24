@@ -1,6 +1,6 @@
 
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE_UPDATE
+import dev.benica.creditupdater.Credentials.TEST_DATABASE
+import dev.benica.creditupdater.Credentials.TEST_DATABASE_UPDATE
 import dev.benica.creditupdater.db.DBState
 import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.db.TestDatabaseSetup

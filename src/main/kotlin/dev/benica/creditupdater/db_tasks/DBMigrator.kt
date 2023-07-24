@@ -1,7 +1,7 @@
 package dev.benica.creditupdater.db_tasks
 
-import dev.benica.creditupdater.Credentials.Companion.INCOMING_DATABASE
-import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
+import dev.benica.creditupdater.Credentials.INCOMING_DATABASE
+import dev.benica.creditupdater.Credentials.PRIMARY_DATABASE
 import dev.benica.creditupdater.db.ConnectionProvider
 import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.db_tasks.DBInitializer.Companion.dropIsSourcedAndSourcedByColumns

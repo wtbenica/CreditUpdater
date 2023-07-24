@@ -1,7 +1,7 @@
 package dev.benica.creditupdater.db
 
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE_UPDATE
+import dev.benica.creditupdater.Credentials.TEST_DATABASE
+import dev.benica.creditupdater.Credentials.TEST_DATABASE_UPDATE
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test

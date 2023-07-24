@@ -1,6 +1,6 @@
 package dev.benica.creditupdater.extractor
 
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import dev.benica.creditupdater.Credentials.TEST_DATABASE
 import dev.benica.creditupdater.db.DBState
 import dev.benica.creditupdater.db.TestDatabaseSetup
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection

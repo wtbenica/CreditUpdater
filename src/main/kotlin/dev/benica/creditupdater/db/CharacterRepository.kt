@@ -1,6 +1,6 @@
 package dev.benica.creditupdater.db
 
-import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
+import dev.benica.creditupdater.Credentials.PRIMARY_DATABASE
 import dev.benica.creditupdater.di.*
 import dev.benica.creditupdater.models.Appearance
 import java.sql.Connection
