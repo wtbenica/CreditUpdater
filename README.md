@@ -70,7 +70,7 @@ Usage
 
 License
 -------
-Credit Updater is open source and available under the MIT License.
+Credit Updater is open source and available under the Apache 2 License. See the LICENSE file for more info.
 
 Contact
 -------
