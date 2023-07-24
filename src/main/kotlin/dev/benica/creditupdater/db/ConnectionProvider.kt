@@ -38,12 +38,9 @@ class ConnectionProvider {
                 password = Credentials.PASSWORD_INITIALIZER
                 driverClassName = "com.mysql.cj.jdbc.Driver"
                 maximumPoolSize = MAX_CONNECTION_POOL_SIZE
-                minimumIdle = 5
-                idleTimeout = 10000
-                connectionTimeout = 5000
             }
         )
 
-        private const val MAX_CONNECTION_POOL_SIZE = 10
+        private const val MAX_CONNECTION_POOL_SIZE = 100
     }
 }
