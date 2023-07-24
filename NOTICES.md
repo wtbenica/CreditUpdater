@@ -7,7 +7,7 @@ Logback Classic Module: *[Eclipse Public License 1.0](http://www.eclipse.org/leg
 Copyright (c) 1999-2015, QOS.ch
 
 jcommander: *[Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0)*
-Copyright (c) 2012 Cédric Beust and contributors
+Copyright (c) 2010 Cedric Beust [cedric@beust.com](mailto:cedric@beust.com)
 
 Gson: *[Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0)*
 Copyright (c) 2008 Google Inc.
