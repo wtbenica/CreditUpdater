@@ -1,6 +1,5 @@
 Licenses
 ========
-________
 
 **The following licenses are used by this project:**
 
