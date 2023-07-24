@@ -671,7 +671,6 @@ class TestDatabaseSetup {
             val statements = File(sqlScript).parseSqlScript(targetSchema = targetSchema, sourceSchema = sourceSchema)
             statements.filter { it.isNotBlank() }.forEach { statement ->
                 conn.createStatement().use { stmt ->
-                    println(statement)
                     stmt.execute(statement)
                 }
             }

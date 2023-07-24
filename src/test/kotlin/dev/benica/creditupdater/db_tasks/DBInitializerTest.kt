@@ -25,7 +25,7 @@ class DBInitializerTest {
             sourceSchema = null
         )
 
-        verifyUnusedTables()
+        verifyUnusedTables(queryExecutor = queryExecutor)
 
         DBInitializer.dropUnusedTables(
             queryExecutor = queryExecutor,
@@ -33,7 +33,7 @@ class DBInitializerTest {
             conn = conn
         )
 
-        verifyUnusedTables(exist = false)
+        verifyUnusedTables(exist = false, queryExecutor = queryExecutor)
     }
 
     @Test
@@ -46,7 +46,7 @@ class DBInitializerTest {
         )
 
         // verify columns exist in gcd_story_credit table
-        verifySourcedColumns()
+        verifySourcedColumns(queryExecutor = queryExecutor)
 
         DBInitializer.dropIsSourcedAndSourcedByColumns(
             queryExecutor = queryExecutor,
@@ -54,7 +54,7 @@ class DBInitializerTest {
             conn = conn
         )
 
-        verifySourcedColumns(false)
+        verifySourcedColumns(false, queryExecutor = queryExecutor)
     }
 
     @Test
@@ -72,8 +72,8 @@ class DBInitializerTest {
             conn = conn
         )
 
-        verifyDeleteViewsExist()
-        verifyDeleteViewsContain()
+        verifyDeleteViewsExist(queryExecutor = queryExecutor)
+        verifyDeleteViewsContain(queryExecutor = queryExecutor)
     }
 
     @Test
@@ -85,7 +85,7 @@ class DBInitializerTest {
             sourceSchema = null
         )
 
-        verifyRecordCounts()
+        verifyRecordCounts(queryExecutor = queryExecutor)
 
         DBInitializer.removeUnnecessaryRecords(
             queryExecutor = queryExecutor,
@@ -93,7 +93,7 @@ class DBInitializerTest {
             conn = conn
         )
 
-        verifyRecordCounts(unculled = false)
+        verifyRecordCounts(unculled = false, queryExecutor = queryExecutor)
     }
 
     @Test
@@ -114,7 +114,7 @@ class DBInitializerTest {
                     OR series_id IS NOT NULL;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
+            queryExecutor.executeQueryAndDo(query, conn)  {
                 assertTrue(it.next())
                 assertEquals(0, it.getInt(1))
             }
@@ -126,7 +126,7 @@ class DBInitializerTest {
                     OR series_id IS NOT NULL;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query2, conn) {
+            queryExecutor.executeQueryAndDo(query2, conn)  {
                 assertTrue(it.next())
                 assertEquals(0, it.getInt(1))
             }
@@ -138,7 +138,7 @@ class DBInitializerTest {
                     OR series_id IS NOT NULL;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query3, conn) {
+            queryExecutor.executeQueryAndDo(query3, conn)  {
                 assertTrue(it.next())
                 assertEquals(0, it.getInt(1))
             }
@@ -152,7 +152,7 @@ class DBInitializerTest {
             conn = conn
         )
 
-        verifyIssueAndSeriesIdsAreSet()
+        verifyIssueAndSeriesIdsAreSet(queryExecutor)
     }
 
     @Test
@@ -187,23 +187,29 @@ class DBInitializerTest {
             // give db ops a chance to finish
             Thread.sleep(2000)
 
-            verifyDbPrepared()
+            verifyDbPrepared(queryExecutor)
         }
     }
 
-    private fun verifyDbPrepared() {
-        verifyUnusedTables(exist = false)
-        verifySourcedColumns(exist = false)
-        verifyDeleteViewsExist()
-        verifyDeleteViewsContain(isEmpty = true)
-        verifyRecordCounts(unculled = false)
-        DBTaskTest.verifyCharactersWereExtracted(conn)
-        DBTaskTest.verifyCharacterAppearancesWereExtracted(conn)
-        verifyIssueAndSeriesIdsAreSet()
-    }
+    companion object {
+        internal fun verifyDbPrepared(queryExecutor: QueryExecutor, connection: Connection? = null) {
+            verifyUnusedTables(exist = false, queryExecutor = queryExecutor, connection = connection)
+            verifySourcedColumns(exist = false, queryExecutor = queryExecutor, connection = connection)
+            verifyDeleteViewsExist(queryExecutor = queryExecutor, connection = connection)
+            verifyDeleteViewsContain(isEmpty = true, queryExecutor = queryExecutor, connection = connection)
+            verifyRecordCounts(unculled = false, queryExecutor = queryExecutor, connection = connection)
+            DBTaskTest.verifyCharactersWereExtracted(connection ?: conn)
+            DBTaskTest.verifyCharacterAppearancesWereExtracted(connection ?: conn)
+            verifyIssueAndSeriesIdsAreSet(queryExecutor, connection = connection)
+        }
 
-    private fun verifyUnusedTables(exist: Boolean = true, targetSchema: String = TEST_DATABASE) {
-        val query = """
+        private fun verifyUnusedTables(
+            exist: Boolean = true,
+            targetSchema: String = TEST_DATABASE,
+            queryExecutor: QueryExecutor,
+            connection: Connection? = null
+        ) {
+            val query = """
                 SELECT COUNT(*)
                 FROM information_schema.tables
                 WHERE table_schema = '$targetSchema'
@@ -219,19 +225,24 @@ class DBInitializerTest {
                     'taggit_taggeditem');
             """.trimIndent()
 
-        val expected = if (exist) 34 else 0
+            val expected = if (exist) 34 else 0
 
-        queryExecutor.executeQueryAndDo(query, conn) {
-            assertTrue(it.next())
-            assertEquals(expected, it.getInt(1))
-            assertFalse(it.next())
+            queryExecutor.executeQueryAndDo(query, connection ?: conn) {
+                assertTrue(it.next())
+                assertEquals(expected, it.getInt(1))
+                assertFalse(it.next())
+            }
         }
-    }
 
-    private fun verifySourcedColumns(exist: Boolean = true, targetSchema: String = TEST_DATABASE) {
-        val expected = if (exist) 2 else 0
+        private fun verifySourcedColumns(
+            exist: Boolean = true,
+            targetSchema: String = TEST_DATABASE,
+            queryExecutor: QueryExecutor,
+            connection: Connection? = null
+        ) {
+            val expected = if (exist) 2 else 0
 
-        val query = """
+            val query = """
                     SELECT COUNT(*)
                     FROM information_schema.columns
                     WHERE table_schema = '$targetSchema'
@@ -239,17 +250,21 @@ class DBInitializerTest {
                     AND column_name IN ('is_sourced', 'sourced_by');
                 """.trimIndent()
 
-        queryExecutor.executeQueryAndDo(query, conn) {
-            assertTrue(it.next())
-            assertEquals(expected, it.getInt(1))
-            assertFalse(it.next())
+            queryExecutor.executeQueryAndDo(query, connection ?: conn) {
+                assertTrue(it.next())
+                assertEquals(expected, it.getInt(1))
+                assertFalse(it.next())
+            }
         }
-    }
 
-    private fun verifyDeleteViewsExist(targetSchema: String = TEST_DATABASE) {
-        fun verifyBadPublishers() {
-            // verify bad_publishers view was created
-            val query = """
+        private fun verifyDeleteViewsExist(
+            targetSchema: String = TEST_DATABASE,
+            queryExecutor: QueryExecutor,
+            connection: Connection? = null
+        ) {
+            fun verifyBadPublishers() {
+                // verify bad_publishers view was created
+                val query = """
                 SELECT EXISTS (
                     SELECT 1
                     FROM information_schema.views
@@ -258,15 +273,15 @@ class DBInitializerTest {
                 );
             """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                assertTrue(it.next())
-                assertTrue(it.getBoolean(1))
-                assertFalse(it.next())
+                queryExecutor.executeQueryAndDo(query, connection ?: conn) {
+                    assertTrue(it.next())
+                    assertTrue(it.getBoolean(1))
+                    assertFalse(it.next())
+                }
             }
-        }
 
-        fun verifyBadSeries() {
-            val query = """
+            fun verifyBadSeries() {
+                val query = """
                 SELECT EXISTS (
                     SELECT 1
                     FROM information_schema.views
@@ -275,16 +290,16 @@ class DBInitializerTest {
                 );
             """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                assertTrue(it.next())
-                assertTrue(it.getBoolean(1))
-                assertFalse(it.next())
+                queryExecutor.executeQueryAndDo(query, connection ?: conn) {
+                    assertTrue(it.next())
+                    assertTrue(it.getBoolean(1))
+                    assertFalse(it.next())
+                }
             }
-        }
 
-        fun verifyBadIssues() {
-            // verify bad_issues view was created
-            val query = """
+            fun verifyBadIssues() {
+                // verify bad_issues view was created
+                val query = """
                 SELECT EXISTS (
                     SELECT 1
                     FROM information_schema.views
@@ -293,16 +308,16 @@ class DBInitializerTest {
                 );
             """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                assertTrue(it.next())
-                assertTrue(it.getBoolean(1))
-                assertFalse(it.next())
+                queryExecutor.executeQueryAndDo(query, connection ?: conn) {
+                    assertTrue(it.next())
+                    assertTrue(it.getBoolean(1))
+                    assertFalse(it.next())
+                }
             }
-        }
 
-        fun verifyBadStories() {
-            // verify bad_stories view was created
-            val query = """
+            fun verifyBadStories() {
+                // verify bad_stories view was created
+                val query = """
                 SELECT EXISTS (
                     SELECT 1
                     FROM information_schema.views
@@ -311,16 +326,16 @@ class DBInitializerTest {
                 );
             """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                assertTrue(it.next())
-                assertTrue(it.getBoolean(1))
-                assertFalse(it.next())
+                queryExecutor.executeQueryAndDo(query, connection ?: conn) {
+                    assertTrue(it.next())
+                    assertTrue(it.getBoolean(1))
+                    assertFalse(it.next())
+                }
             }
-        }
 
-        fun verifyBadIndiciaPublishers() {
-            // verify bad_indicia_publishers view was created
-            val query = """
+            fun verifyBadIndiciaPublishers() {
+                // verify bad_indicia_publishers view was created
+                val query = """
                 SELECT EXISTS (
                     SELECT 1
                     FROM information_schema.views
@@ -329,275 +344,283 @@ class DBInitializerTest {
                 );
             """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                assertTrue(it.next())
-                assertTrue(it.getBoolean(1))
-                assertFalse(it.next())
+                queryExecutor.executeQueryAndDo(query, connection ?: conn) {
+                    assertTrue(it.next())
+                    assertTrue(it.getBoolean(1))
+                    assertFalse(it.next())
+                }
             }
+
+            verifyBadPublishers()
+            verifyBadSeries()
+            verifyBadIssues()
+            verifyBadStories()
+            verifyBadIndiciaPublishers()
         }
 
-        verifyBadPublishers()
-        verifyBadSeries()
-        verifyBadIssues()
-        verifyBadStories()
-        verifyBadIndiciaPublishers()
-    }
-
-    private fun verifyDeleteViewsContain(isEmpty: Boolean = false) {
-        fun verifyBadPublishers() {
-            // verify that bad publishers contains ids 3, 4
-            val query = """
+        private fun verifyDeleteViewsContain(
+            isEmpty: Boolean = false,
+            queryExecutor: QueryExecutor,
+            connection: Connection? = null
+        ) {
+            fun verifyBadPublishers() {
+                // verify that bad publishers contains ids 3, 4
+                val query = """
             SELECT id
             FROM bad_publishers
             ORDER BY id;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                if (!isEmpty) {
-                    assertTrue(it.next())
-                    assertEquals(3, it.getInt(1))
-                    assertTrue(it.next())
-                    assertEquals(4, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn) {
+                    if (!isEmpty) {
+                        assertTrue(it.next())
+                        assertEquals(3, it.getInt(1))
+                        assertTrue(it.next())
+                        assertEquals(4, it.getInt(1))
+                    }
+                    assertFalse(it.next())
                 }
-                assertFalse(it.next())
             }
-        }
 
-        fun verifyBadSeries() {
-            // verify that bad series contains ids 6, 7, 8, 9, 10
-            val query = """
+            fun verifyBadSeries() {
+                // verify that bad series contains ids 6, 7, 8, 9, 10
+                val query = """
             SELECT id
             FROM bad_series
             ORDER BY id;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                if (!isEmpty) {
-                    assertTrue(it.next())
-                    assertEquals(3, it.getInt(1))
-                    assertTrue(it.next())
-                    assertEquals(4, it.getInt(1))
-                    assertTrue(it.next())
-                    assertEquals(5, it.getInt(1))
-                    assertTrue(it.next())
-                    assertEquals(6, it.getInt(1))
-                    assertTrue(it.next())
-                    assertEquals(7, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn) {
+                    if (!isEmpty) {
+                        assertTrue(it.next())
+                        assertEquals(3, it.getInt(1))
+                        assertTrue(it.next())
+                        assertEquals(4, it.getInt(1))
+                        assertTrue(it.next())
+                        assertEquals(5, it.getInt(1))
+                        assertTrue(it.next())
+                        assertEquals(6, it.getInt(1))
+                        assertTrue(it.next())
+                        assertEquals(7, it.getInt(1))
+                    }
+                    assertFalse(it.next())
                 }
-                assertFalse(it.next())
             }
-        }
 
-        fun verifyBadIssues() {
-            // verify that bad issues contains ids 3, 4, 5, 6, 7, 8
-            val query = """
+            fun verifyBadIssues() {
+                // verify that bad issues contains ids 3, 4, 5, 6, 7, 8
+                val query = """
             SELECT id
             FROM bad_issues
             ORDER BY id;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                if (!isEmpty) {
-                    assertTrue(it.next())
-                    assertEquals(3, it.getInt(1))
-                    assertTrue(it.next())
-                    assertEquals(4, it.getInt(1))
-                    assertTrue(it.next())
-                    assertEquals(5, it.getInt(1))
-                    assertTrue(it.next())
-                    assertEquals(6, it.getInt(1))
-                    assertTrue(it.next())
-                    assertEquals(7, it.getInt(1))
-                    assertTrue(it.next())
-                    assertEquals(8, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    if (!isEmpty) {
+                        assertTrue(it.next())
+                        assertEquals(3, it.getInt(1))
+                        assertTrue(it.next())
+                        assertEquals(4, it.getInt(1))
+                        assertTrue(it.next())
+                        assertEquals(5, it.getInt(1))
+                        assertTrue(it.next())
+                        assertEquals(6, it.getInt(1))
+                        assertTrue(it.next())
+                        assertEquals(7, it.getInt(1))
+                        assertTrue(it.next())
+                        assertEquals(8, it.getInt(1))
+                    }
+                    assertFalse(it.next())
                 }
-                assertFalse(it.next())
             }
-        }
 
-        fun verifyBadStories() {
-            // verify that bad stories contains ids 3, 4, 5, 6, 7
-            val query = """
+            fun verifyBadStories() {
+                // verify that bad stories contains ids 3, 4, 5, 6, 7
+                val query = """
             SELECT id
             FROM bad_stories
             ORDER BY id;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                if (!isEmpty) {
-                    assertTrue(it.next())
-                    assertEquals(3, it.getInt(1))
-                    assertTrue(it.next())
-                    assertEquals(4, it.getInt(1))
-                    assertTrue(it.next())
-                    assertEquals(5, it.getInt(1))
-                    assertTrue(it.next())
-                    assertEquals(6, it.getInt(1))
-                    assertTrue(it.next())
-                    assertEquals(7, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    if (!isEmpty) {
+                        assertTrue(it.next())
+                        assertEquals(3, it.getInt(1))
+                        assertTrue(it.next())
+                        assertEquals(4, it.getInt(1))
+                        assertTrue(it.next())
+                        assertEquals(5, it.getInt(1))
+                        assertTrue(it.next())
+                        assertEquals(6, it.getInt(1))
+                        assertTrue(it.next())
+                        assertEquals(7, it.getInt(1))
+                    }
+                    assertFalse(it.next())
                 }
-                assertFalse(it.next())
             }
-        }
 
-        fun verifyBadIndiciaPublishers() {
-            // verify that bad indicia publishers contains ids 3, 4
-            val query = """
+            fun verifyBadIndiciaPublishers() {
+                // verify that bad indicia publishers contains ids 3, 4
+                val query = """
             SELECT id
             FROM bad_indicia_publishers
             ORDER BY id;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                if (!isEmpty) {
-                    assertTrue(it.next())
-                    assertEquals(3, it.getInt(1))
-                    assertTrue(it.next())
-                    assertEquals(4, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    if (!isEmpty) {
+                        assertTrue(it.next())
+                        assertEquals(3, it.getInt(1))
+                        assertTrue(it.next())
+                        assertEquals(4, it.getInt(1))
+                    }
+                    assertFalse(it.next())
                 }
-                assertFalse(it.next())
             }
+
+            verifyBadPublishers()
+            verifyBadSeries()
+            verifyBadIssues()
+            verifyBadStories()
+            verifyBadIndiciaPublishers()
         }
 
-        verifyBadPublishers()
-        verifyBadSeries()
-        verifyBadIssues()
-        verifyBadStories()
-        verifyBadIndiciaPublishers()
-    }
-
-    private fun verifyRecordCounts(unculled: Boolean = true) {
-        fun verifyPublishers() {
-            val query = """
+        private fun verifyRecordCounts(
+            unculled: Boolean = true,
+            queryExecutor: QueryExecutor,
+            connection: Connection? = null
+        ) {
+            fun verifyPublishers() {
+                val query = """
             SELECT COUNT(*)
                 FROM gcd_publisher;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                val expectedCount = if (unculled) 5 else 3
-                assertTrue(it.next())
-                assertEquals(expectedCount, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    val expectedCount = if (unculled) 5 else 3
+                    assertTrue(it.next())
+                    assertEquals(expectedCount, it.getInt(1))
+                }
             }
-        }
 
-        fun verifySeries() {
-            val query = """
+            fun verifySeries() {
+                val query = """
             SELECT COUNT(*)
                 FROM gcd_series;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                val expectedCount = if (unculled) 10 else 5
-                assertTrue(it.next())
-                assertEquals(expectedCount, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    val expectedCount = if (unculled) 10 else 5
+                    assertTrue(it.next())
+                    assertEquals(expectedCount, it.getInt(1))
+                }
             }
-        }
 
-        fun verifyIssues() {
-            val query = """
+            fun verifyIssues() {
+                val query = """
             SELECT COUNT(*)
                 FROM gcd_issue;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                val expectedCount = if (unculled) 10 else 4
-                assertTrue(it.next())
-                assertEquals(expectedCount, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    val expectedCount = if (unculled) 10 else 4
+                    assertTrue(it.next())
+                    assertEquals(expectedCount, it.getInt(1))
+                }
             }
-        }
 
-        fun verifyStories() {
-            val query = """
+            fun verifyStories() {
+                val query = """
             SELECT COUNT(*)
                 FROM gcd_story;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                val expectedCount = if (unculled) 7 else 2
-                assertTrue(it.next())
-                assertEquals(expectedCount, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    val expectedCount = if (unculled) 7 else 2
+                    assertTrue(it.next())
+                    assertEquals(expectedCount, it.getInt(1))
+                }
             }
-        }
 
-        fun verifySeriesBonds() {
-            val query = """
+            fun verifySeriesBonds() {
+                val query = """
             SELECT COUNT(*)
                 FROM gcd_series_bond;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                val expectedCount = if (unculled) 7 else 2
-                assertTrue(it.next())
-                assertEquals(expectedCount, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    val expectedCount = if (unculled) 7 else 2
+                    assertTrue(it.next())
+                    assertEquals(expectedCount, it.getInt(1))
+                }
             }
-        }
 
-        fun verifyStoryCredits() {
-            val query = """
+            fun verifyStoryCredits() {
+                val query = """
             SELECT COUNT(*)
                 FROM gcd_story_credit;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                val expectedCount = if (unculled) 10 else 5
-                assertTrue(it.next())
-                assertEquals(expectedCount, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    val expectedCount = if (unculled) 10 else 5
+                    assertTrue(it.next())
+                    assertEquals(expectedCount, it.getInt(1))
+                }
             }
-        }
 
-        fun verifyReprint() {
-            val query = """
+            fun verifyReprint() {
+                val query = """
             SELECT COUNT(*)
                 FROM gcd_reprint;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                val expectedCount = if (unculled) 7 else 2
-                assertTrue(it.next())
-                assertEquals(expectedCount, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    val expectedCount = if (unculled) 7 else 2
+                    assertTrue(it.next())
+                    assertEquals(expectedCount, it.getInt(1))
+                }
             }
-        }
 
-        fun verifyIssueCredit() {
-            val query = """
+            fun verifyIssueCredit() {
+                val query = """
             SELECT COUNT(*)
                 FROM gcd_issue_credit;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                val expectedCount = if (unculled) 7 else 2
-                assertTrue(it.next())
-                assertEquals(expectedCount, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    val expectedCount = if (unculled) 7 else 2
+                    assertTrue(it.next())
+                    assertEquals(expectedCount, it.getInt(1))
+                }
             }
-        }
 
-        fun verifyIndiciaPublisher() {
-            val query = """
+            fun verifyIndiciaPublisher() {
+                val query = """
             SELECT COUNT(*)
                 FROM gcd_indicia_publisher;
         """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                val expectedCount = if (unculled) 4 else 2
-                assertTrue(it.next())
-                assertEquals(expectedCount, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    val expectedCount = if (unculled) 4 else 2
+                    assertTrue(it.next())
+                    assertEquals(expectedCount, it.getInt(1))
+                }
             }
+
+            verifyPublishers()
+            verifySeries()
+            verifySeriesBonds()
+            verifyIssues()
+            verifyStories()
+            verifyStoryCredits()
+            verifyReprint()
+            verifyIssueCredit()
+            verifyIndiciaPublisher()
         }
 
-        verifyPublishers()
-        verifySeries()
-        verifySeriesBonds()
-        verifyIssues()
-        verifyStories()
-        verifyStoryCredits()
-        verifyReprint()
-        verifyIssueCredit()
-        verifyIndiciaPublisher()
-    }
-
-    private fun verifyIssueAndSeriesIdsAreSet() {
-        fun verifyColumnValuesGcdStoryCredit() {
-            val query = """
+        private fun verifyIssueAndSeriesIdsAreSet(queryExecutor: QueryExecutor, connection: Connection? = null) {
+            fun verifyColumnValuesGcdStoryCredit() {
+                val query = """
                 SELECT COUNT(*)
                 FROM gcd_story_credit gsc
                 WHERE NOT EXISTS (
@@ -610,15 +633,15 @@ class DBInitializerTest {
                 );
             """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                assertTrue(it.next())
-                assertEquals(0, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    assertTrue(it.next())
+                    assertEquals(0, it.getInt(1))
+                }
             }
-        }
 
-        fun verifyColumnValuesMStoryCredit() {
-            // verify that issue_id and series_id in m_story_credit match the issue_id and series_id in the referenced gcd_story
-            val query = """
+            fun verifyColumnValuesMStoryCredit() {
+                // verify that issue_id and series_id in m_story_credit match the issue_id and series_id in the referenced gcd_story
+                val query = """
                 SELECT COUNT(*)
                 FROM m_story_credit msc
                 WHERE NOT EXISTS (
@@ -631,15 +654,15 @@ class DBInitializerTest {
                 );
             """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                assertTrue(it.next())
-                assertEquals(0, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    assertTrue(it.next())
+                    assertEquals(0, it.getInt(1))
+                }
             }
-        }
 
-        fun verifyColumnValuesMCharacterAppearance() {
-            // verify that issue_id and series_id in m_character_appearance match the issue_id and series_id in the referenced gcd_story
-            val query = """
+            fun verifyColumnValuesMCharacterAppearance() {
+                // verify that issue_id and series_id in m_character_appearance match the issue_id and series_id in the referenced gcd_story
+                val query = """
                 SELECT COUNT(*)
                 FROM m_character_appearance mca
                 WHERE NOT EXISTS (
@@ -652,14 +675,14 @@ class DBInitializerTest {
                 );
             """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                assertTrue(it.next())
-                assertEquals(0, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    assertTrue(it.next())
+                    assertEquals(0, it.getInt(1))
+                }
             }
-        }
 
-        fun verifyColumnConstraints() {
-            val query = """
+            fun verifyColumnConstraints() {
+                val query = """
                 SELECT COUNT(*)
                 FROM information_schema.columns
                 WHERE table_schema = '$TEST_DATABASE'
@@ -668,19 +691,18 @@ class DBInitializerTest {
                     AND is_nullable = 'NO';
             """.trimIndent()
 
-            queryExecutor.executeQueryAndDo(query, conn) {
-                assertTrue(it.next())
-                assertEquals(6, it.getInt(1))
+                queryExecutor.executeQueryAndDo(query, connection ?: conn)  {
+                    assertTrue(it.next())
+                    assertEquals(6, it.getInt(1))
+                }
             }
+
+            verifyColumnValuesGcdStoryCredit()
+            verifyColumnValuesMStoryCredit()
+            verifyColumnValuesMCharacterAppearance()
+            verifyColumnConstraints()
         }
 
-        verifyColumnValuesGcdStoryCredit()
-        verifyColumnValuesMStoryCredit()
-        verifyColumnValuesMCharacterAppearance()
-        verifyColumnConstraints()
-    }
-
-    companion object {
         private lateinit var conn: Connection
 
         @BeforeAll
