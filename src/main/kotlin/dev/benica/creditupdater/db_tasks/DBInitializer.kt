@@ -66,7 +66,6 @@ class DBInitializer(
             ConnectionProvider.getConnection(targetSchema).connection.use { conn ->
                 try {
                     logger.info { "Updating $targetSchema" }
-
                     if (startAtStep <= 1) {
                         logger.info { "Starting Table Updates..." }
                         dropUnusedTables(

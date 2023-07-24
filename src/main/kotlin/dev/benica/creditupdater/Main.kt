@@ -4,7 +4,9 @@ import ch.qos.logback.classic.Level
 import dev.benica.creditupdater.cli_parser.CLIParser
 import dev.benica.creditupdater.db_tasks.DBInitializer
 import dev.benica.creditupdater.db_tasks.DBMigrator
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import mu.KLogger
 import mu.KotlinLogging
 import org.slf4j.Logger
@@ -37,7 +39,7 @@ fun main(args: Array<String>) {
     }
 }
 
-private suspend fun useArgsStartup(parsedArgs: CLIParser) {
+internal suspend fun useArgsStartup(parsedArgs: CLIParser) {
     if (parsedArgs.help) {
         parsedArgs.usage
     } else {
@@ -51,7 +53,12 @@ private suspend fun useArgsStartup(parsedArgs: CLIParser) {
         }
 
         if (parsedArgs.migrate != null) {
-            DBMigrator().migrate()
+            DBMigrator(
+                sourceSchema = parsedArgs.migrate!![0],
+                targetSchema = parsedArgs.migrate!![1],
+                startAtStep = parsedArgs.step,
+                startingId = parsedArgs.startingId
+            ).migrate()
         } else if (parsedArgs.prepare == null) {
             @Suppress("kotlin:S6307")
             DBInitializer(
@@ -63,25 +70,32 @@ private suspend fun useArgsStartup(parsedArgs: CLIParser) {
     }
 }
 
-private suspend fun interactiveStartup() {
+internal suspend fun interactiveStartup() {
     val startupArguments: StartupArguments = InteractiveStartup.start()
     println(startupArguments)
     when (startupArguments.databaseTask) {
         DatabaseTask.INITIALIZE -> {
-            DBInitializer(
-                targetSchema = startupArguments.databaseName,
-                startAtStep = startupArguments.extractedType?.stepNumber ?: 0,
-                startingId = startupArguments.startingStoryId
-            ).prepareDb()
+            @Suppress("kotlin:S6310")
+            withContext(Dispatchers.IO) {
+                DBInitializer(
+                    targetSchema = startupArguments.databaseName,
+                    startAtStep = startupArguments.extractedType?.stepNumber ?: 0,
+                    startingId = startupArguments.startingStoryId
+                ).prepareDb()
+            }
         }
 
         DatabaseTask.MIGRATE -> {
-            DBMigrator().migrate()
+            DBMigrator(
+                sourceSchema = startupArguments.databaseName,
+                targetSchema = startupArguments.targetDatabaseName ?: Credentials.INCOMING_DATABASE,
+                startingId = startupArguments.startingStoryId
+            ).migrate()
         }
     }
 }
 
-fun initLoggers(quiet: CLIParser) {
+internal fun initLoggers(quiet: CLIParser) {
     val loggerLevel = when {
         quiet.verbose -> Level.ALL
         quiet.debug -> Level.DEBUG
