@@ -1,10 +1,24 @@
 Credit Updater
 ==============
-This is a single-purpose program I use for working with GCD (Grand Comics Database - http://www.comics.org) data dumps.
-It will prepare an initial database dump by shrinking the database to only the data that is used by Infinite Longbox, an
-Android app front-end for the modified GCD. It will also extract characters, character appearances, and creator credits
-that are stored in text fields in the GCD. It can also extract characters and credits from an updated version of the
-database for new or updated records and transfer any new or updated records to the primary database.
+This is a single-purpose program I use for preparing the backend database for my Infinite Longbox app. It is not
+intended for general use, but I'm making it available in case anyone else finds it useful. It is written in Java and
+uses the Gradle build system. It is designed to be run from the command line, but it can also be run from an IDE such as
+IntelliJ IDEA. It is designed to be run on a Linux system, but it should also work on Windows and Mac OS X.
+
+Credit Updater is a program for working with GCD (Grand Comics Database - http://www.comics.org) data dumps. It is
+designed to be run on a regular basis to keep the backend database up to date with the latest GCD data. It is designed
+to be run in two stages.
+
+The first stage is to initialize the database, removing records and tables that aren't needed
+for the app, and extracting characters, character appearances, and creator credits from text fields and storing them in
+the database in a more efficient format. This is done by running the program with the **-p** or **--prepare** option.
+
+The second stage is to migrate new data from a GCD data dump into the database, updating existing records and adding
+new records as needed. This is done by running the program with the **-m** or **--migrate** option.
+
+The program can also be run in interactive mode by running the program with no options. In interactive mode, you
+will be prompted to choose between initializing or migrating the database, and you can also configure other settings
+such as the database name, username, password, and starting story ID.
 
 Before you start
 ----------------
