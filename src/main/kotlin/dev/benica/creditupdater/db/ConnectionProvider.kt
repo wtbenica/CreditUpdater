@@ -44,6 +44,6 @@ class ConnectionProvider {
             }
         )
 
-        const val MAX_CONNECTION_POOL_SIZE = 100
+        private const val MAX_CONNECTION_POOL_SIZE = 10
     }
 }
