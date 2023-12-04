@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_award` (id INT PRIMARY KEY AU
 CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_brand_group` (id INT PRIMARY KEY AUTO_INCREMENT);
 CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_biblio_entry` (id INT PRIMARY KEY AUTO_INCREMENT);
 CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_brand_use` (id INT PRIMARY KEY AUTO_INCREMENT);
-CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_brand_emblem_use` (id INT PRIMARY KEY AUTO_INCREMENT);
+CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_brand_emblem_group` (id INT PRIMARY KEY AUTO_INCREMENT);
 CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_creator_art_influence` (id INT PRIMARY KEY AUTO_INCREMENT);
 CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_creator_degree` (id INT PRIMARY KEY AUTO_INCREMENT);
 CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_creator_membership` (id INT PRIMARY KEY AUTO_INCREMENT);

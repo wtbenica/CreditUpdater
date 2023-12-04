@@ -229,7 +229,7 @@ class DBInitializerTest {
                 FROM information_schema.tables
                 WHERE table_schema = '$targetSchema'
                 AND table_name IN ('django_content_type', 'gcd_award', 'gcd_brand_group', 'gcd_biblio_entry',
-                    'gcd_brand_use', 'gcd_brand_emblem_use', 'gcd_creator_art_influence', 'gcd_creator_degree',
+                    'gcd_brand_use', 'gcd_brand_emblem_group', 'gcd_creator_art_influence', 'gcd_creator_degree',
                     'gcd_creator_membership', 'gcd_creator_non_comic_work', 'gcd_creator_relation',
                     'gcd_creator_relation_creator_name', 'gcd_creator_school', 'gcd_degree', 'gcd_feature',
                     'gcd_feature_logo', 'gcd_feature_type', 'gcd_feature_relation', 'gcd_feature_relation_type',

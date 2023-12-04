@@ -168,6 +168,7 @@ class CharacterRepository(
         name: String,
         alterEgo: String?,
         publisherId: Int,
+        // TODO: This needs to be fixed. It causes problems when cu_config.json primary_database is not the same as the targetSchema
         checkPrimary: Boolean = targetSchema != PRIMARY_DATABASE
     ): Int? {
         var characterId: Int? = null
