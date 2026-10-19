@@ -89,9 +89,9 @@ class CLIParser {
     }
 
     private fun validate() {
-        if (_mStep != null && prepare != null && _mStep !in 2..5) {
+        if (_mStep != null && prepare != null && _mStep !in 2..6) {
             _mStep = 1
-            throw ParameterException("Parameter 'step' must be between 2 and 5 (inclusive)")
+            throw ParameterException("Parameter 'step' must be between 2 and 6 (inclusive)")
         }
         if (_mStep != null && prepare == null && migrate == null) {
             _mStep = 1

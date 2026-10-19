@@ -267,13 +267,13 @@ class CLIParserTest {
     }
 
     @Test
-    @DisplayName("should fail when --prepare and --step but step is out of range 2..5")
+    @DisplayName("should fail when --prepare and --step but step is out of range 2..6")
     fun shouldFailWhenPrepareAndStepButStepIsOutOfRange() {
-        val args = arrayOf("-p", "inf_lb_test", "-s", "6")
+        val args = arrayOf("-p", "inf_lb_test", "-s", "7")
         val exception = assertThrows(ParameterException::class.java) {
             parser.parse(args)
         }
-        val expectedOutput = "Parameter 'step' must be between 2 and 5 (inclusive)"
+        val expectedOutput = "Parameter 'step' must be between 2 and 6 (inclusive)"
         assertEquals(expectedOutput, exception.message)
         assertEquals(1, parser.step)
     }

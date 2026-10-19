@@ -8,8 +8,8 @@ import org.junit.jupiter.api.Test
 import java.io.File
 
 /**
- * The linked characters script runs through [parseSqlScript], which joins every line with a
- * space and splits on semicolons: a comment would swallow the statement after it. The script's
+ * The linked characters and merge scripts run through [parseSqlScript], which joins every line with a
+ * space and splits on semicolons: a comment would swallow the statement after it. Their
  * behavior is tested against a database in the backend repository (tools/tests).
  */
 class LinkedCharactersScriptTest {
@@ -32,6 +32,20 @@ class LinkedCharactersScriptTest {
     fun startsAndEndsAsExpected() {
         assertTrue(statements.first().startsWith("ALTER TABLE `test_schema`.m_character"))
         assertTrue(statements.last().startsWith("DROP TABLE `test_schema`.extracted_key_work"))
+    }
+
+    @Test
+    @DisplayName("should parse the merge script into plain statements that drop their helper tables at the end")
+    fun mergeScriptParsesIntoPlainStatements() {
+        val merge = File(DBInitializer.INIT_MERGE_DUPLICATE_CHARACTERS)
+            .parseSqlScript(targetSchema = "test_schema")
+        assertTrue(merge.size > 10)
+        merge.forEach {
+            assertFalse(it.contains("{{"), "placeholder left in: $it")
+            assertFalse(it.contains("--"), "comment left in: $it")
+        }
+        assertTrue(merge.first().startsWith("DROP TABLE IF EXISTS `test_schema`.merge_key_work"))
+        assertTrue(merge.last().startsWith("DROP TABLE `test_schema`.merge_duplicate_work"))
     }
 
     @Test

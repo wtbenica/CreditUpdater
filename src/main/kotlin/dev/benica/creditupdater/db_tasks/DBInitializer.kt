@@ -26,9 +26,11 @@ import javax.inject.Named
  *    'm_character_appearance', and 'm_story_credit' tables.
  * 5. Add the characters the gcd links to stories ('gcd_story_character') to
  *    'm_character' and 'm_character_appearance'. See [INIT_ADD_LINKED_CHARACTERS].
+ * 6. Merge characters that are the same character written differently. See
+ *    [INIT_MERGE_DUPLICATE_CHARACTERS].
  *
  * @param targetSchema The schema to update.
- * @param startAtStep The step to start at (1-5).
+ * @param startAtStep The step to start at (1-6).
  */
 class DBInitializer(
     private val targetSchema: String = PRIMARY_DATABASE,
@@ -136,6 +138,15 @@ class DBInitializer(
                         )
                     }
 
+                    if (startAtStep <= 6) {
+                        logger.info { "Merging duplicate characters..." }
+                        mergeDuplicateCharacters(
+                            queryExecutor = queryExecutor,
+                            targetSchema = targetSchema,
+                            conn = conn
+                        )
+                    }
+
                     logger.info { "Successfully updated $targetSchema" }
                 } catch (sqlEx: SQLException) {
                     logger.error { "Failed to update $targetSchema" }
@@ -193,6 +204,19 @@ class DBInitializer(
 
         /**
          * Target Schema:
+         * - Merges characters that are the same character written differently.
+         *   Two characters of one publisher are merged when they have the same
+         *   name and alter ego, or the name of one is the alter ego of the other
+         *   and the other way round, in both cases ignoring case, spaces and
+         *   punctuation. Near misses are left alone, and a character with no
+         *   alter ego is never merged with one that has one. The one kept is a
+         *   linked one, else the one with the most appearances, else the oldest;
+         *   linked characters are never removed. Run it again any time.
+         */
+        const val INIT_MERGE_DUPLICATE_CHARACTERS = "src/main/resources/sql/init_merge_duplicate_characters.sql"
+
+        /**
+         * Target Schema:
          * - Creates views `bad_publishers`, `bad_indicia_publishers`,
          *   `bad_series`, `bad_issues`, and `bad_stories`.
          */
@@ -227,6 +251,14 @@ class DBInitializer(
         internal fun addLinkedCharacters(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
             queryExecutor.executeSqlScript(
                 sqlScript = File(INIT_ADD_LINKED_CHARACTERS),
+                conn = conn,
+                targetSchema = targetSchema
+            )
+
+        @Throws(SQLException::class)
+        internal fun mergeDuplicateCharacters(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
+            queryExecutor.executeSqlScript(
+                sqlScript = File(INIT_MERGE_DUPLICATE_CHARACTERS),
                 conn = conn,
                 targetSchema = targetSchema
             )
