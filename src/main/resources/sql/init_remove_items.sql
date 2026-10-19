@@ -27,6 +27,11 @@
  WHERE origin_issue_id IN (SELECT id FROM bad_issues)
  OR target_issue_id IN (SELECT id FROM bad_issues);
 
+ DELETE gsc
+ FROM gcd_story_character gsc
+ WHERE gsc.story_id IN (SELECT id FROM bad_stories)
+    OR gsc.story_id IN (SELECT id FROM gcd_story WHERE issue_id IN (SELECT id FROM bad_issues));
+
  DELETE
  FROM gcd_story
  WHERE issue_id IN (SELECT id FROM bad_issues);

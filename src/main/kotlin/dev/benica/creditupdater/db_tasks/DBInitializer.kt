@@ -24,9 +24,11 @@ import javax.inject.Named
  *    'gcd_story_credit' and 'm_story_credit' tables.
  * 4. Add foreign key constraints to the 'gcd_story_credit',
  *    'm_character_appearance', and 'm_story_credit' tables.
+ * 5. Add the characters the gcd links to stories ('gcd_story_character') to
+ *    'm_character' and 'm_character_appearance'. See [INIT_ADD_LINKED_CHARACTERS].
  *
  * @param targetSchema The schema to update.
- * @param startAtStep The step to start at (1-4).
+ * @param startAtStep The step to start at (1-5).
  */
 class DBInitializer(
     private val targetSchema: String = PRIMARY_DATABASE,
@@ -125,6 +127,15 @@ class DBInitializer(
                         )
                     }
 
+                    if (startAtStep <= 5) {
+                        logger.info { "Adding linked characters..." }
+                        addLinkedCharacters(
+                            queryExecutor = queryExecutor,
+                            targetSchema = targetSchema,
+                            conn = conn
+                        )
+                    }
+
                     logger.info { "Successfully updated $targetSchema" }
                 } catch (sqlEx: SQLException) {
                     logger.error { "Failed to update $targetSchema" }
@@ -149,6 +160,36 @@ class DBInitializer(
         const val ISSUE_SERIES_PATH = "src/main/resources/sql/init_add_issue_series_to_credits.sql"
         const val INIT_REMOVE_ITEMS = "src/main/resources/sql/init_remove_items.sql"
         const val INIT_DROP_UNUSED_TABLES = "src/main/resources/sql/init_drop_unused_tables.sql"
+
+        /**
+         * Target Schema:
+         * - The gcd now records most characters as links from stories to its own
+         *   character records ('gcd_story_character'); the text the extractor
+         *   reads only holds those nobody has linked. This is not a copy of the
+         *   gcd's records: a character is a name, an alter ego and a publisher,
+         *   and records are merged when nothing tells them apart.
+         * - A linked character belongs to the publisher of the series it
+         *   appears in, so one character at two publishers is two characters.
+         * - A record the gcd says was 'republished as' another (a reprint or
+         *   foreign edition) counts as the original, so Robin (Dick Grayson) is
+         *   one character. Alternate universe versions stay separate.
+         * - A character that is the 'alias of' exactly one other gets that
+         *   one's name as its alter ego, which keeps the Starmen, Robins and
+         *   Batgirls apart.
+         * - Records with the same name, alter ego and publisher are one
+         *   character, whatever the gcd's disambiguation says.
+         * - An extracted character is taken over by the linked one whose name
+         *   matches, ignoring case and punctuation, any name the gcd has for it,
+         *   with the same alter ego and publisher. Extracted characters that
+         *   match the same linked one are the same character spelled
+         *   differently, and are folded into it with their appearances. A name
+         *   two linked characters have matches neither, unless it is the
+         *   official name of just one.
+         * - Adds 'gcd_character_id' to 'm_character' and
+         *   'gcd_story_character_id' to 'm_character_appearance'. Run it again
+         *   any time: it only adds what is missing.
+         */
+        const val INIT_ADD_LINKED_CHARACTERS = "src/main/resources/sql/init_add_linked_characters.sql"
 
         /**
          * Target Schema:
@@ -178,6 +219,14 @@ class DBInitializer(
         internal fun createDeleteViews(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
             queryExecutor.executeSqlScript(
                 sqlScript = File(INIT_CREATE_BAD_VIEWS),
+                conn = conn,
+                targetSchema = targetSchema
+            )
+
+        @Throws(SQLException::class)
+        internal fun addLinkedCharacters(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
+            queryExecutor.executeSqlScript(
+                sqlScript = File(INIT_ADD_LINKED_CHARACTERS),
                 conn = conn,
                 targetSchema = targetSchema
             )
