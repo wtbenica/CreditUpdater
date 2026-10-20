@@ -89,6 +89,7 @@ tasks.shadowJar {
 tasks.test {
     useJUnitPlatform { excludeTags("db") }
     systemProperty("creditupdater.progressFile", layout.buildDirectory.file("test-progress.json").get().asFile.path)
+    doLast { delete(layout.buildDirectory.file("test-progress.json")) }
 }
 
 val integrationTest by tasks.registering(Test::class) {
@@ -99,6 +100,7 @@ val integrationTest by tasks.registering(Test::class) {
     useJUnitPlatform { includeTags("db") }
     // so the tests never overwrite the progress file of a real run
     systemProperty("creditupdater.progressFile", layout.buildDirectory.file("test-progress.json").get().asFile.path)
+    doLast { delete(layout.buildDirectory.file("test-progress.json")) }
     shouldRunAfter(tasks.test)
 }
 
