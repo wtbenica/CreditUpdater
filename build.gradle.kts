@@ -26,8 +26,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1")
 
     // mockito
-    implementation("org.mockito:mockito-core:5.2.0")
-    implementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
+    implementation("org.mockito:mockito-core:5.14.2")
+    implementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
     implementation("io.mockk:mockk:1.13.4")
 
     // junit
@@ -38,7 +38,7 @@ dependencies {
 
     testImplementation("com.google.dagger:dagger:2.57.1")
     testImplementation("org.junit.jupiter", "junit-jupiter-api", "5.9.2")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
     testRuntimeOnly("org.junit.jupiter", "junit-jupiter-engine", "5.9.2")
 }
 
@@ -85,7 +85,20 @@ tasks.shadowJar {
     mergeServiceFiles()
 }
 
+// The tests that need a MariaDB server are tagged "db": `test` is the fast ones, `integrationTest` the rest
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform { excludeTags("db") }
+    systemProperty("creditupdater.progressFile", layout.buildDirectory.file("test-progress.json").get().asFile.path)
+}
+
+val integrationTest by tasks.registering(Test::class) {
+    description = "Runs the tests that need a MariaDB server (tagged \"db\")."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform { includeTags("db") }
+    // so the tests never overwrite the progress file of a real run
+    systemProperty("creditupdater.progressFile", layout.buildDirectory.file("test-progress.json").get().asFile.path)
+    shouldRunAfter(tasks.test)
 }
 

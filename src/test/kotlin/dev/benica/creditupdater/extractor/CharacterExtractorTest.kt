@@ -1,6 +1,7 @@
 package dev.benica.creditupdater.extractor
 
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import org.junit.jupiter.api.Tag
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE
 import dev.benica.creditupdater.db.CharacterRepositoryTest
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import dev.benica.creditupdater.extractor.CharacterExtractor.*
@@ -12,6 +13,7 @@ import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
 
+@Tag("db")
 class CharacterExtractorTest {
     private lateinit var connection: Connection
     private lateinit var characterExtractor: CharacterExtractor

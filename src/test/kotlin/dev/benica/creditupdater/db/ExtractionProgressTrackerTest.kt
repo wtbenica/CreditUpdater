@@ -1,7 +1,8 @@
 package dev.benica.creditupdater.db
 
+import org.junit.jupiter.api.Tag
 import com.google.gson.Gson
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE
 import dev.benica.creditupdater.cli_parser.CLIParser
 import dev.benica.creditupdater.db.ExtractionProgressTracker.Companion.ProgressInfo
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
@@ -14,6 +15,7 @@ import org.mockito.kotlin.*
 import java.io.File
 import java.sql.Connection
 
+@Tag("db")
 class ExtractionProgressTrackerTest {
     private lateinit var parser: CLIParser
 
@@ -202,6 +204,8 @@ class ExtractionProgressTrackerTest {
     @Test
     @DisplayName("should print progress info correctly")
     fun shouldPrintProgressInfoCorrectly() {
+        // numCompleted is counted from gcd_story in the background when the tracker is made
+        TestDatabaseSetup.setup(dbState = DBState.INITIALIZED, schema = TEST_DATABASE, sourceSchema = null)
         val file = createTestProgressFile()
 
         val mockEpt = spy(
@@ -215,6 +219,10 @@ class ExtractionProgressTrackerTest {
         )
 
         whenever(mockEpt.getItemsCompleted()).thenReturn(ITEMS_COMPLETED)
+
+        // wait for the background count rather than hope it has finished
+        val deadline = System.currentTimeMillis() + 5000
+        while (mockEpt.progressInfo.numCompleted != 2 && System.currentTimeMillis() < deadline) Thread.sleep(50)
 
         // verify progressInfo
         assertEquals(2, mockEpt.progressInfo.lastProcessedItemId)
@@ -337,19 +345,20 @@ class ExtractionProgressTrackerTest {
     @DisplayName("should return correct last processed item id with fileName default parameter")
     fun shouldReturnCorrectLastProcessedItemIdWithFileNameDefaultParameter() {
         // rename file 'progress.json' if exists
-        val file = File("progress.json")
+        val file = File(PROGRESS_FILE)
+        val backup = File("$PROGRESS_FILE.bak")
         if (file.exists()) {
-            file.renameTo(File("progress.bak"))
+            file.renameTo(backup)
         }
 
         // create new 'progress.json' file
-        val file2 = File("progress.json")
+        val file2 = File(PROGRESS_FILE)
         file2.writeText("""{"Credit": {"lastProcessedItemId": 2}}""")
 
         assertEquals(2, ExtractionProgressTracker.getLastProcessedItemId("Credit"))
 
         file2.delete()
-        File("progress.bak").renameTo(File("progress.json"))
+        if (backup.exists()) backup.renameTo(file)
     }
 
     // toPercent

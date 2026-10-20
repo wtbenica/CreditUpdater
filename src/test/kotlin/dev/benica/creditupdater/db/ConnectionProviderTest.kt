@@ -1,11 +1,13 @@
 package dev.benica.creditupdater.db
 
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE_UPDATE
+import org.junit.jupiter.api.Tag
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE_UPDATE
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
+@Tag("db")
 class ConnectionProviderTest {
     @Test
     @DisplayName("getConnection should return a new connection when no connection in connectionMap")

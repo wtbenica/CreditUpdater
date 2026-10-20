@@ -31,6 +31,13 @@ import javax.inject.Named
  *
  * @note The caller is responsible for closing the tracker.
  */
+/**
+ * Where extraction progress is kept. Tests set the `creditupdater.progressFile` property to point
+ * it somewhere else, so they can't overwrite the file of a real run.
+ */
+val PROGRESS_FILE: String
+    get() = System.getProperty("creditupdater.progressFile") ?: "progress.json"
+
 class ExtractionProgressTracker(
     internal val extractedType: String,
     val targetSchema: String,
@@ -145,7 +152,7 @@ class ExtractionProgressTracker(
          * @param itemType the type of item to get the last processed ID for
          */
         @JvmStatic
-        fun getLastProcessedItemId(itemType: String, fileName: String = "progress.json"): Int? {
+        fun getLastProcessedItemId(itemType: String, fileName: String = PROGRESS_FILE): Int? {
             val progressFile = File(fileName)
             return if (progressFile.exists()) {
                 val gson = Gson()
@@ -188,7 +195,7 @@ internal fun Float.toPercent(): String {
  * A map of [ProgressInfo] objects for each item type, Credits or
  * Characters.
  */
-class ProgressInfoMap(private val fileName: String = "progress.json") {
+class ProgressInfoMap(private val fileName: String = PROGRESS_FILE) {
     internal val mProgressInfoMap: MutableMap<String, ProgressInfo>
 
     init {

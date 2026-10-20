@@ -1,7 +1,8 @@
 package dev.benica.creditupdater.db
 
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE_UPDATE
+import org.junit.jupiter.api.Tag
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE_UPDATE
 import dev.benica.creditupdater.db_tasks.DBInitializer.Companion.INIT_CREATE_BAD_VIEWS
 import dev.benica.creditupdater.db_tasks.DBInitializer.Companion.ISSUE_SERIES_PATH
 import org.junit.jupiter.api.Test
@@ -9,6 +10,7 @@ import java.io.File
 import java.sql.Connection
 import java.sql.SQLException
 
+@Tag("db")
 class TestDatabaseSetup {
     @Test
     fun test() {

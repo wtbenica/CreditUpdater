@@ -1,7 +1,9 @@
 package dev.benica.creditupdater.db_tasks
 
+import dev.benica.creditupdater.db.PROGRESS_FILE
+import org.junit.jupiter.api.Tag
 import dev.benica.creditupdater.Credentials
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE
 import dev.benica.creditupdater.db.DBState
 import dev.benica.creditupdater.db.TestDatabaseSetup
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
@@ -15,6 +17,7 @@ import java.io.File
 import java.sql.Connection
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
+@Tag("db")
 class DBTaskTest {
     @Test
     @Order(1)
@@ -129,9 +132,10 @@ class DBTaskTest {
         )
 
         // rename progress.json file if exists
-        val progressFile = File("progress.json")
+        val progressFile = File(PROGRESS_FILE)
+        val backup = File("$PROGRESS_FILE.bak")
         if (progressFile.exists()) {
-            progressFile.renameTo(File("progress.json.bak"))
+            progressFile.renameTo(backup)
         }
 
         // Arrange
@@ -151,10 +155,9 @@ class DBTaskTest {
             batchSize = any()
         )
 
-        // rename progress.json.bak file back to progress.json
-        if (progressFile.exists()) {
-            progressFile.renameTo(File("progress.json"))
-        }
+        // put the progress file back
+        progressFile.delete()
+        if (backup.exists()) backup.renameTo(progressFile)
     }
 
     @Test
@@ -168,9 +171,10 @@ class DBTaskTest {
         )
 
         // rename progress.json file if exists
-        val progressFile = File("progress.json")
+        val progressFile = File(PROGRESS_FILE)
+        val backup = File("$PROGRESS_FILE.bak")
         if (progressFile.exists()) {
-            progressFile.renameTo(File("progress.json.bak"))
+            progressFile.renameTo(backup)
         }
 
         // Arrange
@@ -190,10 +194,9 @@ class DBTaskTest {
             batchSize = any()
         )
 
-        // rename progress.json.bak file back to progress.json
-        if (progressFile.exists()) {
-            progressFile.renameTo(File("progress.json"))
-        }
+        // put the progress file back
+        progressFile.delete()
+        if (backup.exists()) backup.renameTo(progressFile)
     }
 
     companion object {

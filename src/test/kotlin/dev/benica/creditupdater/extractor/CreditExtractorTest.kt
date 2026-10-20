@@ -1,6 +1,7 @@
 package dev.benica.creditupdater.extractor
 
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import org.junit.jupiter.api.Tag
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE
 import dev.benica.creditupdater.db.DBState
 import dev.benica.creditupdater.db.TestDatabaseSetup
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
@@ -13,6 +14,7 @@ import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
 
+@Tag("db")
 class CreditExtractorTest {
     private val database: String = TEST_DATABASE
     private lateinit var connection: Connection

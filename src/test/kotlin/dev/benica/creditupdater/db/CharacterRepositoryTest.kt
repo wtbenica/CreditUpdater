@@ -1,6 +1,7 @@
 package dev.benica.creditupdater.db
 
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import org.junit.jupiter.api.Tag
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTablesAndViews
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getDbConnection
 import dev.benica.creditupdater.models.Appearance
@@ -11,6 +12,7 @@ import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.SQLException
 
+@Tag("db")
 class CharacterRepositoryTest {
 
     // upsertCharacter

@@ -1,6 +1,7 @@
 
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE_UPDATE
+import org.junit.jupiter.api.Tag
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE_UPDATE
 import dev.benica.creditupdater.db.DBState
 import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.db.TestDatabaseSetup
@@ -21,6 +22,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 
+@Tag("db")
 class MainTest {
 
     @Test

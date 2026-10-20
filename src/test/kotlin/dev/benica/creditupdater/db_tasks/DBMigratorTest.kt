@@ -1,7 +1,8 @@
 package dev.benica.creditupdater.db_tasks
 
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE_UPDATE
+import org.junit.jupiter.api.Tag
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE_UPDATE
 import dev.benica.creditupdater.db.DBState
 import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.db.TestDatabaseSetup
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.sql.Connection
 
+@Tag("db")
 class DBMigratorTest {
     private val queryExecutor = QueryExecutor()
 

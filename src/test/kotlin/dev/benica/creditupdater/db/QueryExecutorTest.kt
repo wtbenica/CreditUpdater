@@ -1,6 +1,7 @@
 package dev.benica.creditupdater.db
 
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import org.junit.jupiter.api.Tag
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.dropAllTablesAndViews
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import org.junit.jupiter.api.*
@@ -9,6 +10,7 @@ import org.mockito.kotlin.*
 import java.io.File
 import java.sql.*
 
+@Tag("db")
 class QueryExecutorTest {
     @Test
     @DisplayName("should parse script correctly")

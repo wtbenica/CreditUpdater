@@ -129,4 +129,55 @@ CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_issue_credit` (
     `modified` DATETIME NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_character` (
+    `id` INT PRIMARY KEY AUTO_INCREMENT,
+    `name` VARCHAR(255) NOT NULL,
+    `disambiguation` VARCHAR(255) NOT NULL DEFAULT '',
+    `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    `modified` DATETIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_character_name_detail` (
+    `id` INT PRIMARY KEY AUTO_INCREMENT,
+    `name` VARCHAR(255) NOT NULL,
+    `sort_name` VARCHAR(255) NOT NULL DEFAULT '',
+    `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    `is_official_name` TINYINT(1) NOT NULL DEFAULT 0,
+    `character_id` INT NOT NULL REFERENCES `{{targetSchema}}`.`gcd_character`(`id`),
+    `modified` DATETIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_character_relation_type` (
+    `id` INT PRIMARY KEY AUTO_INCREMENT,
+    `type` VARCHAR(50) NOT NULL,
+    `reverse_type` VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_character_relation` (
+    `id` INT PRIMARY KEY AUTO_INCREMENT,
+    `from_character_id` INT NOT NULL REFERENCES `{{targetSchema}}`.`gcd_character`(`id`),
+    `relation_type_id` INT NOT NULL REFERENCES `{{targetSchema}}`.`gcd_character_relation_type`(`id`),
+    `to_character_id` INT NOT NULL REFERENCES `{{targetSchema}}`.`gcd_character`(`id`),
+    `modified` DATETIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_character_role` (
+    `id` INT PRIMARY KEY AUTO_INCREMENT,
+    `name` VARCHAR(50) NOT NULL,
+    `sort_code` INT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_story_character` (
+    `id` INT PRIMARY KEY AUTO_INCREMENT,
+    `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    `is_flashback` TINYINT(1) NOT NULL DEFAULT 0,
+    `is_origin` TINYINT(1) NOT NULL DEFAULT 0,
+    `is_death` TINYINT(1) NOT NULL DEFAULT 0,
+    `notes` LONGTEXT NOT NULL,
+    `character_id` INT NOT NULL REFERENCES `{{targetSchema}}`.`gcd_character_name_detail`(`id`),
+    `role_id` INT DEFAULT NULL REFERENCES `{{targetSchema}}`.`gcd_character_role`(`id`),
+    `story_id` INT NOT NULL REFERENCES `{{targetSchema}}`.`gcd_story`(`id`),
+    `modified` DATETIME NOT NULL
+);
+
 SET FOREIGN_KEY_CHECKS = 1;

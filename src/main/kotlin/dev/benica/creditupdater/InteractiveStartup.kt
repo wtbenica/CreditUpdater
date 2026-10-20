@@ -3,6 +3,7 @@ package dev.benica.creditupdater
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dev.benica.creditupdater.db.ExtractionProgressTracker
+import dev.benica.creditupdater.db.PROGRESS_FILE
 import java.io.File
 
 /**
@@ -48,7 +49,7 @@ class InteractiveStartup {
             val username = prompt("Username", Credentials.USERNAME_INITIALIZER)
             val password = prompt("Password", Credentials.PASSWORD_INITIALIZER)
 
-            val file = File("progress.json")
+            val file = File(PROGRESS_FILE)
             val progressInfoMap = file.loadProgressInfo()
             val next = progressInfoMap.getOrDefault(extractedType?.text, null)?.lastProcessedItemId ?: 0
 

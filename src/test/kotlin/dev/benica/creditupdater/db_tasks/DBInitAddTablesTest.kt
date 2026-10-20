@@ -1,6 +1,7 @@
 package dev.benica.creditupdater.db_tasks
 
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import org.junit.jupiter.api.Tag
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE
 import dev.benica.creditupdater.db.DBState
 import dev.benica.creditupdater.db.QueryExecutor
 import dev.benica.creditupdater.db.TestDatabaseSetup
@@ -11,6 +12,7 @@ import org.mockito.kotlin.*
 import java.sql.Connection
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
+@Tag("db")
 class DBInitAddTablesTest {
 
     private lateinit var dbInit: DBInitAddTables

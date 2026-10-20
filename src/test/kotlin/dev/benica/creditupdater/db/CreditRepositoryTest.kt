@@ -1,6 +1,7 @@
 package dev.benica.creditupdater.db
 
-import dev.benica.creditupdater.Credentials.Companion.TEST_DATABASE
+import org.junit.jupiter.api.Tag
+import dev.benica.creditupdater.db.TestDatabases.TEST_DATABASE
 import dev.benica.creditupdater.db.TestDatabaseSetup.Companion.getTestDbConnection
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
@@ -8,6 +9,7 @@ import org.mockito.kotlin.*
 import java.sql.*
 
 /** Credit Repository Test - tests the CreditRepository class */
+@Tag("db")
 class CreditRepositoryTest {
     /** Function to test: createOrUpdateStoryCredit */
     @Test
