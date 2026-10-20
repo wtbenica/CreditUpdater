@@ -1,6 +1,18 @@
-.gradle
-.idea
-build
-gradle
-lib
+# Gradle and IDE state
+.gradle/
+.idea/
+*.iml
+build/
+bin/
+out/
+
+# Old libraries nothing references
+lib/
+
+# Local credentials
 src/main/kotlin/Credentials.kt
+
+# Database dumps and run progress sit in the project root; the sql scripts under src/ are tracked
+/*.sql
+/progress.json
+*.log
