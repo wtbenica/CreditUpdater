@@ -1,8 +1,7 @@
 plugins {
-    kotlin("jvm") version "1.8.10"
-    kotlin("kapt") version "1.5.31"
-    id("org.jetbrains.dokka") version "1.5.31"
-    id("com.github.johnrengelman.shadow") version "7.1.0"
+    kotlin("jvm") version "2.2.10"
+    kotlin("kapt") version "2.2.10"
+    id("com.gradleup.shadow") version "8.3.9"
     application
 }
 
@@ -19,11 +18,11 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.4.7")
     implementation("com.beust:jcommander:1.82")
     implementation("com.google.code.gson:gson:2.10.1")
-    implementation("com.google.dagger:dagger:2.46.1")
+    implementation("com.google.dagger:dagger:2.57.1")
     implementation("com.zaxxer:HikariCP:5.0.1")
     implementation("io.github.microutils:kotlin-logging:3.0.5")
     implementation("mysql:mysql-connector-java:8.0.33")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.10")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.10")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1")
 
     // mockito
@@ -34,22 +33,22 @@ dependencies {
     // junit
     implementation("org.junit.jupiter:junit-jupiter-api:5.9.2")
 
-    kapt("com.google.dagger:dagger-compiler:2.46.1")
-    kaptTest("com.google.dagger:dagger-compiler:2.46.1")
+    kapt("com.google.dagger:dagger-compiler:2.57.1")
+    kaptTest("com.google.dagger:dagger-compiler:2.57.1")
 
-    testImplementation("com.google.dagger:dagger:2.46.1")
+    testImplementation("com.google.dagger:dagger:2.57.1")
     testImplementation("org.junit.jupiter", "junit-jupiter-api", "5.9.2")
     testImplementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
     testRuntimeOnly("org.junit.jupiter", "junit-jupiter-engine", "5.9.2")
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
 
 application {
