@@ -18,7 +18,8 @@ class ConnectionProvider {
 
         private fun createConnection(targetSchema: String): HikariDataSource = HikariDataSource(
             HikariConfig().apply {
-                jdbcUrl = "jdbc:mysql://localhost:3306/$targetSchema"
+                // rewriteBatchedStatements: a JDBC batch goes to the server as one multi-row statement
+                jdbcUrl = "jdbc:mysql://localhost:3306/$targetSchema?rewriteBatchedStatements=true"
                 username = Credentials.USERNAME_INITIALIZER
                 password = Credentials.PASSWORD_INITIALIZER
                 driverClassName = "com.mysql.cj.jdbc.Driver"

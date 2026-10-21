@@ -34,6 +34,23 @@ abstract class Extractor(
         resultSet: ResultSet,
         conn: Connection
     ): Int
+
+    /**
+     * Extract and insert a chunk of stories: the rest of [resultSet], from the row it is on.
+     * Extractors that can do the work for many stories at once (looking things up in memory and
+     * inserting in bulk) override this; the default does one story at a time.
+     *
+     * @return the id of the last story and how many stories there were
+     */
+    open fun extractAndInsertBatch(resultSet: ResultSet, conn: Connection): Pair<Int, Int> {
+        var lastId = 0
+        var count = 0
+        do {
+            lastId = extractAndInsert(resultSet, conn)
+            count++
+        } while (resultSet.next())
+        return lastId to count
+    }
 }
 
 /**

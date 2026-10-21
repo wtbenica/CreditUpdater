@@ -1,5 +1,6 @@
 package dev.benica.creditupdater.extractor
 
+import dev.benica.creditupdater.db.CreditLookup
 import dev.benica.creditupdater.db.CreditRepository
 import dev.benica.creditupdater.di.CreditRepositoryComponent
 import dev.benica.creditupdater.di.DaggerCreditRepositoryComponent
@@ -71,6 +72,51 @@ class CreditExtractor(
             logger.error("Error extracting credits from story: ${sqlEx.message}")
             throw sqlEx
         }
+    }
+
+    /** The creators' names and the credits already there, in memory; made when the first chunk is extracted. */
+    private var lookup: CreditLookup? = null
+
+    /**
+     * Extracts a chunk of stories at once: names are looked up in memory, the credits already in
+     * the database are read for the whole chunk in two queries, and the new ones are inserted in
+     * bulk. The credits are the same as one story at a time would give.
+     */
+    @Throws(SQLException::class)
+    override fun extractAndInsertBatch(resultSet: ResultSet, conn: Connection): Pair<Int, Int> {
+        val names = lookup ?: CreditLookup(schema).also {
+            it.load(conn)
+            lookup = it
+        }
+
+        class Wanted(val storyId: Int, val creditTypeId: Int, val name: String)
+
+        val wanted = ArrayList<Wanted>()
+        var firstId = 0
+        var lastId = 0
+        var count = 0
+        do {
+            val storyId = resultSet.getInt("id")
+            if (count == 0) firstId = storyId
+            listOf("script", "pencils", "inks", "colors", "letters", "editing").forEachIndexed { index, field ->
+                resultSet.getString(field).split(';').filter { it.isNotBlank() }.forEach {
+                    wanted += Wanted(storyId, index + 1, it.prepareName())
+                }
+            }
+            lastId = storyId
+            count++
+        } while (resultSet.next())
+
+        val existing = names.creditsBetween(firstId, lastId, conn)
+        val credits = LinkedHashSet<CreditLookup.Credit>()
+        wanted.forEach {
+            val creatorId = names.creatorId(it.name) ?: return@forEach
+            val credit = CreditLookup.Credit(creatorId, it.creditTypeId, it.storyId)
+            if (credit !in existing) credits += credit
+        }
+
+        repository.insertStoryCredits(credits, conn)
+        return lastId to count
     }
 
     /**

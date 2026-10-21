@@ -22,16 +22,54 @@ class DBTask(
 ) {
     // Constants
     companion object {
-        private const val DEFAULT_BATCH_SIZE = 75000
+        /** Stories read, extracted and inserted (in one transaction) at a time. */
+        private const val DEFAULT_BATCH_SIZE = 20000
+
+        /** The condition in the extraction queries that says where to start. */
+        private val START_AFTER = Regex("""(g\.id\s*>\s*)(\d+)""")
     }
 
     internal val queryExecutor: QueryExecutor = QueryExecutor()
+
+    /** The query with its "g.id > N" condition made to start after story [lastId]. */
+    private fun String.startingAfter(lastId: Int): String =
+        START_AFTER.replace(this) { "${it.groupValues[1]}$lastId" }
 
     // Private Properties
     private val logger: KLogger
         get() = KotlinLogging.logger(this::class.java.simpleName)
 
     // Public Methods
+    /**
+     * Copies the characters of the prepared database [baseSchema] into this schema's empty
+     * `m_character`, keeping their ids, so that extracting characters finds them by name and the
+     * new ones are numbered after them. Does nothing if there are characters here already.
+     */
+    @Throws(SQLException::class)
+    fun copyCharactersFrom(baseSchema: String) {
+        ConnectionProvider.getConnection(targetSchema).connection.use { conn ->
+            val hasCharacters = conn.createStatement().use { statement ->
+                statement.executeQuery("SELECT EXISTS (SELECT 1 FROM $targetSchema.m_character)").use {
+                    it.next() && it.getInt(1) == 1
+                }
+            }
+            if (hasCharacters) {
+                logger.info { "m_character in $targetSchema already has characters; not copying from $baseSchema" }
+                return
+            }
+            conn.createStatement().use {
+                val copied = it.executeUpdate(
+                    // not those of a publisher the new dump no longer has
+                    """INSERT INTO $targetSchema.m_character(id, name, alter_ego, publisher_id)
+                       SELECT id, name, alter_ego, publisher_id FROM $baseSchema.m_character
+                       WHERE publisher_id IN (SELECT id FROM $targetSchema.gcd_publisher)
+                       ORDER BY id"""
+                )
+                logger.info { "Copied $copied characters from $baseSchema, keeping their ids" }
+            }
+        }
+    }
+
     /**
      * Extract characters and appearances - extracts characters and appearances
      * from the database.
@@ -49,7 +87,8 @@ class DBTask(
     ) {
         logger.debug { "Starting Characters..." }
 
-        val extractor = CharacterExtractor(schema)
+        // a migration keeps the ids characters already have in the primary database
+        val extractor = CharacterExtractor(schema, reuseExistingIds = !initial)
         val lastIdCompleted = startingId
             ?: ExtractionProgressTracker.getLastProcessedItemId(extractor.extractedItem)
             ?: Credentials.CHARACTER_STORY_START_ID
@@ -64,6 +103,7 @@ class DBTask(
                 JOIN $schema.gcd_issue gi on gi.id = g.issue_id
                 JOIN $schema.gcd_series gs on gs.id = gi.series_id
                 WHERE g.id > $lastIdCompleted
+                AND g.characters <> ''
                 ORDER BY g.id """.trimIndent()
 
         logger.debug { "SelectStoriesQuery: $selectStoriesQuery" }
@@ -108,6 +148,8 @@ class DBTask(
             """SELECT g.script, g.id, g.pencils, g.inks, g.colors, g.letters, g.editing
                         FROM $schema.$table g
                         WHERE g.id > $lastUpdatedItemId
+                        AND (g.script <> '' OR g.pencils <> '' OR g.inks <> ''
+                            OR g.colors <> '' OR g.letters <> '' OR g.editing <> '')
                         ORDER BY g.id """.trimIndent()
 
         @Suppress("kotlin:S6307")
@@ -149,33 +191,44 @@ class DBTask(
             val initialProgress = progressTracker.progressInfo
             var totalTimeMillis: Long = initialProgress.totalTimeMillis
 
-            var offset = 0
+            // Stories are read a chunk at a time, each starting after the last one done (not
+            // skipping a growing number of rows), and a chunk is extracted and inserted in one
+            // transaction. Progress is kept once per chunk.
+            var lastId = START_AFTER.find(selectItemsQuery)?.groupValues?.get(2)?.toInt() ?: 0
             var done = false
 
             while (!done) {
-                val queryWithLimitAndOffset =
-                    "$selectItemsQuery LIMIT $batchSize OFFSET ${offset * batchSize}"
+                val chunkQuery = "${selectItemsQuery.startingAfter(lastId)} LIMIT $batchSize"
 
-                logger.debug { "Query: $queryWithLimitAndOffset" }
+                logger.debug { "Query: $chunkQuery" }
 
                 queryExecutor.executeQueryAndDo(
-                    query = queryWithLimitAndOffset,
+                    query = chunkQuery,
                     conn = conn
                 ) { resultSet ->
                     if (!resultSet.next()) {
                         logger.info { "No more items to update" }
                         done = true
                     } else {
-                        do {
+                        val autoCommit = conn.autoCommit
+                        conn.autoCommit = false
+                        try {
+                            var stories = 0
                             totalTimeMillis += measureTimeMillis {
-                                val processedItemId = extractor.extractAndInsert(resultSet, conn)
-                                progressTracker.updateProgressInfo(processedItemId, totalTimeMillis)
+                                val (last, count) = extractor.extractAndInsertBatch(resultSet, conn)
+                                lastId = last
+                                stories = count
                             }
-                        } while (resultSet.next())
+                            conn.commit()
+                            progressTracker.updateProgressInfo(lastId, totalTimeMillis, stories)
+                        } catch (e: Exception) {
+                            conn.rollback()
+                            throw e
+                        } finally {
+                            conn.autoCommit = autoCommit
+                        }
                     }
                 }
-
-                offset++
             }
 
             logger.info { "END\n\n\n" }

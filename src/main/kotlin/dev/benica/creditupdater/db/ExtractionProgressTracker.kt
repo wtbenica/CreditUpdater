@@ -80,11 +80,12 @@ class ExtractionProgressTracker(
     fun updateProgressInfo(
         lastProcessedItemId: Int,
         totalTimeMillis: Long,
+        itemsCompleted: Int = 1,
     ) {
         synchronized(this) {
             progressInfo.lastProcessedItemId = lastProcessedItemId
             progressInfo.totalTimeMillis = totalTimeMillis
-            progressInfo.numCompleted += 1
+            progressInfo.numCompleted += itemsCompleted
             printProgressInfo()
             progressInfoMap.saveProgressInfo(progressInfo, extractedType)
         }

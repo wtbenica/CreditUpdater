@@ -47,7 +47,8 @@ internal suspend fun useArgsStartup(parsedArgs: CLIParser) {
             DBInitializer(
                 targetSchema = parsedArgs.prepare!!,
                 startAtStep = parsedArgs.step,
-                startingId = parsedArgs.startingId
+                startingId = parsedArgs.startingId,
+                baseSchema = parsedArgs.base,
             ).prepareDb()
         }
 

@@ -43,6 +43,13 @@ class CLIParser {
     var prepare: String? = null
 
     @Parameter(
+        names = ["-b", "--base"],
+        description = "With --prepare: a prepared database whose characters keep their ids",
+        arity = 1,
+    )
+    var base: String? = null
+
+    @Parameter(
         names = ["-s", "--step"],
         description = "Start at the indicated step, skipping completed steps.",
         arity = 1,
@@ -89,6 +96,9 @@ class CLIParser {
     }
 
     private fun validate() {
+        if (base != null && prepare == null) {
+            throw ParameterException("Parameter 'base' should only be used with --prepare")
+        }
         if (_mStep != null && prepare != null && _mStep !in 2..6) {
             _mStep = 1
             throw ParameterException("Parameter 'step' must be between 2 and 6 (inclusive)")

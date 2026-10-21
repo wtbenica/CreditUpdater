@@ -95,6 +95,8 @@ class CLIParserTest {
         @Suppress("RegExpRepeatedSpace", "RegExpDuplicateCharacterInClass")
         val expectedOutput = """Usage: CreditUpdater [options]
   Options:
+    -b, --base
+      With --prepare: a prepared database whose characters keep their ids
     -d, --debug
       Sets logger level to DEBUG
       Default: false

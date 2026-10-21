@@ -37,6 +37,22 @@ class CreditRepository(
         }
     }
 
+    /** Inserts [credits] into m_story_credit in [targetSchema], in bulk; one already there is left alone. */
+    fun insertStoryCredits(credits: Collection<CreditLookup.Credit>, conn: Connection) {
+        if (credits.isEmpty()) return
+        val sql = """INSERT IGNORE INTO $targetSchema.m_story_credit(creator_id, credit_type_id, story_id)
+                VALUES (?, ?, ?)"""
+        conn.prepareStatement(sql).use { statement ->
+            credits.forEach {
+                statement.setInt(1, it.creatorId)
+                statement.setInt(2, it.creditTypeId)
+                statement.setInt(3, it.storyId)
+                statement.addBatch()
+            }
+            statement.executeBatch()
+        }
+    }
+
     // Private Methods
     /**
      * Lookup Gcnd Id - looks for a gcd_creator_name_detail with the given

@@ -31,11 +31,15 @@ import javax.inject.Named
  *
  * @param targetSchema The schema to update.
  * @param startAtStep The step to start at (1-6).
+ * @param baseSchema A prepared database whose characters keep their ids: they are copied into
+ *     [targetSchema] before characters are extracted, so the extraction finds them by name instead
+ *     of numbering them again.
  */
 class DBInitializer(
     private val targetSchema: String = PRIMARY_DATABASE,
     private val startAtStep: Int,
     private val startingId: Int? = null,
+    private val baseSchema: String? = null,
     dispatcherComponent: DispatchAndExecuteComponent = DaggerDispatchAndExecuteComponent.create(),
 ) {
     // Dependencies
@@ -103,6 +107,7 @@ class DBInitializer(
                     }
 
                     if (startAtStep <= 2) {
+                        baseSchema?.let { dbTask.copyCharactersFrom(it) }
                         logger.info { "Starting Character Updates..." }
                         dbTask.extractCharactersAndAppearances(
                             schema = targetSchema,
