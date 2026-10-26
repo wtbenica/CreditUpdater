@@ -180,4 +180,51 @@ CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_story_character` (
     `modified` DATETIME NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_group` (
+    `id` INT PRIMARY KEY AUTO_INCREMENT,
+    `name` VARCHAR(255) NOT NULL,
+    `disambiguation` VARCHAR(255) NOT NULL DEFAULT '',
+    `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    `modified` DATETIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_group_name_detail` (
+    `id` INT PRIMARY KEY AUTO_INCREMENT,
+    `name` VARCHAR(255) NOT NULL,
+    `sort_name` VARCHAR(255) NOT NULL DEFAULT '',
+    `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    `is_official_name` TINYINT(1) NOT NULL DEFAULT 0,
+    `group_id` INT NOT NULL REFERENCES `{{targetSchema}}`.`gcd_group`(`id`),
+    `modified` DATETIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_group_relation_type` (
+    `id` INT PRIMARY KEY AUTO_INCREMENT,
+    `type` VARCHAR(50) NOT NULL,
+    `reverse_type` VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_group_relation` (
+    `id` INT PRIMARY KEY AUTO_INCREMENT,
+    `from_group_id` INT NOT NULL REFERENCES `{{targetSchema}}`.`gcd_group`(`id`),
+    `relation_type_id` INT NOT NULL REFERENCES `{{targetSchema}}`.`gcd_group_relation_type`(`id`),
+    `to_group_id` INT NOT NULL REFERENCES `{{targetSchema}}`.`gcd_group`(`id`),
+    `modified` DATETIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_story_character_group` (
+    `id` INT PRIMARY KEY AUTO_INCREMENT,
+    `storycharacter_id` INT NOT NULL REFERENCES `{{targetSchema}}`.`gcd_story_character`(`id`),
+    `group_id` INT NOT NULL REFERENCES `{{targetSchema}}`.`gcd_group`(`id`)
+);
+
+CREATE TABLE IF NOT EXISTS `{{targetSchema}}`.`gcd_group_character` (
+    `id` INT PRIMARY KEY AUTO_INCREMENT,
+    `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    `notes` LONGTEXT NOT NULL,
+    `story_id` INT NOT NULL REFERENCES `{{targetSchema}}`.`gcd_story`(`id`),
+    `group_name_id` INT NOT NULL REFERENCES `{{targetSchema}}`.`gcd_group_name_detail`(`id`),
+    `modified` DATETIME NOT NULL
+);
+
 SET FOREIGN_KEY_CHECKS = 1;

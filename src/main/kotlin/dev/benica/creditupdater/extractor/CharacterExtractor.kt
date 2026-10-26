@@ -3,6 +3,7 @@ package dev.benica.creditupdater.extractor
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
 import dev.benica.creditupdater.db.CharacterIdCache
 import dev.benica.creditupdater.db.CharacterRepository
+import dev.benica.creditupdater.db.NameCatalog
 import dev.benica.creditupdater.di.CharacterRepositoryComponent
 import dev.benica.creditupdater.di.DaggerCharacterRepositoryComponent
 import dev.benica.creditupdater.di.RepoSource
@@ -49,6 +50,12 @@ class CharacterExtractor(
         repository = repoSource.getRepo(schema)
     }
 
+    /** What the gcd calls its characters and groups, read when the first story is extracted. */
+    private var catalog: NameCatalog? = null
+
+    private fun catalogFor(conn: Connection): NameCatalog =
+        catalog ?: NameCatalog.load(conn, schema).also { catalog = it }
+
     /** Every character's id, in memory; made when the first chunk is extracted. */
     private var characterIds: CharacterIdCache? = null
 
@@ -71,7 +78,7 @@ class CharacterExtractor(
             val characters = resultSet.getString("characters")
             val publisherId = resultSet.getInt("publisher_id")
 
-            val characterList: List<Character> = CharacterParser.parseCharacters(characters)
+            val characterList: List<Character> = CharacterParser.parseCharacters(characters, catalogFor(conn))
             val appearanceSet = mutableSetOf<Appearance>()
 
             for (character in characterList) {
@@ -95,7 +102,7 @@ class CharacterExtractor(
                             characterId = it,
                             details = character.details,
                             notes = null,
-                            membership = character.members
+                            membership = character.members.ifBlank { null }
                         )
                     }
                 }
@@ -127,6 +134,7 @@ class CharacterExtractor(
             characterIds = it
         }
 
+        val catalog = catalogFor(conn)
         val appearances = LinkedHashSet<Appearance>()
         var lastId = 0
         var count = 0
@@ -134,7 +142,7 @@ class CharacterExtractor(
             val storyId = resultSet.getInt("id")
             val publisherId = resultSet.getInt("publisher_id")
 
-            CharacterParser.parseCharacters(resultSet.getString("characters")).forEach { character ->
+            CharacterParser.parseCharacters(resultSet.getString("characters"), catalog).forEach { character ->
                 appearances += when (character) {
                     is Individual -> Appearance(
                         storyId = storyId,
@@ -149,7 +157,7 @@ class CharacterExtractor(
                         characterId = ids.idFor(character.name, null, publisherId),
                         details = character.details,
                         notes = null,
-                        membership = character.members
+                        membership = character.members.ifBlank { null }
                     )
                 }
             }

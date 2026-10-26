@@ -27,6 +27,17 @@
  WHERE origin_issue_id IN (SELECT id FROM bad_issues)
  OR target_issue_id IN (SELECT id FROM bad_issues);
 
+ DELETE sg
+ FROM gcd_story_character_group sg
+ JOIN gcd_story_character gsc ON gsc.id = sg.storycharacter_id
+ WHERE gsc.story_id IN (SELECT id FROM bad_stories)
+    OR gsc.story_id IN (SELECT id FROM gcd_story WHERE issue_id IN (SELECT id FROM bad_issues));
+
+ DELETE gc
+ FROM gcd_group_character gc
+ WHERE gc.story_id IN (SELECT id FROM bad_stories)
+    OR gc.story_id IN (SELECT id FROM gcd_story WHERE issue_id IN (SELECT id FROM bad_issues));
+
  DELETE gsc
  FROM gcd_story_character gsc
  WHERE gsc.story_id IN (SELECT id FROM bad_stories)
@@ -51,7 +62,7 @@
  SET first_issue_id = NULL,
      last_issue_id  = NULL
  WHERE publisher_id IN (SELECT id FROM bad_publishers)
-    OR country_id != 225
+    OR country_id NOT IN (225, 75)
     OR language_id != 25
     OR last_issue_id IN (
      SELECT id
@@ -78,7 +89,7 @@
 
  DELETE
  FROM gcd_series
- WHERE country_id != 225
+ WHERE country_id NOT IN (225, 75)
     OR language_id != 25
     OR year_began < 1900
     OR publisher_id IN (
@@ -102,7 +113,7 @@
 
  DELETE
  FROM gcd_publisher
- WHERE country_id != 225
+ WHERE country_id NOT IN (225, 75)
  OR id NOT IN (
     SELECT DISTINCT gp.id
     FROM gcd_publisher gp

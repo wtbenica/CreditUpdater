@@ -1,7 +1,7 @@
 CREATE OR REPLACE VIEW `{{targetSchema}}`.bad_publishers AS (
         SELECT gp.id
         FROM gcd_publisher gp
-        WHERE gp.country_id != 225
+        WHERE gp.country_id NOT IN (225, 75)
             OR gp.id NOT IN (
                 SELECT DISTINCT gp.id
                 FROM gcd_publisher gp
@@ -22,7 +22,7 @@ CREATE OR REPLACE VIEW `{{targetSchema}}`.bad_indicia_publishers AS (
 CREATE OR REPLACE VIEW `{{targetSchema}}`.bad_series AS (
         SELECT gs.id
         FROM gcd_series gs
-        WHERE gs.country_id != 225
+        WHERE gs.country_id NOT IN (225, 75)
             OR gs.language_id != 25
             OR gs.year_began < 1900
             OR gs.publisher_id IN (

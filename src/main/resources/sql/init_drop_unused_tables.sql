@@ -36,8 +36,6 @@ DROP TABLE IF EXISTS `taggit_taggeditem`;
 DROP TABLE IF EXISTS `gcd_brand_emblem_group`;
 DROP TABLE IF EXISTS `gcd_feature_detail_name`;
 DROP TABLE IF EXISTS `gcd_feature_logo_2_feature_name`;
-DROP TABLE IF EXISTS `gcd_story_character_group`;
-DROP TABLE IF EXISTS `gcd_group_character`;
 DROP TABLE IF EXISTS `gcd_story_feature_name`;
 DROP TABLE IF EXISTS `gcd_story_universe`;
 DROP TABLE IF EXISTS `gcd_story_story_arc`;

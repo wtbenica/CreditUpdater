@@ -26,6 +26,8 @@ import javax.inject.Named
  *    'm_character_appearance', and 'm_story_credit' tables.
  * 5. Add the characters the gcd links to stories ('gcd_story_character') to
  *    'm_character' and 'm_character_appearance'. See [INIT_ADD_LINKED_CHARACTERS].
+ *    Then the same for the groups it links ('gcd_group_character'), with the roster of
+ *    each from 'gcd_story_character_group'. See [INIT_ADD_LINKED_GROUPS].
  * 6. Merge characters that are the same character written differently. See
  *    [INIT_MERGE_DUPLICATE_CHARACTERS].
  *
@@ -141,6 +143,12 @@ class DBInitializer(
                             targetSchema = targetSchema,
                             conn = conn
                         )
+                        logger.info { "Adding linked groups..." }
+                        addLinkedGroups(
+                            queryExecutor = queryExecutor,
+                            targetSchema = targetSchema,
+                            conn = conn
+                        )
                     }
 
                     if (startAtStep <= 6) {
@@ -209,6 +217,27 @@ class DBInitializer(
 
         /**
          * Target Schema:
+         * - The gcd records a team in a story as a link to its own group record
+         *   ('gcd_group_character'), and who appeared as part of it as links from
+         *   the story's characters to the group ('gcd_story_character_group').
+         *   The story text can't say whether a name is a character or a group; these
+         *   links can.
+         * - A team is a character record with no alter ego and a 'gcd_group_id', at
+         *   the publisher of the series it appears in. A group 'republished as'
+         *   another counts as the original.
+         * - An extracted character with no alter ego is taken over by the group whose
+         *   name matches, ignoring case and punctuation, any name the gcd has for it,
+         *   unless that name is also a character's or belongs to two groups.
+         * - The appearance of a team keeps the roster of its story: the names its
+         *   member characters were credited as.
+         * - Adds 'gcd_group_id' to 'm_character' and 'gcd_group_character_id' to
+         *   'm_character_appearance'. Run it again any time: it only adds what is
+         *   missing.
+         */
+        const val INIT_ADD_LINKED_GROUPS = "src/main/resources/sql/init_add_linked_groups.sql"
+
+        /**
+         * Target Schema:
          * - Merges characters that are the same character written differently.
          *   Two characters of one publisher are merged when they have the same
          *   name and alter ego, or the name of one is the alter ego of the other
@@ -261,6 +290,14 @@ class DBInitializer(
             )
 
         @Throws(SQLException::class)
+        internal fun addLinkedGroups(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
+            queryExecutor.executeSqlScript(
+                sqlScript = File(INIT_ADD_LINKED_GROUPS),
+                conn = conn,
+                targetSchema = targetSchema
+            )
+
+        @Throws(SQLException::class)
         internal fun mergeDuplicateCharacters(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
             queryExecutor.executeSqlScript(
                 sqlScript = File(INIT_MERGE_DUPLICATE_CHARACTERS),
@@ -277,8 +314,9 @@ class DBInitializer(
 
         /**
          * Shrink database - this function shrinks the database by removing a bunch
-         * of records: Non-US/Canadian publishers, non-English languages, and
-         * pre-1900 stories.
+         * of records: publishers and series outside the United States (country 225)
+         * and the United Kingdom (75, which has Titan and the other British
+         * publishers), non-English languages, and pre-1900 stories.
          *
          * @throws SQLException
          */

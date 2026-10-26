@@ -56,7 +56,7 @@ CREATE TABLE {{sourceSchema}}.good_publishers AS
 SELECT DISTINCT gp.*
 FROM {{sourceSchema}}.gcd_publisher gp
 JOIN {{sourceSchema}}.gcd_series gs ON gp.id = gs.publisher_id
-WHERE gp.country_id = 225
+WHERE gp.country_id IN (225, 75)
   AND  gs.year_began >= 1900;
 
 DROP TABLE IF EXISTS {{sourceSchema}}.migrate_publishers;
@@ -99,7 +99,7 @@ WHERE new.id NOT IN (
 
 # ##############################################################################
 # Create views of 'good' series: series publisher_id is good_publishers and     #
-# series year_began >= 1900, language_id = 25, and country_id = 225            #
+# series year_began >= 1900, language_id = 25, and country_id IN (225, 75)   #
 # #############################################################################;
 
 DROP TABLE IF EXISTS {{sourceSchema}}.good_series;
@@ -111,7 +111,7 @@ WHERE publisher_id IN (
     SELECT id
     FROM {{sourceSchema}}.good_publishers
   )
-  AND country_id = 225
+  AND country_id IN (225, 75)
   AND language_id = 25
   AND year_began >= 1900;
 

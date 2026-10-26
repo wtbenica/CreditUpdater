@@ -1,3 +1,4 @@
+ALTER TABLE `{{targetSchema}}`.m_character ADD COLUMN IF NOT EXISTS gcd_group_id INT NULL;
 DROP TABLE IF EXISTS `{{targetSchema}}`.merge_key_work;
 DROP TABLE IF EXISTS `{{targetSchema}}`.merge_best_work;
 DROP TABLE IF EXISTS `{{targetSchema}}`.merge_duplicate_work;
@@ -17,7 +18,7 @@ SELECT m.id,
        m.publisher_id,
        LEFT(LOWER(REGEXP_REPLACE(m.name, '[^[:alnum:]]+', '')), 255),
        LEFT(LOWER(REGEXP_REPLACE(IFNULL(m.alter_ego, ''), '[^[:alnum:]]+', '')), 255),
-       IF(m.gcd_character_id IS NULL, 0, 1)
+       IF(m.gcd_character_id IS NULL AND m.gcd_group_id IS NULL, 0, 1)
 FROM `{{targetSchema}}`.m_character m;
 UPDATE `{{targetSchema}}`.merge_key_work k
     JOIN (SELECT character_id, COUNT(*) AS n
@@ -72,7 +73,7 @@ SELECT m.id,
        m.publisher_id,
        LEFT(LOWER(REGEXP_REPLACE(m.name, '[^[:alnum:]]+', '')), 255),
        LEFT(LOWER(REGEXP_REPLACE(IFNULL(m.alter_ego, ''), '[^[:alnum:]]+', '')), 255),
-       IF(m.gcd_character_id IS NULL, 0, 1)
+       IF(m.gcd_character_id IS NULL AND m.gcd_group_id IS NULL, 0, 1)
 FROM `{{targetSchema}}`.m_character m;
 UPDATE `{{targetSchema}}`.merge_key_work k
     JOIN (SELECT character_id, COUNT(*) AS n

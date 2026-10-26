@@ -1,5 +1,6 @@
 package dev.benica.creditupdater.extractor.utils
 
+import dev.benica.creditupdater.db.NameCatalog
 import dev.benica.creditupdater.extractor.cleanup
 import dev.benica.creditupdater.models.Character
 import dev.benica.creditupdater.models.Individual
@@ -14,9 +15,12 @@ class CharacterParser {
          *     semicolon-separated list of character names, with optional bracketed
          *     text containing alter egos or team memberships, and optional
          *     parenthetical text containing appearance notes.
+         * @param catalog what the gcd calls its characters and groups: a name it knows as only a
+         *     group is a team, and as only a character is an individual, whatever the brackets
+         *     hold; for any other name the brackets decide (more than one entry makes a team).
          * @return a list of [Character] objects.
          */
-        fun parseCharacters(characters: String): List<Character> {
+        fun parseCharacters(characters: String, catalog: NameCatalog = NameCatalog.EMPTY): List<Character> {
             val fixedInput = fixMissingBrackets(characters)
             val characterList = mutableListOf<Character>()
             val characterStrings = splitOnOuterSemicolons(fixedInput)
@@ -26,20 +30,35 @@ class CharacterParser {
                 val (alterEgo: String?, membership: String?) =
                     parseBracketedText(bracketedText)
 
-                val isTeam = membership != null
+                val isTeam = when (catalog.kindOf(name)) {
+                    NameCatalog.Kind.GROUP -> true
+                    NameCatalog.Kind.CHARACTER -> false
+                    else -> membership != null
+                }
 
                 if (name.isNotEmpty()) {
                     characterList.add(
                         if (isTeam) {
                             Team(name = name, members = bracketedText, details = appearanceInfo)
                         } else {
-                            Individual(name = name, alterEgo = alterEgo, details = appearanceInfo)
+                            val aliases = splitOnOuterSemicolons(bracketedText).map { it.cleanup() }
+                                .filter { it.isNotEmpty() }
+                            Individual(
+                                name = name,
+                                alterEgo = aliases.firstOrNull() ?: alterEgo,
+                                details = withOtherNames(appearanceInfo, aliases.drop(1)),
+                            )
                         }
                     )
                 }
             }
             return characterList
         }
+
+        /** [details] with the names a character goes by besides the first, which is their alter ego. */
+        private fun withOtherNames(details: String, others: List<String>): String =
+            if (others.isEmpty()) details
+            else listOf(details, "also as ${others.joinToString("; ")}").filter { it.isNotEmpty() }.joinToString("; ")
 
         /**
          * Attempts to fix malformed character strings by adding missing

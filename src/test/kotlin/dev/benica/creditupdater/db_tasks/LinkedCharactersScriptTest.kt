@@ -44,15 +44,48 @@ class LinkedCharactersScriptTest {
             assertFalse(it.contains("{{"), "placeholder left in: $it")
             assertFalse(it.contains("--"), "comment left in: $it")
         }
-        assertTrue(merge.first().startsWith("DROP TABLE IF EXISTS `test_schema`.merge_key_work"))
+        assertTrue(merge.first().startsWith("ALTER TABLE `test_schema`.m_character"))
+        assertTrue(merge[1].startsWith("DROP TABLE IF EXISTS `test_schema`.merge_key_work"))
         assertTrue(merge.last().startsWith("DROP TABLE `test_schema`.merge_duplicate_work"))
     }
 
     @Test
-    @DisplayName("should not drop the table of characters the gcd links to stories")
-    fun keepsTheLinkTable() {
+    @DisplayName("should not drop the tables of characters and groups the gcd links to stories")
+    fun keepsTheLinkTables() {
         val dropped = File(DBInitializer.INIT_DROP_UNUSED_TABLES).readText()
         assertFalse(dropped.contains("`gcd_story_character`;"))
+        assertFalse(dropped.contains("`gcd_story_character_group`;"))
+        assertFalse(dropped.contains("`gcd_group_character`;"))
+    }
+
+    @Test
+    @DisplayName("should parse the linked groups script into plain statements that end by dropping its helper tables")
+    fun groupsScriptParsesIntoPlainStatements() {
+        val groups = File(DBInitializer.INIT_ADD_LINKED_GROUPS).parseSqlScript(targetSchema = "test_schema")
+        assertTrue(groups.size > 20)
+        groups.forEach {
+            assertFalse(it.contains("{{"), "placeholder left in: $it")
+            assertFalse(it.contains("--"), "comment left in: $it")
+        }
+        assertTrue(groups.first().startsWith("ALTER TABLE `test_schema`.m_character"))
+        assertTrue(groups.last().startsWith("DROP TABLE `test_schema`.team_duplicate_work"))
+    }
+
+    @Test
+    @DisplayName("should delete group links of removed stories before the stories themselves")
+    fun removesGroupLinksBeforeStories() {
+        val script = File("src/main/resources/sql/init_remove_items.sql").readText()
+        val stories = script.indexOf("FROM gcd_story\n")
+        assertTrue(script.indexOf("FROM gcd_group_character gc") in 0 until stories)
+        assertTrue(script.indexOf("FROM gcd_story_character_group sg") in 0 until script.indexOf("FROM gcd_story_character gsc"))
+    }
+
+    @Test
+    @DisplayName("should keep the United Kingdom's publishers as well as the United States'")
+    fun keepsBritishPublishers() {
+        val script = File("src/main/resources/sql/init_remove_items.sql").readText()
+        assertFalse(script.contains("country_id != 225"))
+        assertTrue(script.contains("country_id NOT IN (225, 75)"))
     }
 
     @Test
