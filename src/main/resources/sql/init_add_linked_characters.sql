@@ -6,6 +6,7 @@ ALTER TABLE `{{targetSchema}}`.m_character_appearance
     ADD UNIQUE INDEX IF NOT EXISTS m_appearance_gcd_story_character (gcd_story_character_id);
 DROP TABLE IF EXISTS `{{targetSchema}}`.canonical_work;
 DROP TABLE IF EXISTS `{{targetSchema}}`.alias_work;
+DROP TABLE IF EXISTS `{{targetSchema}}`.alias_cover_work;
 DROP TABLE IF EXISTS `{{targetSchema}}`.linked_appearance_work;
 DROP TABLE IF EXISTS `{{targetSchema}}`.linked_character_work;
 DROP TABLE IF EXISTS `{{targetSchema}}`.linked_group_work;
@@ -53,6 +54,7 @@ DROP TABLE `{{targetSchema}}`.republished_work;
 CREATE TABLE `{{targetSchema}}`.alias_work AS
 SELECT r.from_character_id AS gcd_character_id,
        MIN(person.name) AS alter_ego,
+       MIN(r.to_character_id) AS person_id,
        COUNT(DISTINCT r.to_character_id) AS n
 FROM `{{targetSchema}}`.gcd_character_relation r
          JOIN `{{targetSchema}}`.gcd_character_relation_type t
@@ -123,6 +125,12 @@ UPDATE `{{targetSchema}}`.linked_appearance_work la
 SET la.group_id = lc.group_id;
 ALTER TABLE `{{targetSchema}}`.linked_appearance_work
     ADD INDEX (story_id, group_id, gcd_story_character_id);
+CREATE TABLE `{{targetSchema}}`.alias_cover_work AS
+SELECT DISTINCT la.story_id, pc.canonical_id AS person_id
+FROM `{{targetSchema}}`.linked_appearance_work la
+         JOIN `{{targetSchema}}`.alias_work al ON al.gcd_character_id = la.gcd_character_id AND al.n = 1
+         JOIN `{{targetSchema}}`.canonical_work pc ON pc.gcd_character_id = al.person_id;
+ALTER TABLE `{{targetSchema}}`.alias_cover_work ADD PRIMARY KEY (story_id, person_id);
 CREATE TABLE `{{targetSchema}}`.linked_name_work AS
 SELECT DISTINCT lc.publisher_id,
                 lc.group_id,
@@ -220,7 +228,8 @@ WHERE lc.gcd_character_id = lc.group_id
   AND NOT EXISTS (SELECT 1
                   FROM `{{targetSchema}}`.m_character m
                   WHERE m.gcd_character_id = lc.gcd_character_id
-                    AND m.publisher_id = lc.publisher_id);
+                    AND m.publisher_id = lc.publisher_id)
+ORDER BY lc.gcd_character_id, lc.publisher_id;
 INSERT IGNORE INTO `{{targetSchema}}`.m_character_appearance
 (details, character_id, story_id, notes, membership, issue_id, series_id, gcd_story_character_id)
 SELECT LEFT(CONCAT_WS(', ',
@@ -239,6 +248,10 @@ FROM `{{targetSchema}}`.linked_appearance_work la
          JOIN `{{targetSchema}}`.m_character m
               ON m.gcd_character_id = la.group_id AND m.publisher_id = la.publisher_id
 WHERE NOT EXISTS (SELECT 1
+                  FROM `{{targetSchema}}`.alias_cover_work ac
+                  WHERE ac.story_id = la.story_id
+                    AND ac.person_id = la.gcd_character_id)
+  AND NOT EXISTS (SELECT 1
                   FROM `{{targetSchema}}`.m_character_appearance a
                   WHERE a.story_id = la.story_id
                     AND a.character_id = m.id
@@ -248,9 +261,11 @@ WHERE NOT EXISTS (SELECT 1
                   WHERE first_link.story_id = la.story_id
                     AND first_link.group_id = la.group_id
                     AND first_link.publisher_id = la.publisher_id
-                    AND first_link.gcd_story_character_id < la.gcd_story_character_id);
+                    AND first_link.gcd_story_character_id < la.gcd_story_character_id)
+ORDER BY la.gcd_story_character_id;
 DROP TABLE `{{targetSchema}}`.canonical_work;
 DROP TABLE `{{targetSchema}}`.alias_work;
+DROP TABLE `{{targetSchema}}`.alias_cover_work;
 DROP TABLE `{{targetSchema}}`.linked_appearance_work;
 DROP TABLE `{{targetSchema}}`.linked_character_work;
 DROP TABLE `{{targetSchema}}`.linked_group_work;
