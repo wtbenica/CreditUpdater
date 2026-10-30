@@ -94,4 +94,19 @@ class LinkedCharactersScriptTest {
         val script = File("src/main/resources/sql/init_remove_items.sql").readText()
         assertTrue(script.indexOf("FROM gcd_story_character gsc") in 0 until script.indexOf("FROM gcd_story\n"))
     }
+
+    @Test
+    @DisplayName("should parse the migrate script into plain statements that copy only the migrated stories' links")
+    fun migrateScriptParsesIntoPlainStatements() {
+        val migrate = File(DBMigrator.MIGRATE_LINKED)
+            .parseSqlScript(targetSchema = "target_schema", sourceSchema = "source_schema")
+        assertTrue(migrate.first().startsWith("SET FOREIGN_KEY_CHECKS = 0"))
+        assertTrue(migrate.last().startsWith("SET FOREIGN_KEY_CHECKS = 1"))
+        migrate.forEach {
+            assertFalse(it.contains("{{"), "placeholder left in: $it")
+            assertFalse(it.contains("--") || it.contains("#"), "comment left in: $it")
+        }
+        val links = migrate.first { it.startsWith("REPLACE target_schema.gcd_story_character ") }
+        assertTrue(links.contains("JOIN target_schema.gcd_story gs ON gs.id = new.story_id"))
+    }
 }

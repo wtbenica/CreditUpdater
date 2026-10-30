@@ -4,7 +4,10 @@ import dev.benica.creditupdater.Credentials.Companion.INCOMING_DATABASE
 import dev.benica.creditupdater.Credentials.Companion.PRIMARY_DATABASE
 import dev.benica.creditupdater.db.ConnectionProvider
 import dev.benica.creditupdater.db.QueryExecutor
+import dev.benica.creditupdater.db_tasks.DBInitializer.Companion.addLinkedCharacters
+import dev.benica.creditupdater.db_tasks.DBInitializer.Companion.addLinkedGroups
 import dev.benica.creditupdater.db_tasks.DBInitializer.Companion.dropIsSourcedAndSourcedByColumns
+import dev.benica.creditupdater.db_tasks.DBInitializer.Companion.mergeDuplicateCharacters
 import dev.benica.creditupdater.di.*
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -107,6 +110,21 @@ class DBMigrator(
                     )
                     logger.info { "Done migrating records" }
                 }
+
+                // step 5 complete
+                if (startAtStep <= 6) {
+                    logger.info { "starting linked characters and groups..." }
+                    migrateLinked(
+                        queryExecutor = queryExecutor,
+                        conn = conn,
+                        sourceSchema = sourceSchema,
+                        targetSchema = targetSchema
+                    )
+                    addLinkedCharacters(queryExecutor, targetSchema, conn)
+                    addLinkedGroups(queryExecutor, targetSchema, conn)
+                    mergeDuplicateCharacters(queryExecutor, targetSchema, conn)
+                    logger.info { "Done with linked characters and groups" }
+                }
             }
         }
     }
@@ -124,6 +142,26 @@ class DBMigrator(
         internal const val MIGRATE_ADD_TABLES = "src/main/resources/sql/migrate_add_tables.sql"
         private const val MIGRATE_FILL_ID_COLUMNS = "src/main/resources/sql/migrate_fill_id_columns.sql"
         private const val MIGRATE_RECORDS = "src/main/resources/sql/migrate.sql"
+
+        /**
+         * Brings the gcd's character and group records (and the links of the migrated stories to them)
+         * from the source to the target, and drops the target's linked appearances whose link is gone.
+         * The linked-character scripts then run on the target as they do for a prepared database.
+         */
+        internal const val MIGRATE_LINKED = "src/main/resources/sql/migrate_linked.sql"
+
+        internal fun migrateLinked(
+            queryExecutor: QueryExecutor,
+            conn: Connection,
+            sourceSchema: String? = null,
+            targetSchema: String? = null
+        ) =
+            queryExecutor.executeSqlScript(
+                sqlScript = File(MIGRATE_LINKED),
+                conn = conn,
+                targetSchema = targetSchema,
+                sourceSchema = sourceSchema
+            )
 
         /** Executes [MIGRATE_ADD_TABLES] */
         internal fun addTablesNew(

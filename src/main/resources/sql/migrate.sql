@@ -441,7 +441,7 @@ SET id = (
         LIMIT 1
     );
 
-REPLACE INTO {{targetSchema}}.m_character_appearance
+REPLACE INTO {{targetSchema}}.m_character_appearance(id, details, character_id, story_id, notes, membership, issue_id, series_id)
 SELECT id, details, new_character_id, story_id, notes, membership, issue_id, series_id
 FROM {{sourceSchema}}.mca_updates_only;
 
