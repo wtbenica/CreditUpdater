@@ -27,6 +27,9 @@ class DBTask(
 
         /** The condition in the extraction queries that says where to start. */
         private val START_AFTER = Regex("""(g\.id\s*>\s*)(\d+)""")
+
+        /** What ties a character to the gcd's character or group it was made from. */
+        private val LINK_COLUMNS = listOf("gcd_character_id", "gcd_group_id")
     }
 
     internal val queryExecutor: QueryExecutor = QueryExecutor()
@@ -43,7 +46,10 @@ class DBTask(
     /**
      * Copies the characters of the prepared database [baseSchema] into this schema's empty
      * `m_character`, keeping their ids, so that extracting characters finds them by name and the
-     * new ones are numbered after them. Does nothing if there are characters here already.
+     * new ones are numbered after them. Their links to the gcd's characters and groups come too:
+     * the linking scripts find a linked character by that link, which a name can't always tell
+     * (several groups of one publisher share one), and without it the character gets a new id.
+     * Does nothing if there are characters here already.
      */
     @Throws(SQLException::class)
     fun copyCharactersFrom(baseSchema: String) {
@@ -57,11 +63,24 @@ class DBTask(
                 logger.info { "m_character in $targetSchema already has characters; not copying from $baseSchema" }
                 return
             }
+            // a base made before the links existed has no such columns
+            val links = LINK_COLUMNS.filter { column ->
+                conn.createStatement().use { statement ->
+                    statement.executeQuery(
+                        """SELECT 1 FROM information_schema.columns
+                           WHERE table_schema = '$baseSchema' AND table_name = 'm_character' AND column_name = '$column'"""
+                    ).use { it.next() }
+                }
+            }
             conn.createStatement().use {
+                links.forEach { column ->
+                    it.execute("ALTER TABLE $targetSchema.m_character ADD COLUMN IF NOT EXISTS $column INT NULL")
+                }
+                val columns = (listOf("id", "name", "alter_ego", "publisher_id") + links).joinToString(", ")
                 val copied = it.executeUpdate(
                     // not those of a publisher the new dump no longer has
-                    """INSERT INTO $targetSchema.m_character(id, name, alter_ego, publisher_id)
-                       SELECT id, name, alter_ego, publisher_id FROM $baseSchema.m_character
+                    """INSERT INTO $targetSchema.m_character($columns)
+                       SELECT $columns FROM $baseSchema.m_character
                        WHERE publisher_id IN (SELECT id FROM $targetSchema.gcd_publisher)
                        ORDER BY id"""
                 )
