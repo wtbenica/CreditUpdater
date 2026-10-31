@@ -1,6 +1,7 @@
 package dev.benica.creditupdater.db_tasks
 
 import dev.benica.creditupdater.db.parseSqlScript
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
@@ -47,6 +48,15 @@ class LinkedCharactersScriptTest {
         assertTrue(merge.first().startsWith("ALTER TABLE `test_schema`.m_character"))
         assertTrue(merge[1].startsWith("DROP TABLE IF EXISTS `test_schema`.merge_key_work"))
         assertTrue(merge.last().startsWith("DROP TABLE `test_schema`.merge_duplicate_work"))
+    }
+
+    @Test
+    @DisplayName("should parse the prune script into one statement that only deletes characters no appearance uses")
+    fun pruneScriptDeletesOnlyEmptyCharacters() {
+        val prune = File(DBInitializer.INIT_PRUNE_EMPTY_CHARACTERS).parseSqlScript(targetSchema = "test_schema")
+        assertEquals(1, prune.size)
+        assertTrue(prune.single().startsWith("DELETE m FROM `test_schema`.m_character m WHERE NOT EXISTS"))
+        assertTrue(prune.single().contains("a.character_id = m.id"))
     }
 
     @Test

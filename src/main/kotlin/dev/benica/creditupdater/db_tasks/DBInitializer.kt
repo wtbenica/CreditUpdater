@@ -160,6 +160,15 @@ class DBInitializer(
                         )
                     }
 
+                    if (startAtStep <= 7) {
+                        logger.info { "Removing characters with no appearances..." }
+                        pruneEmptyCharacters(
+                            queryExecutor = queryExecutor,
+                            targetSchema = targetSchema,
+                            conn = conn
+                        )
+                    }
+
                     logger.info { "Successfully updated $targetSchema" }
                 } catch (sqlEx: SQLException) {
                     logger.error { "Failed to update $targetSchema" }
@@ -251,6 +260,14 @@ class DBInitializer(
 
         /**
          * Target Schema:
+         * - Removes the characters no appearance points to: the person behind a
+         *   linked alias (the gcd credits "Thor [Don Blake]" as two characters,
+         *   this database as one "Thor (Don Blake)"), and what the merge left behind.
+         */
+        const val INIT_PRUNE_EMPTY_CHARACTERS = "src/main/resources/sql/init_prune_empty_characters.sql"
+
+        /**
+         * Target Schema:
          * - Creates views `bad_publishers`, `bad_indicia_publishers`,
          *   `bad_series`, `bad_issues`, and `bad_stories`.
          */
@@ -293,6 +310,14 @@ class DBInitializer(
         internal fun addLinkedGroups(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
             queryExecutor.executeSqlScript(
                 sqlScript = File(INIT_ADD_LINKED_GROUPS),
+                conn = conn,
+                targetSchema = targetSchema
+            )
+
+        @Throws(SQLException::class)
+        internal fun pruneEmptyCharacters(queryExecutor: QueryExecutor, targetSchema: String, conn: Connection) =
+            queryExecutor.executeSqlScript(
+                sqlScript = File(INIT_PRUNE_EMPTY_CHARACTERS),
                 conn = conn,
                 targetSchema = targetSchema
             )

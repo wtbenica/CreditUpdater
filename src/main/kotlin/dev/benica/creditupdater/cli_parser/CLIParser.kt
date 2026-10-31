@@ -99,9 +99,9 @@ class CLIParser {
         if (base != null && prepare == null) {
             throw ParameterException("Parameter 'base' should only be used with --prepare")
         }
-        if (_mStep != null && prepare != null && _mStep !in 2..6) {
+        if (_mStep != null && prepare != null && _mStep !in 2..7) {
             _mStep = 1
-            throw ParameterException("Parameter 'step' must be between 2 and 6 (inclusive)")
+            throw ParameterException("Parameter 'step' must be between 2 and 7 (inclusive)")
         }
         if (_mStep != null && prepare == null && migrate == null) {
             _mStep = 1
